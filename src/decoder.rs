@@ -206,16 +206,18 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut sources = rsm.sources;
     if let Some(source_root) = rsm.source_root {
-        let source_root = source_root.trim_right_matches('/');
-        sources = sources.into_iter().map(|x| {
-            if x.len() > 0 && (x.as_bytes()[0] == b'/' ||
-                               x.as_bytes()[..5] == b"http:"[..] ||
-                               x.as_bytes()[..6] == b"https:"[..]) {
-                x
-            } else {
-                format!("{}/{}", source_root, x)
-            }
-        }).collect();
+        if !source_root.is_empty() {
+            let source_root = source_root.trim_right_matches('/');
+            sources = sources.into_iter().map(|x| {
+                if x.len() > 0 && (x.as_bytes()[0] == b'/' ||
+                                   x.as_bytes()[..5] == b"http:"[..] ||
+                                   x.as_bytes()[..6] == b"https:"[..]) {
+                    x
+                } else {
+                    format!("{}/{}", source_root, x)
+                }
+            }).collect();
+        }
     }
 
     Ok(SourceMap::new(
