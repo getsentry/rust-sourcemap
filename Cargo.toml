@@ -11,10 +11,10 @@ readme = "README.md"
 build = "build.rs"
 
 [build-dependencies]
-serde_codegen = "0.7.7"
+serde_codegen = "~0.7.0"
 syntex = "0.33.0"
 
 [dependencies]
-serde = "0.7.7"
-serde_json = "0.7.1"
+serde = "~0.7.0"
+serde_json = "~0.7.1"
 base64 = "0.1.1"
