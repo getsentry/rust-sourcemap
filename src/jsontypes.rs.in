@@ -18,6 +18,8 @@ pub struct RawSourceMap {
     pub sources: Vec<String>,
     #[serde(rename="sourceRoot")]
     pub source_root: Option<String>,
+    #[serde(rename="sourcesContent")]
+    pub sources_content: Option<Vec<Option<String>>>,
     pub sections: Option<Vec<RawSection>>,
     pub names: Vec<String>,
     pub mappings: String,

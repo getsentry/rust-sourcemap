@@ -180,6 +180,7 @@ pub struct SourceMap {
     index: Vec<(u32, u32, u32)>,
     names: Vec<String>,
     sources: Vec<String>,
+    sources_content: Vec<Option<String>>,
 }
 
 impl SourceMap {
@@ -214,9 +215,11 @@ impl SourceMap {
     /// - `index`: a sorted mapping of line and column to token index
     /// - `names`: a vector of names
     /// - `sources` a vector of source filenames
+    /// - `sources_content` optional source contents
     pub fn new(version: u32, file: Option<String>, tokens: Vec<RawToken>,
                index: Vec<(u32, u32, u32)>, names: Vec<String>,
-               sources: Vec<String>) -> SourceMap {
+               sources: Vec<String>,
+               sources_content: Option<Vec<Option<String>>>) -> SourceMap {
         SourceMap {
             version: version,
             file: file,
@@ -224,6 +227,7 @@ impl SourceMap {
             index: index,
             names: names,
             sources: sources,
+            sources_content: sources_content.unwrap_or(vec![]),
         }
     }
 
@@ -283,6 +287,12 @@ impl SourceMap {
     /// Looks up a source for a specific index.
     pub fn get_source(&self, idx: u32) -> Option<&str> {
         self.sources.get(idx as usize).map(|x| &x[..])
+    }
+
+    /// Looks up the content for a source.
+    pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
+        self.sources_content.get(idx as usize)
+            .and_then(|bucket| bucket.as_ref()).map(|x| &**x)
     }
 
     /// Returns the number of names in the sourcemap.
