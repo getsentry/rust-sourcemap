@@ -11,9 +11,9 @@ readme = "README.md"
 build = "build.rs"
 
 [build-dependencies]
-serde_codegen = "*"
-syntex = "*"
+serde_codegen = "0.7.7"
+syntex = "0.33.0"
 
 [dependencies]
-serde = "0.7.5"
+serde = "0.7.7"
 serde_json = "0.7.1"
