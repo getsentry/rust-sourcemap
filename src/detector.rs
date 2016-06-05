@@ -2,7 +2,7 @@ use std::str;
 use std::io::{Read, BufRead, BufReader};
 
 use errors::Result;
-use types::SourceMap;
+use decoder::{decode_data_url, DecodedMap};
 
 
 /// Represents a reference to a sourcemap
@@ -28,10 +28,10 @@ impl SourceMapRef {
     }
 
     /// Load an embedded sourcemap if there is a data URL.
-    pub fn get_embedded_sourcemap(&self) -> Result<Option<SourceMap>> {
+    pub fn get_embedded_sourcemap(&self) -> Result<Option<DecodedMap>> {
         if let Some(url) = self.get_url() {
             if url.starts_with("data:") {
-                return Ok(Some(try!(SourceMap::from_data_url(url))));
+                return Ok(Some(try!(decode_data_url(url))));
             }
         }
         Ok(None)

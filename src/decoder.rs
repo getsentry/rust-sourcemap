@@ -1,12 +1,14 @@
 use std::io;
 use std::io::Read;
 
+use base64;
 use serde_json;
 
 use jsontypes::RawSourceMap;
-use types::{RawToken, SourceMap, SourceMapIndex, SourceMapSection};
+use types::{RawToken, Token, SourceMap, SourceMapIndex, SourceMapSection};
 use errors::{Result, Error};
 
+const DATA_PREABLE: &'static str = "data:application/json;base64,";
 const B64: [i8; 123] = [
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -140,6 +142,20 @@ pub enum DecodedMap {
     Index(SourceMapIndex),
 }
 
+impl DecodedMap {
+
+    /// Shortcut to look up a token on either an index or a
+    /// regular sourcemap.  This method can only be used if
+    /// the contained index actually contains embedded maps
+    /// or it will not be able to look up anything.
+    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+        match *self {
+            DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
+            DecodedMap::Index(ref smi) => smi.lookup_token(line, col),
+        }
+    }
+}
+
 fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut dst_col;
     let mut src_id;
@@ -255,4 +271,14 @@ pub fn decode<R: Read>(rdr: R) -> Result<DecodedMap> {
     } else {
         DecodedMap::Regular(try!(decode_regular(rsm)))
     })
+}
+
+/// Loads a sourcemap from a data URL.
+pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
+    if !url.starts_with(DATA_PREABLE) {
+        fail!(Error::InvalidDataUrl);
+    }
+    let data_b64 = &url.as_bytes()[DATA_PREABLE.len()..];
+    let data = try!(base64::u8de(data_b64).map_err(|_| Error::InvalidDataUrl));
+    decode(&data[..])
 }

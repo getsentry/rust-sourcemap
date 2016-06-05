@@ -46,7 +46,7 @@ mod macros;
 pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex,
                 SourceMapSection, SourceMapSectionIter};
 pub use errors::{Result, Error};
-pub use decoder::{decode, DecodedMap};
+pub use decoder::{decode, decode_data_url, DecodedMap};
 pub use detector::{SourceMapRef, locate_sourcemap_reference};
 
 mod errors;

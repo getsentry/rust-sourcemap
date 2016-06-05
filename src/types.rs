@@ -1,12 +1,8 @@
 use std::fmt;
 use std::io::Read;
 
-use base64;
-
 use decoder::{decode, DecodedMap};
 use errors::{Result, Error};
-
-const DATA_PREABLE: &'static str = "data:application/json;base64,";
 
 /// Represents a raw token
 ///
@@ -208,16 +204,6 @@ impl SourceMap {
             DecodedMap::Regular(sm) => Ok(sm),
             DecodedMap::Index(_) => Err(Error::IndexedSourcemap),
         }
-    }
-
-    /// Loads a sourcemap from a data URL.
-    pub fn from_data_url(url: &str) -> Result<SourceMap> {
-        if !url.starts_with(DATA_PREABLE) {
-            fail!(Error::InvalidDataUrl);
-        }
-        let data_b64 = &url.as_bytes()[DATA_PREABLE.len()..];
-        let data = try!(base64::u8de(data_b64).map_err(|_| Error::InvalidDataUrl));
-        SourceMap::from_reader(&data[..])
     }
 
     /// Constructs a new sourcemap from raw components.
