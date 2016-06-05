@@ -2,6 +2,9 @@ build:
 	@cargo build
 
 watch:
+	@cargo watch
+
+watch-docs:
 	@cargo watch build "doc --no-deps"
 
 test:
