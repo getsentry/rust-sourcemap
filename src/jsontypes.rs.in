@@ -1,0 +1,24 @@
+#[derive(Serialize, Deserialize)]
+pub struct RawSectionOffset {
+    pub line: u32,
+    pub column: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RawSection {
+    pub offset: RawSectionOffset,
+    pub url: Option<String>,
+    pub map: Option<Box<RawSourceMap>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RawSourceMap {
+    pub version: u32,
+    pub file: Option<String>,
+    pub sources: Vec<String>,
+    #[serde(rename="sourceRoot")]
+    pub source_root: Option<String>,
+    pub sections: Option<Vec<RawSection>>,
+    pub names: Vec<String>,
+    pub mappings: String,
+}
