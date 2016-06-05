@@ -37,6 +37,9 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
+#![cfg_attr(feature="serde_macros", feature(custom_derive, plugin))]
+#![cfg_attr(feature="serde_macros", plugin(serde_macros))]
+
 extern crate base64;
 extern crate serde;
 extern crate serde_json;
