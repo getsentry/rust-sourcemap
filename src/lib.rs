@@ -37,6 +37,7 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
+extern crate base64;
 extern crate serde;
 extern crate serde_json;
 
@@ -46,11 +47,13 @@ pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex,
                 SourceMapSection, SourceMapSectionIter};
 pub use errors::{Result, Error};
 pub use decoder::{decode, DecodedMap};
+pub use detector::{SourceMapRef, locate_sourcemap_reference};
 
 mod errors;
 mod types;
 mod jsontypes;
 mod decoder;
+mod detector;
 
 #[doc(hidden)]
 pub mod internals {

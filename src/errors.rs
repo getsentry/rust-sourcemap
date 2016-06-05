@@ -1,4 +1,5 @@
 use std;
+use std::str;
 use std::io;
 use std::fmt;
 use std::string;
@@ -14,8 +15,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// a std::io error
     Io(io::Error),
-    /// a std::string::FromUtf8Error
-    FromUtf8(string::FromUtf8Error),
+    /// a std::str::Utf8Error
+    Utf8(str::Utf8Error),
     /// a JSON parsing related failure
     BadJson(usize, usize, String),
     /// a VLQ string was malformed and data was left over
@@ -34,6 +35,8 @@ pub enum Error {
     /// Indicates that an regular (non-indexed) sourcemap was when
     /// a sourcemap index was expected
     RegularSourcemap,
+    /// Indicates an invalid data URL
+    InvalidDataUrl,
 }
 
 impl Error {
@@ -57,7 +60,13 @@ impl From<io::Error> for Error {
 
 impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error {
-        Error::FromUtf8(err)
+        From::from(err.utf8_error())
+    }
+}
+
+impl From<str::Utf8Error> for Error {
+    fn from(err: str::Utf8Error) -> Error {
+        Error::Utf8(err)
     }
 }
 
@@ -79,7 +88,7 @@ impl error::Error for Error {
         use Error::*;
         match *self {
             Io(ref err) => err.description(),
-            FromUtf8(ref err) => err.description(),
+            Utf8(ref err) => err.description(),
             BadJson(_, _, _) => "bad json",
             VlqLeftover => "vlq leftover",
             VlqNoValues => "no vlq values",
@@ -88,6 +97,7 @@ impl error::Error for Error {
             BadNameReference(_) => "bad name reference",
             IndexedSourcemap => "unexpected indexed sourcemap",
             RegularSourcemap => "unexpected sourcemap",
+            InvalidDataUrl => "invalid data URL",
         }
     }
 
@@ -95,7 +105,7 @@ impl error::Error for Error {
         use Error::*;
         match *self {
             Io(ref err) => Some(&*err),
-            FromUtf8(ref err) => Some(&*err),
+            Utf8(ref err) => Some(&*err),
             _ => None,
         }
     }
@@ -106,7 +116,7 @@ impl fmt::Display for Error {
         use Error::*;
         match *self {
             Io(ref msg) => write!(f, "{}", msg),
-            FromUtf8(ref msg) => write!(f, "{}", msg),
+            Utf8(ref msg) => write!(f, "{}", msg),
             BadJson(line, col, ref msg) => write!(f, "bad json in line {}, column {}: {}", line, col, msg),
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),
@@ -115,6 +125,7 @@ impl fmt::Display for Error {
             BadNameReference(id) => write!(f, "bad reference to name #{}", id),
             IndexedSourcemap => write!(f, "encountered unexpected indexed sourcemap"),
             RegularSourcemap => write!(f, "encountered unexpected sourcemap where index was expected"),
+            InvalidDataUrl => write!(f, "the provided data URL is invalid"),
         }
     }
 }
