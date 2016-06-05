@@ -2,6 +2,12 @@
 name = "sourcemap"
 version = "0.1.0"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
+keywords = ["javascript", "sourcemap", "sourcemaps"]
+description = "Basic sourcemap handling for Rust"
+homepage = "https://github.com/mitsuhiko/rust-sourcemap"
+documentation = "http://mitsuhiko.github.io/rust-sourcemap/"
+license = "BSD-3-Clause"
+readme = "README.md"
 build = "build.rs"
 
 [build-dependencies]
