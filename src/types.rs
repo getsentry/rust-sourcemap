@@ -245,7 +245,7 @@ impl SourceMap {
     }
 
     /// Returns the number of tokens in the sourcemap.
-    pub fn token_count(&self) -> u32 {
+    pub fn get_token_count(&self) -> u32 {
         self.tokens.len() as u32
     }
 
