@@ -1,6 +1,6 @@
 [package]
 name = "sourcemap"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
@@ -17,3 +17,4 @@ syntex = "0.33.0"
 [dependencies]
 serde = "0.7.7"
 serde_json = "0.7.1"
+base64 = "0.1.1"
