@@ -3,6 +3,7 @@ use std::io::Read;
 
 use base64;
 use serde_json;
+use serde_json::Value;
 
 use jsontypes::RawSourceMap;
 use types::{RawToken, Token, SourceMap, SourceMapIndex, SourceMapSection};
@@ -236,8 +237,18 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         }
     }
 
+    // apparently we can encounter some non string types in real world
+    // sourcemaps :(
+    let names = rsm.names.into_iter().map(|val| {
+        match val {
+            Value::String(s) => s,
+            Value::U64(i) => format!("{}", i),
+            _ => "".into(),
+        }
+    }).collect::<Vec<String>>();
+
     Ok(SourceMap::new(
-        rsm.version, rsm.file, tokens, index, rsm.names, sources,
+        rsm.version, rsm.file, tokens, index, names, sources,
         rsm.sources_content))
 }
 
