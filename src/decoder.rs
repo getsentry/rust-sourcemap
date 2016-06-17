@@ -159,7 +159,7 @@ impl DecodedMap {
 
 fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut dst_col;
-    let mut src_id;
+    let mut src_id = 0;
     let mut src_line = 0;
     let mut src_col = 0;
     let mut name_id = 0;
@@ -186,7 +186,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 if nums.len() != 4 && nums.len() != 5 {
                     fail!(Error::BadSegmentSize(nums.len() as u32));
                 }
-                src_id = nums[1] as u32;
+                src_id = (src_id as i64 + nums[1]) as u32;
                 if src_id >= rsm.sources.len() as u32 {
                     fail!(Error::BadSourceReference(src_id));
                 }
