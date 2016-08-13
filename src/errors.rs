@@ -75,7 +75,6 @@ impl From<serde_json::Error> for Error {
         use serde_json::Error::*;
         match err {
             Io(err) => From::from(err),
-            FromUtf8(err) => From::from(err),
             Syntax(code, line, col) => {
                 Error::BadJson(line, col, format!("{:?}", code))
             }
