@@ -37,8 +37,11 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
-#![cfg_attr(feature="serde_macros", feature(custom_derive, plugin))]
-#![cfg_attr(feature="serde_macros", plugin(serde_macros))]
+#![cfg_attr(feature="serde_derive", feature(proc_macro))]
+
+#[cfg(feature = "serde_derive")]
+#[macro_use]
+extern crate serde_derive;
 
 extern crate base64;
 extern crate serde;
