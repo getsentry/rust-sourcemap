@@ -72,6 +72,15 @@ impl<'a> Token<'a> {
         }
     }
 
+    /// get the source ID if it exists
+    pub fn get_source_id(&self) -> Option<u32> {
+        if self.raw.src_id == !0 {
+            None
+        } else {
+            Some(self.raw.src_id)
+        }
+    }
+
     /// get the name if it exists as string
     pub fn get_name(&self) -> Option<&str> {
         if self.raw.name_id == !0 {
