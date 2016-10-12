@@ -72,15 +72,6 @@ impl<'a> Token<'a> {
         }
     }
 
-    /// get the source ID if it exists
-    pub fn get_source_id(&self) -> Option<u32> {
-        if self.raw.src_id == !0 {
-            None
-        } else {
-            Some(self.raw.src_id)
-        }
-    }
-
     /// get the name if it exists as string
     pub fn get_name(&self) -> Option<&str> {
         if self.raw.name_id == !0 {
@@ -125,6 +116,23 @@ impl<'a> Iterator for TokenIter<'a> {
         self.i.get_token(self.next_idx).map(|tok| {
             self.next_idx += 1;
             tok
+        })
+    }
+}
+
+/// Iterates over all tokens in a sourcemap
+pub struct NameIter<'a> {
+    i: &'a SourceMap,
+    next_idx: u32,
+}
+
+impl<'a> Iterator for NameIter<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        self.i.get_name(self.next_idx).map(|name| {
+            self.next_idx += 1;
+            name
         })
     }
 }
@@ -319,6 +327,11 @@ impl SourceMap {
     pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
         self.sources_content.get(idx as usize)
             .and_then(|bucket| bucket.as_ref()).map(|x| &**x)
+    }
+
+    /// Returns an iterator over the names.
+    pub fn names<'a>(&'a self) -> NameIter<'a> {
+        NameIter { i: self, next_idx: 0 }
     }
 
     /// Returns the number of names in the sourcemap.
