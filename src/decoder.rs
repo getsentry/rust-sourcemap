@@ -1,5 +1,5 @@
 use std::io;
-use std::io::Read;
+use std::io::{Read, BufReader};
 
 use base64;
 use serde_json;
@@ -276,6 +276,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
 /// specialized methods on the individual types.
 pub fn decode<R: Read>(rdr: R) -> Result<DecodedMap> {
     let mut rdr = StripHeaderReader::new(rdr);
+    let mut rdr = BufReader::new(&mut rdr);
     let rsm : RawSourceMap = try!(serde_json::from_reader(&mut rdr));
 
     Ok(if rsm.sections.is_some() {
