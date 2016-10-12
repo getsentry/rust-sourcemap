@@ -48,11 +48,18 @@ fn is_junk_json(byte: u8) -> bool {
 }
 
 impl<R: Read> Read for StripHeaderReader<R> {
+    #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.header_state == HeaderState::PastHeader {
             return self.r.read(buf);
         }
+        self.strip_head_read(buf)
+    }
+}
 
+impl<R: Read> StripHeaderReader<R> {
+
+    fn strip_head_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut backing = vec![0; buf.len()];
         let mut local_buf : &mut [u8] = &mut *backing;
 
