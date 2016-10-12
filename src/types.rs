@@ -120,6 +120,23 @@ impl<'a> Iterator for TokenIter<'a> {
     }
 }
 
+/// Iterates over all index items in a sourcemap
+pub struct IndexIter<'a> {
+    i: &'a SourceMap,
+    next_idx: usize,
+}
+
+impl<'a> Iterator for IndexIter<'a> {
+    type Item = (u32, u32, u32);
+
+    fn next(&mut self) -> Option<(u32, u32, u32)> {
+        self.i.index.get(self.next_idx).map(|idx| {
+            self.next_idx += 1;
+            *idx
+        })
+    }
+}
+
 impl<'a> fmt::Debug for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<Token {}>", self)
@@ -303,6 +320,16 @@ impl SourceMap {
     /// Looks up a name for a specific index.
     pub fn get_name(&self, idx: u32) -> Option<&str> {
         self.names.get(idx as usize).map(|x| &x[..])
+    }
+
+    /// Returns the number of items in the index
+    pub fn get_index_size(&self) -> usize {
+        self.index.len()
+    }
+
+    /// Returns the number of items in the index
+    pub fn index_iter<'a>(&'a self) -> IndexIter<'a> {
+        IndexIter { i: self, next_idx: 0 }
     }
 }
 
