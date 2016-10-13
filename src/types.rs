@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io::Read;
 
-use decoder::{decode, DecodedMap};
+use decoder::{decode, decode_slice, DecodedMap};
 use errors::{Result, Error};
 
 /// Represents a raw token
@@ -241,6 +241,28 @@ impl SourceMap {
         }
     }
 
+    /// Creates a sourcemap from a reader over a JSON byte slice in UTF-8
+    /// format.  Optionally a "garbage header" as defined by the
+    /// sourcemap draft specification is supported.  In case an indexed
+    /// sourcemap is encountered an error is returned.
+    ///
+    /// ```rust
+    /// use sourcemap::SourceMap;
+    /// let input: &[_] = b"{
+    ///     \"version\":3,
+    ///     \"sources\":[\"coolstuff.js\"],
+    ///     \"names\":[\"x\",\"alert\"],
+    ///     \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    /// }";
+    /// let sm = SourceMap::from_slice(input).unwrap();
+    /// ```
+    pub fn from_slice(slice: &[u8]) -> Result<SourceMap> {
+        match try!(decode_slice(slice)) {
+            DecodedMap::Regular(sm) => Ok(sm),
+            DecodedMap::Index(_) => Err(Error::IndexedSourcemap),
+        }
+    }
+
     /// Constructs a new sourcemap from raw components.
     ///
     /// - `version`: the version is typically `3` which is the current darft version
@@ -363,6 +385,17 @@ impl SourceMapIndex {
     /// sourcemap is encountered an error is returned.
     pub fn from_reader<R: Read>(rdr: R) -> Result<SourceMapIndex> {
         match try!(decode(rdr)) {
+            DecodedMap::Regular(_) => Err(Error::RegularSourcemap),
+            DecodedMap::Index(smi) => Ok(smi),
+        }
+    }
+
+    /// Creates a sourcemap index from a reader over a JSON byte slice in UTF-8
+    /// format.  Optionally a "garbage header" as defined by the
+    /// sourcemap draft specification is supported.  In case a regular
+    /// sourcemap is encountered an error is returned.
+    pub fn from_slice(slice: &[u8]) -> Result<SourceMapIndex> {
+        match try!(decode_slice(slice)) {
             DecodedMap::Regular(_) => Err(Error::RegularSourcemap),
             DecodedMap::Index(smi) => Ok(smi),
         }
