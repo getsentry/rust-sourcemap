@@ -64,7 +64,7 @@ impl<'a> Token<'a> {
     }
 
     /// get the source if it exists as string
-    pub fn get_source(&self) -> &str {
+    pub fn get_source(&self) -> &'a str {
         if self.raw.src_id == !0 {
             ""
         } else {
@@ -73,7 +73,7 @@ impl<'a> Token<'a> {
     }
 
     /// get the name if it exists as string
-    pub fn get_name(&self) -> Option<&str> {
+    pub fn get_name(&self) -> Option<&'a str> {
         if self.raw.name_id == !0 {
             None
         } else {
@@ -88,7 +88,7 @@ impl<'a> Token<'a> {
 
     /// Converts the token into a debug tuple in the form
     /// `(source, src_line, src_col, name)`
-    pub fn to_tuple(&self) -> (&str, u32, u32, Option<&str>) {
+    pub fn to_tuple(&self) -> (&'a str, u32, u32, Option<&'a str>) {
         (
             self.get_source(),
             self.get_src_line(),
