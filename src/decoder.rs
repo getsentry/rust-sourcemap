@@ -193,6 +193,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut tokens = vec![];
     let mut index = vec![];
+    let names = rsm.names.unwrap_or(vec![]);
 
     for (dst_line, line) in rsm.mappings.split(';').enumerate() {
         let mut line_index = vec![];
@@ -224,7 +225,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
                 if nums.len() > 4 {
                     name_id = (name_id as i64 + nums[4]) as u32;
-                    if name_id >= rsm.names.len() as u32 {
+                    if name_id >= names.len() as u32 {
                         fail!(Error::BadNameReference(name_id));
                     }
                     name = name_id as u32;
@@ -266,7 +267,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     // apparently we can encounter some non string types in real world
     // sourcemaps :(
-    let names = rsm.names.into_iter().map(|val| {
+    let names = names.into_iter().map(|val| {
         match val {
             Value::String(s) => s,
             Value::U64(i) => format!("{}", i),
@@ -275,7 +276,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     }).collect::<Vec<String>>();
 
     Ok(SourceMap::new(
-        rsm.version, rsm.file, tokens, index, names, sources,
+        rsm.version.unwrap_or(0), rsm.file, tokens, index, names, sources,
         rsm.sources_content))
 }
 
@@ -294,7 +295,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
     }
 
     Ok(SourceMapIndex::new(
-        rsm.version, rsm.file, sections))
+        rsm.version.unwrap_or(0), rsm.file, sections))
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
