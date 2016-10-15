@@ -328,7 +328,7 @@ impl SourceMap {
             }
         }
 
-        if low > 0 {
+        if low < high {
             self.get_token(self.index[low as usize].2)
         } else {
             None
