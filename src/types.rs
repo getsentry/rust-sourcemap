@@ -321,15 +321,16 @@ impl SourceMap {
 
         while low < high {
             let mid = (low + high) / 2;
-            if (line, col, 0) < self.index[mid as usize] {
+            let ii = &self.index[mid as usize];
+            if (line, col) < (ii.0, ii.1) {
                 high = mid;
             } else {
                 low = mid + 1;
             }
         }
 
-        if low <= high && low < self.index.len() {
-            self.get_token(self.index[low as usize].2)
+        if low > 0 && low <= self.index.len() {
+            self.get_token(self.index[low as usize - 1].2)
         } else {
             None
         }
