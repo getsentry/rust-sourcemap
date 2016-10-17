@@ -37,6 +37,8 @@ pub enum Error {
     RegularSourcemap,
     /// Indicates an invalid data URL
     InvalidDataUrl,
+    /// Flatten failed
+    CannotFlatten(String),
 }
 
 impl Error {
@@ -97,6 +99,7 @@ impl error::Error for Error {
             IndexedSourcemap => "unexpected indexed sourcemap",
             RegularSourcemap => "unexpected sourcemap",
             InvalidDataUrl => "invalid data URL",
+            CannotFlatten(_) => "cannot flatten the given indexed sourcemap",
         }
     }
 
@@ -125,6 +128,7 @@ impl fmt::Display for Error {
             IndexedSourcemap => write!(f, "encountered unexpected indexed sourcemap"),
             RegularSourcemap => write!(f, "encountered unexpected sourcemap where index was expected"),
             InvalidDataUrl => write!(f, "the provided data URL is invalid"),
+            CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
         }
     }
 }

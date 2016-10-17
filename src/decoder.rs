@@ -194,8 +194,10 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut tokens = vec![];
     let mut index = vec![];
     let names = rsm.names.unwrap_or(vec![]);
+    let mut sources = rsm.sources.unwrap_or_else(|| vec![]);
+    let mappings = rsm.mappings.unwrap_or_else(|| "".into());
 
-    for (dst_line, line) in rsm.mappings.split(';').enumerate() {
+    for (dst_line, line) in mappings.split(';').enumerate() {
         let mut line_index = vec![];
         dst_col = 0;
 
@@ -215,7 +217,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                     fail!(Error::BadSegmentSize(nums.len() as u32));
                 }
                 src_id = (src_id as i64 + nums[1]) as u32;
-                if src_id >= rsm.sources.len() as u32 {
+                if src_id >= sources.len() as u32 {
                     fail!(Error::BadSourceReference(src_id));
                 }
 
@@ -249,7 +251,6 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         }
     }
 
-    let mut sources = rsm.sources;
     if let Some(source_root) = rsm.source_root {
         if !source_root.is_empty() {
             let source_root = source_root.trim_right_matches('/');
@@ -293,6 +294,8 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
             }
         ));
     }
+
+    sections.sort_by_key(|sect| sect.get_offset());
 
     Ok(SourceMapIndex::new(
         rsm.version.unwrap_or(0), rsm.file, sections))

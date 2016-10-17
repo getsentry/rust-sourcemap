@@ -468,6 +468,71 @@ impl SourceMapIndex {
         }
         None
     }
+
+    /// Flattens an indexed sourcemap into a regular one.  This requires
+    /// that all referenced sourcemaps are attached.
+    pub fn flatten(self) -> Result<SourceMap> {
+        let mut tokens = vec![];
+        let mut index = vec![];
+        let mut names = vec![];
+        let mut sources = vec![];
+        let mut source_contents = vec![];
+
+        let mut token_offset = 0;
+        let mut source_offset = 0;
+        let mut name_offset = 0;
+
+        for section in self.sections() {
+            let (off_line, off_col) = section.get_offset();
+            let map = match section.get_sourcemap() {
+                Some(map) => map,
+                None => {
+                    return Err(Error::CannotFlatten(format!(
+                        "Section has an unresolved sourcemap: {}",
+                        section.get_url().unwrap_or("<unknown url>"))));
+                }
+            };
+
+            for (token, (line, col, token_id)) in map.tokens().zip(map.index_iter()) {
+                let mut new_token = token.get_raw_token();
+                new_token.dst_line += off_line;
+                new_token.dst_col += off_col;
+                if new_token.src_id != !0 {
+                    new_token.src_id += source_offset;
+                }
+                if new_token.name_id != !0 {
+                    new_token.name_id += name_offset;
+                }
+                tokens.push(new_token);
+                index.push((line + off_line, col + off_col, token_id + token_offset));
+            }
+
+            for name_id in 0..map.get_name_count() {
+                names.push(map.get_name(name_id).unwrap().to_string());
+            }
+
+            for src_id in 0..map.get_source_count() {
+                match map.get_source(src_id) {
+                    Some(src) => {
+                        sources.push(src.to_string());
+                        source_contents.push(
+                            map.get_source_contents(src_id).map(|x| x.to_string()));
+                    }
+                    None => {
+                        return Err(Error::CannotFlatten(
+                            format!("Bad source reference {}", src_id)));
+                    }
+                }
+            }
+
+            source_offset += map.get_source_count();
+            name_offset += map.get_name_count();
+            token_offset += map.get_token_count();
+        }
+
+        Ok(SourceMap::new(self.version, self.file, tokens, index, names, sources,
+                          Some(source_contents)))
+    }
 }
 
 impl SourceMapSection {
