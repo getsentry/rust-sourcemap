@@ -58,7 +58,6 @@ impl<R: Read> Read for StripHeaderReader<R> {
 }
 
 impl<R: Read> StripHeaderReader<R> {
-
     fn strip_head_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut backing = vec![0; buf.len()];
         let mut local_buf : &mut [u8] = &mut *backing;
@@ -155,7 +154,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
 
     if cur != 0 || shift != 0 {
         Err(Error::VlqLeftover)
-    } else if rv.len() == 0 {
+    } else if rv.is_empty() {
         Err(Error::VlqNoValues)
     } else {
         Ok(rv)
@@ -171,12 +170,11 @@ pub enum DecodedMap {
 }
 
 impl DecodedMap {
-
     /// Shortcut to look up a token on either an index or a
     /// regular sourcemap.  This method can only be used if
     /// the contained index actually contains embedded maps
     /// or it will not be able to look up anything.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token> {
         match *self {
             DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
             DecodedMap::Index(ref smi) => smi.lookup_token(line, col),
@@ -193,8 +191,8 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut tokens = vec![];
     let mut index = vec![];
-    let names = rsm.names.unwrap_or(vec![]);
-    let mut sources = rsm.sources.unwrap_or_else(|| vec![]);
+    let names = rsm.names.unwrap_or_else(Vec::new);
+    let mut sources = rsm.sources.unwrap_or_else(Vec::new);
     let mappings = rsm.mappings.unwrap_or_else(|| "".into());
 
     for (dst_line, line) in mappings.split(';').enumerate() {
@@ -202,7 +200,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         dst_col = 0;
 
         for segment in line.split(',') {
-            if segment.len() == 0 {
+            if segment.is_empty() {
                 continue;
             }
 
@@ -255,9 +253,9 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         if !source_root.is_empty() {
             let source_root = source_root.trim_right_matches('/');
             sources = sources.into_iter().map(|x| {
-                if x.len() > 0 && (x.starts_with('/') ||
-                                   x.starts_with("http:") ||
-                                   x.starts_with("https:")) {
+                if !x.is_empty() &&
+                    (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:"))
+                {
                     x
                 } else {
                     format!("{}/{}", source_root, x)
@@ -292,7 +290,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
     let mut sections = vec![];
 
-    for mut raw_section in rsm.sections.unwrap_or(vec![]) {
+    for mut raw_section in rsm.sections.unwrap_or_else(Vec::new) {
         sections.push(SourceMapSection::new(
             (raw_section.offset.line, raw_section.offset.column),
             raw_section.url,
