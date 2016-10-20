@@ -171,12 +171,11 @@ pub enum DecodedMap {
 }
 
 impl DecodedMap {
-
     /// Shortcut to look up a token on either an index or a
     /// regular sourcemap.  This method can only be used if
     /// the contained index actually contains embedded maps
     /// or it will not be able to look up anything.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token> {
         match *self {
             DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
             DecodedMap::Index(ref smi) => smi.lookup_token(line, col),

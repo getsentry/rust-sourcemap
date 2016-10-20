@@ -218,7 +218,6 @@ pub struct SourceMap {
 }
 
 impl SourceMap {
-
     /// Creates a sourcemap from a reader over a JSON stream in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case an indexed
@@ -298,7 +297,7 @@ impl SourceMap {
     }
 
     /// Looks up a token by its index.
-    pub fn get_token<'a>(&'a self, idx: u32) -> Option<Token<'a>> {
+    pub fn get_token(&self, idx: u32) -> Option<Token> {
         self.tokens.get(idx as usize).map(|raw| {
             Token { raw: raw, i: self }
         })
@@ -310,12 +309,12 @@ impl SourceMap {
     }
 
     /// Returns an iterator over the tokens.
-    pub fn tokens<'a>(&'a self) -> TokenIter<'a> {
+    pub fn tokens(&self) -> TokenIter {
         TokenIter { i: self, next_idx: 0 }
     }
 
     /// Looks up the closest token to a given line and column.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token> {
         let mut low = 0;
         let mut high = self.index.len();
 
@@ -353,7 +352,7 @@ impl SourceMap {
     }
 
     /// Returns an iterator over the names.
-    pub fn names<'a>(&'a self) -> NameIter<'a> {
+    pub fn names(&self) -> NameIter {
         NameIter { i: self, next_idx: 0 }
     }
 
@@ -373,13 +372,12 @@ impl SourceMap {
     }
 
     /// Returns the number of items in the index
-    pub fn index_iter<'a>(&'a self) -> IndexIter<'a> {
+    pub fn index_iter(&self) -> IndexIter {
         IndexIter { i: self, next_idx: 0 }
     }
 }
 
 impl SourceMapIndex {
-
     /// Creates a sourcemap index from a reader over a JSON stream in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case a regular
@@ -442,7 +440,7 @@ impl SourceMapIndex {
     }
 
     /// Iterates over all sections
-    pub fn sections<'a>(&'a self) -> SourceMapSectionIter<'a> {
+    pub fn sections(&self) -> SourceMapSectionIter {
         SourceMapSectionIter {
             i: self,
             next_idx: 0
@@ -454,7 +452,7 @@ impl SourceMapIndex {
     /// This requires that the referenced sourcemaps are actually loaded.
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token> {
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
             if off_line < line || off_col < col {
@@ -536,7 +534,6 @@ impl SourceMapIndex {
 }
 
 impl SourceMapSection {
-
     /// Create a new sourcemap index section
     ///
     /// - `offset`: offset as line and column
