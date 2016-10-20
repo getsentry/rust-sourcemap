@@ -276,8 +276,16 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         }
     }).collect::<Vec<String>>();
 
+    // file sometimes is not a string for unexplicable reasons
+    let file = rsm.file.map(|val| {
+        match val {
+            Value::String(s) => s,
+            _ => "<invalid>".into()
+        }
+    });
+
     Ok(SourceMap::new(
-        rsm.version.unwrap_or(0), rsm.file, tokens, index, names, sources,
+        rsm.version.unwrap_or(0), file, tokens, index, names, sources,
         rsm.sources_content))
 }
 
@@ -297,8 +305,16 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
 
     sections.sort_by_key(|sect| sect.get_offset());
 
+    // file sometimes is not a string for unexplicable reasons
+    let file = rsm.file.map(|val| {
+        match val {
+            Value::String(s) => s,
+            _ => "<invalid>".into()
+        }
+    });
+
     Ok(SourceMapIndex::new(
-        rsm.version.unwrap_or(0), rsm.file, sections))
+        rsm.version.unwrap_or(0), file, sections))
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {

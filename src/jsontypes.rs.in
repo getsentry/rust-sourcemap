@@ -17,7 +17,7 @@ pub struct RawSection {
 #[derive(Serialize, Deserialize)]
 pub struct RawSourceMap {
     pub version: Option<u32>,
-    pub file: Option<String>,
+    pub file: Option<Value>,
     pub sources: Option<Vec<String>>,
     #[serde(rename="sourceRoot")]
     pub source_root: Option<String>,
