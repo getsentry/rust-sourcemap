@@ -192,8 +192,8 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut tokens = vec![];
     let mut index = vec![];
-    let names = rsm.names.unwrap_or(vec![]);
-    let mut sources = rsm.sources.unwrap_or_else(|| vec![]);
+    let names = rsm.names.unwrap_or_else(Vec::new);
+    let mut sources = rsm.sources.unwrap_or_else(Vec::new);
     let mappings = rsm.mappings.unwrap_or_else(|| "".into());
 
     for (dst_line, line) in mappings.split(';').enumerate() {
@@ -283,7 +283,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
     let mut sections = vec![];
 
-    for mut raw_section in rsm.sections.unwrap_or(vec![]) {
+    for mut raw_section in rsm.sections.unwrap_or_else(Vec::new) {
         sections.push(SourceMapSection::new(
             (raw_section.offset.line, raw_section.offset.column),
             raw_section.url,
