@@ -58,7 +58,6 @@ impl<R: Read> Read for StripHeaderReader<R> {
 }
 
 impl<R: Read> StripHeaderReader<R> {
-
     fn strip_head_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut backing = vec![0; buf.len()];
         let mut local_buf : &mut [u8] = &mut *backing;
@@ -155,7 +154,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
 
     if cur != 0 || shift != 0 {
         Err(Error::VlqLeftover)
-    } else if rv.len() == 0 {
+    } else if rv.is_empty() {
         Err(Error::VlqNoValues)
     } else {
         Ok(rv)
@@ -201,7 +200,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         dst_col = 0;
 
         for segment in line.split(',') {
-            if segment.len() == 0 {
+            if segment.is_empty() {
                 continue;
             }
 
@@ -254,9 +253,9 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         if !source_root.is_empty() {
             let source_root = source_root.trim_right_matches('/');
             sources = sources.into_iter().map(|x| {
-                if x.len() > 0 && (x.starts_with('/') ||
-                                   x.starts_with("http:") ||
-                                   x.starts_with("https:")) {
+                if !x.is_empty() &&
+                    (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:"))
+                {
                     x
                 } else {
                     format!("{}/{}", source_root, x)
