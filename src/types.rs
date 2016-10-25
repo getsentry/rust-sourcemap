@@ -10,7 +10,7 @@ use errors::{Result, Error};
 /// in a memory efficient way.  If you construct sourcemaps yourself
 /// then you need to create these objects, otherwise they are invisible
 /// to you as a user.
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub struct RawToken {
     /// the destination (minified) line number
     pub dst_line: u32,
