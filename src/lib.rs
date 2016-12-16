@@ -59,9 +59,12 @@ mod errors;
 mod types;
 mod jsontypes;
 mod decoder;
+mod encoder;
 mod detector;
+mod vlq;
 
 #[doc(hidden)]
 pub mod internals {
     pub use super::decoder::StripHeaderReader;
+    pub use vlq::{parse_vlq_segment, generate_vlq_segment};
 }

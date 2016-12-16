@@ -1,7 +1,9 @@
 use std::fmt;
-use std::io::Read;
+use std::io::{Read, Write};
+use std::cmp::Ordering;
 
 use decoder::{decode, decode_slice, DecodedMap};
+use encoder::encode;
 use errors::{Result, Error};
 
 /// Represents a raw token
@@ -30,6 +32,37 @@ pub struct RawToken {
 pub struct Token<'a> {
     raw: &'a RawToken,
     i: &'a SourceMap,
+}
+
+impl<'a> PartialEq for Token<'a> {
+    fn eq(&self, other: &Token) -> bool {
+        self.raw == other.raw
+    }
+}
+
+impl<'a> Eq for Token<'a> {}
+
+impl<'a> PartialOrd for Token<'a> {
+    fn partial_cmp(&self, other: &Token) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> Ord for Token<'a> {
+    fn cmp(&self, other: &Token) -> Ordering {
+        macro_rules! try_cmp {
+            ($a:expr, $b:expr) => {
+                match $a.cmp(&$b) { Ordering::Equal => {}, x => { return x; } }
+            }
+        }
+        try_cmp!(self.get_dst_line(), other.get_dst_line());
+        try_cmp!(self.get_dst_col(), other.get_dst_col());
+        try_cmp!(self.get_source(), other.get_source());
+        try_cmp!(self.get_src_line(), other.get_src_line());
+        try_cmp!(self.get_src_col(), other.get_src_col());
+        try_cmp!(self.get_name(), other.get_name());
+        Ordering::Equal
+    }
 }
 
 impl<'a> Token<'a> {
@@ -70,6 +103,11 @@ impl<'a> Token<'a> {
         } else {
             &self.i.sources[self.raw.src_id as usize][..]
         }
+    }
+
+    /// Is there a source for this token?
+    pub fn has_source(&self) -> bool {
+        self.raw.src_id != !0
     }
 
     /// get the name if it exists as string
@@ -117,6 +155,42 @@ impl<'a> Iterator for TokenIter<'a> {
             self.next_idx += 1;
             tok
         })
+    }
+}
+
+/// Iterates over all sources in a sourcemap
+pub struct SourceIter<'a> {
+    i: &'a SourceMap,
+    next_idx: u32,
+}
+
+impl<'a> Iterator for SourceIter<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        self.i.get_source(self.next_idx).map(|source| {
+            self.next_idx += 1;
+            source
+        })
+    }
+}
+
+/// Iterates over all source contents in a sourcemap
+pub struct SourceContentsIter<'a> {
+    i: &'a SourceMap,
+    next_idx: u32,
+}
+
+impl<'a> Iterator for SourceContentsIter<'a> {
+    type Item = Option<&'a str>;
+
+    fn next(&mut self) -> Option<Option<&'a str>> {
+        if self.next_idx >= self.i.get_source_count() {
+            None
+        } else {
+            self.next_idx += 1;
+            Some(self.i.get_source_contents(self.next_idx))
+        }
     }
 }
 
@@ -241,6 +315,24 @@ impl SourceMap {
         }
     }
 
+    /// Writes a sourcemap into a writer.
+    ///
+    /// ```rust
+    /// # use sourcemap::SourceMap;
+    /// # let input: &[_] = b"{
+    /// #     \"version\":3,
+    /// #     \"sources\":[\"coolstuff.js\"],
+    /// #     \"names\":[\"x\",\"alert\"],
+    /// #     \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    /// # }";
+    /// let sm = SourceMap::from_reader(input).unwrap();
+    /// let mut output = String::new();
+    /// sm.to_writer(&mut output).unwrap();
+    /// ```
+    pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
+        encode(self, w)
+    }
+
     /// Creates a sourcemap from a reader over a JSON byte slice in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case an indexed
@@ -346,10 +438,20 @@ impl SourceMap {
         self.sources.get(idx as usize).map(|x| &x[..])
     }
 
+    /// Iterates over all sources
+    pub fn sources<'a>(&'a self) -> SourceIter<'a> {
+        SourceIter { i: self, next_idx: 0 }
+    }
+
     /// Looks up the content for a source.
     pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
         self.sources_content.get(idx as usize)
             .and_then(|bucket| bucket.as_ref()).map(|x| &**x)
+    }
+
+    /// Iterates over all source contents
+    pub fn source_contents<'a>(&'a self) -> SourceContentsIter<'a> {
+        SourceContentsIter { i: self, next_idx: 0 }
     }
 
     /// Returns an iterator over the names.

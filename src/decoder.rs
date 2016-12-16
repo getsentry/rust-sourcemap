@@ -8,17 +8,9 @@ use serde_json::Value;
 use jsontypes::RawSourceMap;
 use types::{RawToken, Token, SourceMap, SourceMapIndex, SourceMapSection};
 use errors::{Result, Error};
+use vlq::parse_vlq_segment;
 
 const DATA_PREABLE: &'static str = "data:application/json;base64,";
-const B64: [i8; 123] = [
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55, 56, 57,
-    58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-    9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1,
-    -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-    39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
-];
 
 #[derive(PartialEq)]
 enum HeaderState {
@@ -126,40 +118,6 @@ fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
         }
     }
     Ok(&slice[slice.len()..])
-}
-
-pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
-    let mut rv = vec![];
-
-    let mut cur = 0;
-    let mut shift = 0;
-
-    for c in segment.bytes() {
-        let enc = B64[c as usize] as i64;
-        let val = enc & 0b11111;
-        let cont = enc >> 5;
-        cur += val << shift;
-        shift += 5;
-
-        if cont == 0 {
-            let sign = cur & 1;
-            cur = cur >> 1;
-            if sign != 0 {
-                cur = -cur;
-            }
-            rv.push(cur);
-            cur = 0;
-            shift = 0;
-        }
-    }
-
-    if cur != 0 || shift != 0 {
-        Err(Error::VlqLeftover)
-    } else if rv.len() == 0 {
-        Err(Error::VlqNoValues)
-    } else {
-        Ok(rv)
-    }
 }
 
 /// Represents the result of a decode operation
