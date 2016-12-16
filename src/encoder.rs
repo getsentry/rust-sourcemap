@@ -8,7 +8,7 @@ use jsontypes::RawSourceMap;
 use vlq::encode_vlq;
 use errors::Result;
 
-/// Represents things that can be encoded
+
 pub trait Encodable {
     fn as_raw_sourcemap(&self) -> Result<RawSourceMap>;
 }

@@ -317,6 +317,12 @@ impl SourceMap {
 
     /// Writes a sourcemap into a writer.
     ///
+    /// Note that this operation will generate an equivalent sourcemap to the
+    /// one that was generated on load however there might be small differences
+    /// in the generated JSON and layout.  For instance `sourceRoot` will not
+    /// be set as upon parsing of the sourcemap the sources will already be
+    /// expanded.
+    ///
     /// ```rust
     /// # use sourcemap::SourceMap;
     /// # let input: &[_] = b"{
