@@ -271,7 +271,6 @@ impl<'a> Iterator for SourceMapSectionIter<'a> {
 
 /// Represents a sourcemap index in memory
 pub struct SourceMapIndex {
-    version: u32,
     file: Option<String>,
     sections: Vec<SourceMapSection>,
 }
@@ -282,7 +281,6 @@ pub struct SourceMapIndex {
 /// in case the `from_reader` method is used an index sourcemap will be
 /// rejected with an error on reading.
 pub struct SourceMap {
-    version: u32,
     file: Option<String>,
     tokens: Vec<RawToken>,
     index: Vec<(u32, u32, u32)>,
@@ -332,7 +330,7 @@ impl SourceMap {
     /// #     \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
     /// # }";
     /// let sm = SourceMap::from_reader(input).unwrap();
-    /// let mut output = String::new();
+    /// let mut output : Vec<u8> = vec![];
     /// sm.to_writer(&mut output).unwrap();
     /// ```
     pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
@@ -363,19 +361,17 @@ impl SourceMap {
 
     /// Constructs a new sourcemap from raw components.
     ///
-    /// - `version`: the version is typically `3` which is the current darft version
     /// - `file`: an optional filename of the sourcemap
     /// - `tokens`: a list of raw tokens
     /// - `index`: a sorted mapping of line and column to token index
     /// - `names`: a vector of names
     /// - `sources` a vector of source filenames
     /// - `sources_content` optional source contents
-    pub fn new(version: u32, file: Option<String>, tokens: Vec<RawToken>,
+    pub fn new(file: Option<String>, tokens: Vec<RawToken>,
                index: Vec<(u32, u32, u32)>, names: Vec<String>,
                sources: Vec<String>,
                sources_content: Option<Vec<Option<String>>>) -> SourceMap {
         SourceMap {
-            version: version,
             file: file,
             tokens: tokens,
             index: index,
@@ -385,14 +381,14 @@ impl SourceMap {
         }
     }
 
-    /// Returns the version of the sourcemap.
-    pub fn get_version(&self) -> u32 {
-        self.version
-    }
-
     /// Returns the embedded filename in case there is one.
     pub fn get_file(&self) -> Option<&str> {
         self.file.as_ref().map(|x| &x[..])
+    }
+
+    /// Sets a new value for the file.
+    pub fn set_file(&mut self, value: Option<&str>) {
+        self.file = value.map(|x| x.to_string());
     }
 
     /// Looks up a token by its index.
@@ -499,6 +495,11 @@ impl SourceMapIndex {
         }
     }
 
+    /// Writes a sourcemap index into a writer.
+    pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
+        encode(self, w)
+    }
+
     /// Creates a sourcemap index from a reader over a JSON byte slice in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case a regular
@@ -512,26 +513,24 @@ impl SourceMapIndex {
 
     /// Constructs a new sourcemap index from raw components.
     ///
-    /// - `version`: the version is typically `3` which is the current darft version
     /// - `file`: an optional filename of the index
     /// - `sections`: a vector of source map index sections
-    pub fn new(version: u32, file: Option<String>,
+    pub fn new(file: Option<String>,
                sections: Vec<SourceMapSection>) -> SourceMapIndex {
         SourceMapIndex {
-            version: version,
             file: file,
             sections: sections,
         }
     }
 
-    /// Returns the version of the sourcemap index.
-    pub fn get_version(&self) -> u32 {
-        self.version
-    }
-
     /// Returns the embedded filename in case there is one.
     pub fn get_file(&self) -> Option<&str> {
         self.file.as_ref().map(|x| &x[..])
+    }
+
+    /// Sets a new value for the file.
+    pub fn set_file(&mut self, value: Option<&str>) {
+        self.file = value.map(|x| x.to_string());
     }
 
     /// Returns the number of sections in this index
@@ -638,7 +637,7 @@ impl SourceMapIndex {
             token_offset += map.get_token_count();
         }
 
-        Ok(SourceMap::new(self.version, self.file, tokens, index, names, sources,
+        Ok(SourceMap::new(self.file, tokens, index, names, sources,
                           Some(source_contents)))
     }
 }

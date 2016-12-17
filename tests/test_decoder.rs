@@ -71,7 +71,6 @@ fn test_basic_sourcemap_with_root() {
     }";
     let sm = SourceMap::from_reader(input).unwrap();
     let mut iter = sm.tokens().filter(|t| t.has_name());
-    assert_eq!(sm.get_version(), 3);
     assert_eq!(iter.next().unwrap().to_tuple(), ("x/coolstuff.js", 0, 4, Some("x")));
     assert_eq!(iter.next().unwrap().to_tuple(), ("x/coolstuff.js", 1, 4, Some("x")));
     assert_eq!(iter.next().unwrap().to_tuple(), ("x/coolstuff.js", 2, 2, Some("alert")));
@@ -84,7 +83,6 @@ fn test_sourcemap_data_url() {
     match decode_data_url(url).unwrap() {
         DecodedMap::Regular(sm) => {
             let mut iter = sm.tokens().filter(|t| t.has_name());
-            assert_eq!(sm.get_version(), 3);
             assert_eq!(iter.next().unwrap().to_tuple(), ("x/coolstuff.js", 0, 4, Some("x")));
             assert_eq!(iter.next().unwrap().to_tuple(), ("x/coolstuff.js", 1, 4, Some("x")));
             assert_eq!(iter.next().unwrap().to_tuple(), ("x/coolstuff.js", 2, 2, Some("alert")));

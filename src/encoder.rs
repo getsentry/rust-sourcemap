@@ -3,18 +3,18 @@ use std::io::Write;
 use serde_json;
 use serde_json::Value;
 
-use types::SourceMap;
-use jsontypes::RawSourceMap;
+use types::{SourceMap, SourceMapIndex};
+use jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
 use vlq::encode_vlq;
 use errors::Result;
 
 
 pub trait Encodable {
-    fn as_raw_sourcemap(&self) -> Result<RawSourceMap>;
+    fn as_raw_sourcemap(&self) -> RawSourceMap;
 }
 
 pub fn encode<M: Encodable, W: Write>(sm: &M, mut w: W) -> Result<()> {
-    let ty = try!(sm.as_raw_sourcemap());
+    let ty = sm.as_raw_sourcemap();
     try!(serde_json::to_writer(&mut w, &ty));
     Ok(())
 }
@@ -23,7 +23,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, (a as i64) - (b as i64))
 }
 
-fn serialize_mappings(sm: &SourceMap) -> Result<String> {
+fn serialize_mappings(sm: &SourceMap) -> String {
     let mut rv = String::new();
     // dst == minified == generated
     let mut prev_dst_line = 0;
@@ -67,11 +67,11 @@ fn serialize_mappings(sm: &SourceMap) -> Result<String> {
         }
     }
 
-    Ok(rv)
+    rv
 }
 
 impl Encodable for SourceMap {
-    fn as_raw_sourcemap(&self) -> Result<RawSourceMap> {
+    fn as_raw_sourcemap(&self) -> RawSourceMap {
         let mut have_contents = false;
         let contents = self.source_contents().map(|contents| {
             if let Some(contents) = contents {
@@ -81,8 +81,8 @@ impl Encodable for SourceMap {
                 None
             }
         }).collect();
-        Ok(RawSourceMap {
-            version: Some(self.get_version()),
+        RawSourceMap {
+            version: Some(3),
             file: self.get_file().map(|x| Value::String(x.to_string())),
             sources: Some(self.sources().map(|x| x.to_string()).collect()),
             // XXX: consider setting this to common root
@@ -94,7 +94,33 @@ impl Encodable for SourceMap {
             },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
-            mappings: Some(try!(serialize_mappings(self))),
-        })
+            mappings: Some(serialize_mappings(self)),
+        }
+    }
+}
+
+impl Encodable for SourceMapIndex {
+    fn as_raw_sourcemap(&self) -> RawSourceMap {
+        RawSourceMap {
+            version: Some(3),
+            file: self.get_file().map(|x| Value::String(x.to_string())),
+            sources: None,
+            source_root: None,
+            sources_content: None,
+            sections: Some(self.sections().map(|section| {
+                RawSection {
+                    offset: RawSectionOffset {
+                        line: section.get_offset_line(),
+                        column: section.get_offset_col(),
+                    },
+                    url: section.get_url().map(|x| x.to_string()),
+                    map: section.get_sourcemap().map(|sm| {
+                        Box::new(sm.as_raw_sourcemap())
+                    }),
+                }
+            }).collect()),
+            names: None,
+            mappings: None,
+        }
     }
 }

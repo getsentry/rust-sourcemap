@@ -245,7 +245,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     });
 
     Ok(SourceMap::new(
-        rsm.version.unwrap_or(0), file, tokens, index, names, sources,
+        file, tokens, index, names, sources,
         rsm.sources_content))
 }
 
@@ -273,8 +273,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         }
     });
 
-    Ok(SourceMapIndex::new(
-        rsm.version.unwrap_or(0), file, sections))
+    Ok(SourceMapIndex::new(file, sections))
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
