@@ -363,14 +363,16 @@ impl SourceMap {
     ///
     /// - `file`: an optional filename of the sourcemap
     /// - `tokens`: a list of raw tokens
-    /// - `index`: a sorted mapping of line and column to token index
     /// - `names`: a vector of names
     /// - `sources` a vector of source filenames
     /// - `sources_content` optional source contents
     pub fn new(file: Option<String>, tokens: Vec<RawToken>,
-               index: Vec<(u32, u32, u32)>, names: Vec<String>,
-               sources: Vec<String>,
+               names: Vec<String>, sources: Vec<String>,
                sources_content: Option<Vec<Option<String>>>) -> SourceMap {
+        let mut index : Vec<_> = tokens.iter().enumerate().map(|(idx, token)| {
+            (token.dst_line, token.dst_col, idx as u32)
+        }).collect();
+        index.sort();
         SourceMap {
             file: file,
             tokens: tokens,
@@ -482,9 +484,19 @@ impl SourceMap {
         self.names.len() as u32
     }
 
+    /// Returns true if there are any names in the map.
+    pub fn has_names(&self) -> bool {
+        !self.names.is_empty()
+    }
+
     /// Looks up a name for a specific index.
     pub fn get_name(&self, idx: u32) -> Option<&str> {
         self.names.get(idx as usize).map(|x| &x[..])
+    }
+
+    /// Removes all names from the sourcemap.
+    pub fn remove_names(&mut self) {
+        self.names.clear();
     }
 
     /// Returns the number of items in the index
@@ -596,14 +608,9 @@ impl SourceMapIndex {
     /// that all referenced sourcemaps are attached.
     pub fn flatten(self) -> Result<SourceMap> {
         let mut tokens = vec![];
-        let mut index = vec![];
         let mut names = vec![];
         let mut sources = vec![];
         let mut source_contents = vec![];
-
-        let mut token_offset = 0;
-        let mut source_offset = 0;
-        let mut name_offset = 0;
 
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
@@ -616,18 +623,11 @@ impl SourceMapIndex {
                 }
             };
 
-            for (token, (line, col, token_id)) in map.tokens().zip(map.index_iter()) {
+            for token in map.tokens() {
                 let mut new_token = token.get_raw_token();
                 new_token.dst_line += off_line;
                 new_token.dst_col += off_col;
-                if new_token.src_id != !0 {
-                    new_token.src_id += source_offset;
-                }
-                if new_token.name_id != !0 {
-                    new_token.name_id += name_offset;
-                }
                 tokens.push(new_token);
-                index.push((line + off_line, col + off_col, token_id + token_offset));
             }
 
             for name_id in 0..map.get_name_count() {
@@ -647,13 +647,9 @@ impl SourceMapIndex {
                     }
                 }
             }
-
-            source_offset += map.get_source_count();
-            name_offset += map.get_name_count();
-            token_offset += map.get_token_count();
         }
 
-        Ok(SourceMap::new(self.file, tokens, index, names, sources,
+        Ok(SourceMap::new(self.file, tokens, names, sources,
                           Some(source_contents)))
     }
 }

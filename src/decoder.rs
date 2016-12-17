@@ -154,11 +154,8 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mappings = rsm.mappings.unwrap_or_else(|| "".into());
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
-    let mut index = Vec::with_capacity(allocation_size);
-    let mut line_index = vec![];
 
     for (dst_line, line) in mappings.split(';').enumerate() {
-        line_index.clear();
         dst_col = 0;
 
         for segment in line.split(',') {
@@ -202,12 +199,6 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 src_id: src,
                 name_id: name,
             });
-            line_index.push((dst_col, (tokens.len() - 1) as u32));
-        }
-
-        line_index.sort();
-        for &(dst_col, token_id) in &line_index {
-            index.push((dst_line as u32, dst_col, token_id));
         }
     }
 
@@ -244,9 +235,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         }
     });
 
-    Ok(SourceMap::new(
-        file, tokens, index, names, sources,
-        rsm.sources_content))
+    Ok(SourceMap::new(file, tokens, names, sources, rsm.sources_content))
 }
 
 fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
