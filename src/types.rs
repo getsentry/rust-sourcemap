@@ -703,6 +703,11 @@ impl SourceMapSection {
         self.map.as_ref().map(|x| &**x)
     }
 
+    /// Returns a reference to the embedded sourcemap if available
+    pub fn get_sourcemap_mut(&mut self) -> Option<&mut SourceMap> {
+        self.map.as_mut().map(|x| &mut **x)
+    }
+
     /// Replaces the embedded sourcemap
     pub fn set_sourcemap(&mut self, sm: Option<SourceMap>) {
         self.map = sm.map(|x| Box::new(x));
