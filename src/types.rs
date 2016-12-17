@@ -5,6 +5,24 @@ use std::cmp::Ordering;
 use decoder::{decode, decode_slice, DecodedMap};
 use encoder::encode;
 use errors::{Result, Error};
+use builder::SourceMapBuilder;
+
+/// Controls the `SourceMap::rewrite` behavior
+pub struct RewriteOptions {
+    /// If enabled, names are kept in the rewritten sourcemap.
+    with_names: bool,
+    /// If enabled source contents are kept in the sourcemap.
+    with_source_contents: bool,
+}
+
+impl Default for RewriteOptions {
+    fn default() -> RewriteOptions {
+        RewriteOptions {
+            with_names: true,
+            with_source_contents: true,
+        }
+    }
+}
 
 /// Represents a raw token
 ///
@@ -96,12 +114,17 @@ impl<'a> Token<'a> {
         (self.get_src_line(), self.get_src_col())
     }
 
+    /// Return the source ID of the token
+    pub fn get_src_id(&self) -> u32 {
+        self.raw.src_id
+    }
+
     /// get the source if it exists as string
-    pub fn get_source(&self) -> &'a str {
+    pub fn get_source(&self) -> Option<&'a str> {
         if self.raw.src_id == !0 {
-            ""
+            None
         } else {
-            self.i.get_source(self.raw.src_id).unwrap_or("")
+            self.i.get_source(self.raw.src_id)
         }
     }
 
@@ -124,11 +147,16 @@ impl<'a> Token<'a> {
         self.get_name().is_some()
     }
 
+    /// Return the name ID of the token
+    pub fn get_name_id(&self) -> u32 {
+        self.raw.name_id
+    }
+
     /// Converts the token into a debug tuple in the form
     /// `(source, src_line, src_col, name)`
     pub fn to_tuple(&self) -> (&'a str, u32, u32, Option<&'a str>) {
         (
-            self.get_source(),
+            self.get_source().unwrap_or(""),
             self.get_src_line(),
             self.get_src_col(),
             self.get_name()
@@ -237,7 +265,7 @@ impl<'a> fmt::Debug for Token<'a> {
 impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:{}:{}{}",
-               self.get_source(),
+               self.get_source().unwrap_or("<unknown>"),
                self.get_src_line(),
                self.get_src_col(),
                self.get_name().map(|x| format!(" name={}", x))
@@ -507,6 +535,48 @@ impl SourceMap {
     /// Returns the number of items in the index
     pub fn index_iter<'a>(&'a self) -> IndexIter<'a> {
         IndexIter { i: self, next_idx: 0 }
+    }
+
+    /// This rewrites the sourcemap accoridng to the provided rewrite
+    /// options.
+    ///
+    /// The default behavior is to just deduplicate the sourcemap, something
+    /// that automatically takes place.  This for instance can be used to
+    /// slightly compress sourcemaps if certain data is not wanted.
+    ///
+    /// ```rust
+    /// use sourcemap::{SourceMap, RewriteOptions};
+    /// # let input: &[_] = b"{
+    /// #     \"version\":3,
+    /// #     \"sources\":[\"coolstuff.js\"],
+    /// #     \"names\":[\"x\",\"alert\"],
+    /// #     \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    /// # }";
+    /// let sm = SourceMap::from_slice(input).unwrap();
+    /// let new_sm = sm.rewrite(&RewriteOptions {
+    ///     with_names: false,
+    ///     ..Default::default(),
+    /// }).unwrap();
+    /// ```
+    pub fn rewrite(self, options: &RewriteOptions) -> SourceMap {
+        let mut builder = SourceMapBuilder::new();
+        builder.set_file(self.get_file());
+        for token in self.tokens() {
+            let name = if options.with_names {
+                token.get_name()
+            } else {
+                None
+            };
+            let raw = builder.add_token(token.get_dst_line(), token.get_dst_col(),
+                                        token.get_src_line(), token.get_src_col(),
+                                        token.get_source(), name);
+            if options.with_source_contents &&
+               !builder.has_source_contents(raw.src_id) {
+                builder.set_source_contents(
+                    raw.src_id, self.get_source_contents(raw.src_id));
+            }
+        }
+        builder.into_sourcemap()
     }
 }
 
