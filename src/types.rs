@@ -674,10 +674,7 @@ impl SourceMapIndex {
     /// Flattens an indexed sourcemap into a regular one.  This requires
     /// that all referenced sourcemaps are attached.
     pub fn flatten(self) -> Result<SourceMap> {
-        let mut tokens = vec![];
-        let mut names = vec![];
-        let mut sources = vec![];
-        let mut source_contents = vec![];
+        let mut builder = SourceMapBuilder::new(self.get_file());
 
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
@@ -691,33 +688,20 @@ impl SourceMapIndex {
             };
 
             for token in map.tokens() {
-                let mut new_token = token.get_raw_token();
-                new_token.dst_line += off_line;
-                new_token.dst_col += off_col;
-                tokens.push(new_token);
-            }
-
-            for name_id in 0..map.get_name_count() {
-                names.push(map.get_name(name_id).unwrap().to_string());
-            }
-
-            for src_id in 0..map.get_source_count() {
-                match map.get_source(src_id) {
-                    Some(src) => {
-                        sources.push(src.to_string());
-                        source_contents.push(
-                            map.get_source_contents(src_id).map(|x| x.to_string()));
-                    }
-                    None => {
-                        return Err(Error::CannotFlatten(
-                            format!("Bad source reference {}", src_id)));
-                    }
+                let raw = builder.add(token.get_dst_line() + off_line,
+                                      token.get_dst_col() + off_col,
+                                      token.get_src_line(),
+                                      token.get_src_col(),
+                                      token.get_source(),
+                                      token.get_name());
+                if !builder.has_source_contents(token.get_src_id()) {
+                    builder.set_source_contents(
+                        raw.src_id, map.get_source_contents(token.get_src_id()));
                 }
             }
         }
 
-        Ok(SourceMap::new(self.file, tokens, names, sources,
-                          Some(source_contents)))
+        Ok(builder.into_sourcemap())
     }
 }
 
