@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use types::{SourceMap, RawToken};
+use types::{SourceMap, RawToken, Token};
 
 
 /// Helper for sourcemap generation
@@ -76,9 +76,9 @@ impl SourceMapBuilder {
         id
     }
 
-    pub fn add_token(&mut self, dst_line: u32, dst_col: u32, src_line: u32,
-                     src_col: u32, source: Option<&str>,
-                     name: Option<&str>) -> RawToken {
+    pub fn add(&mut self, dst_line: u32, dst_col: u32, src_line: u32,
+               src_col: u32, source: Option<&str>,
+               name: Option<&str>) -> RawToken {
         let src_id = match source {
             Some(source) => self.add_source(source),
             None => !0
@@ -97,6 +97,13 @@ impl SourceMapBuilder {
         };
         self.tokens.push(raw);
         raw
+    }
+
+    pub fn add_token(&mut self, token: &Token, with_name: bool) -> RawToken {
+        let name = if with_name { token.get_name() } else { None };
+        self.add(token.get_dst_line(), token.get_dst_col(),
+                 token.get_src_line(), token.get_src_col(),
+                 token.get_source(), name)
     }
 
     pub fn into_sourcemap(self) -> SourceMap {

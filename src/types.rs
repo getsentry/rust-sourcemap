@@ -334,6 +334,11 @@ impl SourceMap {
     /// }";
     /// let sm = SourceMap::from_reader(input).unwrap();
     /// ```
+    ///
+    /// While sourcemaps objects permit some modifications, it's generally
+    /// not possible to modify tokens after they have been added.  For
+    /// creating sourcemaps from scratch or for general operations for
+    /// modifying a sourcemap have a look at the `SourceMapBuilder`.
     pub fn from_reader<R: Read>(rdr: R) -> Result<SourceMap> {
         match try!(decode(rdr)) {
             DecodedMap::Regular(sm) => Ok(sm),
@@ -562,14 +567,7 @@ impl SourceMap {
         let mut builder = SourceMapBuilder::new();
         builder.set_file(self.get_file());
         for token in self.tokens() {
-            let name = if options.with_names {
-                token.get_name()
-            } else {
-                None
-            };
-            let raw = builder.add_token(token.get_dst_line(), token.get_dst_col(),
-                                        token.get_src_line(), token.get_src_col(),
-                                        token.get_source(), name);
+            let raw = builder.add_token(&token, options.with_names);
             if options.with_source_contents &&
                !builder.has_source_contents(raw.src_id) {
                 builder.set_source_contents(
