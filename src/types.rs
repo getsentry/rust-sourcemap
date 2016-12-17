@@ -442,13 +442,10 @@ impl SourceMap {
 
     /// Sets a new source value for an index.  This cannot add new
     /// sources.
-    pub fn set_source(&mut self, idx: u32, value: &str) -> bool {
-        if idx as usize >= self.sources.len() {
-            false
-        } else {
-            self.sources[idx as usize] = value.to_string();
-            true
-        }
+    ///
+    /// This panics if a source is set that does not exist.
+    pub fn set_source(&mut self, idx: u32, value: &str) {
+        self.sources[idx as usize] = value.to_string();
     }
 
     /// Iterates over all sources
@@ -463,16 +460,11 @@ impl SourceMap {
     }
 
     /// Sets source contents for a source.
-    pub fn set_source_contents(&mut self, idx: u32, value: Option<&str>) -> bool {
-        if idx as usize >= self.sources.len() {
-            false
-        } else {
-            if self.sources_content.len() != self.sources.len() {
-                self.sources_content.resize(self.sources.len(), None);
-            }
-            self.sources_content[idx as usize] = value.map(|x| x.to_string());
-            true
+    pub fn set_source_contents(&mut self, idx: u32, value: Option<&str>) {
+        if self.sources_content.len() != self.sources.len() {
+            self.sources_content.resize(self.sources.len(), None);
         }
+        self.sources_content[idx as usize] = value.map(|x| x.to_string());
     }
 
     /// Iterates over all source contents
