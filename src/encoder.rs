@@ -34,7 +34,6 @@ fn serialize_mappings(sm: &SourceMap) -> String {
     let mut prev_src_id = 0;
 
     for (idx, token) in sm.tokens().enumerate() {
-        let raw = token.get_raw_token();
         let idx = idx as u32;
 
         if token.get_dst_line() != prev_dst_line {
@@ -54,15 +53,15 @@ fn serialize_mappings(sm: &SourceMap) -> String {
         prev_dst_col = token.get_dst_col();
 
         if token.has_source() {
-            encode_vlq_diff(&mut rv, raw.src_id, prev_src_id);
-            prev_src_id = raw.src_id;
+            encode_vlq_diff(&mut rv, token.get_src_id(), prev_src_id);
+            prev_src_id = token.get_src_id();
             encode_vlq_diff(&mut rv, token.get_src_line(), prev_src_line);
             prev_src_line = token.get_src_line();
             encode_vlq_diff(&mut rv, token.get_src_col(), prev_src_col);
             prev_src_col = token.get_src_col();
             if token.has_name() {
-                encode_vlq_diff(&mut rv, raw.name_id, prev_name_id);
-                prev_name_id = raw.name_id;
+                encode_vlq_diff(&mut rv, token.get_name_id(), prev_name_id);
+                prev_name_id = token.get_name_id();
             }
         }
     }
