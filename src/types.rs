@@ -101,7 +101,7 @@ impl<'a> Token<'a> {
         if self.raw.src_id == !0 {
             ""
         } else {
-            &self.i.sources[self.raw.src_id as usize][..]
+            self.i.get_source(self.raw.src_id).unwrap_or("")
         }
     }
 
@@ -115,7 +115,7 @@ impl<'a> Token<'a> {
         if self.raw.name_id == !0 {
             None
         } else {
-            Some(&self.i.names[self.raw.name_id as usize][..])
+            self.i.get_name(self.raw.name_id)
         }
     }
 
