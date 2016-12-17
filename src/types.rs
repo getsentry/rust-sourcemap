@@ -440,6 +440,17 @@ impl SourceMap {
         self.sources.get(idx as usize).map(|x| &x[..])
     }
 
+    /// Sets a new source value for an index.  This cannot add new
+    /// sources.
+    pub fn set_source(&mut self, idx: u32, value: &str) -> bool {
+        if idx as usize >= self.sources.len() {
+            false
+        } else {
+            self.sources[idx as usize] = value.to_string();
+            true
+        }
+    }
+
     /// Iterates over all sources
     pub fn sources<'a>(&'a self) -> SourceIter<'a> {
         SourceIter { i: self, next_idx: 0 }
@@ -449,6 +460,19 @@ impl SourceMap {
     pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
         self.sources_content.get(idx as usize)
             .and_then(|bucket| bucket.as_ref()).map(|x| &**x)
+    }
+
+    /// Sets source contents for a source.
+    pub fn set_source_contents(&mut self, idx: u32, value: Option<&str>) -> bool {
+        if idx as usize >= self.sources.len() {
+            false
+        } else {
+            if self.sources_content.len() != self.sources.len() {
+                self.sources_content.resize(self.sources.len(), None);
+            }
+            self.sources_content[idx as usize] = value.map(|x| x.to_string());
+            true
+        }
     }
 
     /// Iterates over all source contents
@@ -677,13 +701,18 @@ impl SourceMapSection {
         self.url.as_ref().map(|x| &**x)
     }
 
+    /// Updates the URL for this section.
+    pub fn set_url(&mut self, value: Option<&str>) {
+        self.url = value.map(|x| x.to_string());
+    }
+
     /// Returns a reference to the embedded sourcemap if available
     pub fn get_sourcemap(&self) -> Option<&SourceMap> {
         self.map.as_ref().map(|x| &**x)
     }
 
     /// Replaces the embedded sourcemap
-    pub fn set_sourcemap(&mut self, sm: SourceMap) {
-        self.map = Some(Box::new(sm));
+    pub fn set_sourcemap(&mut self, sm: Option<SourceMap>) {
+        self.map = sm.map(|x| Box::new(x));
     }
 }
