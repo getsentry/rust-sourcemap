@@ -10,9 +10,9 @@ use builder::SourceMapBuilder;
 /// Controls the `SourceMap::rewrite` behavior
 pub struct RewriteOptions {
     /// If enabled, names are kept in the rewritten sourcemap.
-    with_names: bool,
+    pub with_names: bool,
     /// If enabled source contents are kept in the sourcemap.
-    with_source_contents: bool,
+    pub with_source_contents: bool,
 }
 
 impl Default for RewriteOptions {
@@ -555,8 +555,8 @@ impl SourceMap {
     /// let sm = SourceMap::from_slice(input).unwrap();
     /// let new_sm = sm.rewrite(&RewriteOptions {
     ///     with_names: false,
-    ///     ..Default::default(),
-    /// }).unwrap();
+    ///     ..Default::default()
+    /// });
     /// ```
     pub fn rewrite(self, options: &RewriteOptions) -> SourceMap {
         let mut builder = SourceMapBuilder::new();
