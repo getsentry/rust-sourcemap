@@ -564,8 +564,7 @@ impl SourceMap {
     /// });
     /// ```
     pub fn rewrite(self, options: &RewriteOptions) -> SourceMap {
-        let mut builder = SourceMapBuilder::new();
-        builder.set_file(self.get_file());
+        let mut builder = SourceMapBuilder::new(self.get_file());
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
             if options.with_source_contents &&
