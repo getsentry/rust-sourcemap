@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::cmp::Ordering;
 
 use decoder::{decode, decode_slice};
@@ -14,7 +15,7 @@ use builder::SourceMapBuilder;
 /// * `with_names`: true
 /// * `with_source_contents`: true
 /// * `load_local_source_contents`: false
-pub struct RewriteOptions {
+pub struct RewriteOptions<'a> {
     /// If enabled, names are kept in the rewritten sourcemap.
     pub with_names: bool,
     /// If enabled source contents are kept in the sourcemap.
@@ -22,14 +23,18 @@ pub struct RewriteOptions {
     /// If enabled local source contents that are not in the
     /// file are automatically inlined.
     pub load_local_source_contents: bool,
+    /// The base path to the used for source reference resolving
+    /// when loading local source contents is used.
+    pub base_path: Option<&'a Path>,
 }
 
-impl Default for RewriteOptions {
-    fn default() -> RewriteOptions {
+impl<'a> Default for RewriteOptions<'a> {
+    fn default() -> RewriteOptions<'a> {
         RewriteOptions {
             with_names: true,
             with_source_contents: true,
             load_local_source_contents: false,
+            base_path: None,
         }
     }
 }
@@ -613,7 +618,7 @@ impl SourceMap {
     ///     ..Default::default()
     /// });
     /// ```
-    pub fn rewrite(self, options: &RewriteOptions) -> SourceMap {
+    pub fn rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
         let mut builder = SourceMapBuilder::new(self.get_file());
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
@@ -623,7 +628,10 @@ impl SourceMap {
                     raw.src_id, self.get_source_contents(raw.src_id));
             }
         }
-        builder.into_sourcemap()
+        if options.load_local_source_contents {
+            try!(builder.load_local_source_contents(options.base_path));
+        }
+        Ok(builder.into_sourcemap())
     }
 }
 
@@ -758,7 +766,7 @@ impl SourceMapIndex {
     /// rewrites it.  This is more useful than plain flattening as this will
     /// cause the sourcemap to be properly deduplicated.
     pub fn flatten_and_rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
-        Ok(try!(self.flatten()).rewrite(options))
+        try!(self.flatten()).rewrite(options)
     }
 }
 

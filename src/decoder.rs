@@ -6,8 +6,7 @@ use serde_json;
 use serde_json::Value;
 
 use jsontypes::RawSourceMap;
-use types::{RawToken, Token, SourceMap, SourceMapIndex, SourceMapSection,
-            DecodedMap};
+use types::{RawToken, SourceMap, SourceMapIndex, SourceMapSection, DecodedMap};
 use errors::{Result, Error};
 use vlq::parse_vlq_segment;
 
