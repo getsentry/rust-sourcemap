@@ -6,7 +6,8 @@ use serde_json;
 use serde_json::Value;
 
 use jsontypes::RawSourceMap;
-use types::{RawToken, Token, SourceMap, SourceMapIndex, SourceMapSection};
+use types::{RawToken, Token, SourceMap, SourceMapIndex, SourceMapSection,
+            DecodedMap};
 use errors::{Result, Error};
 use vlq::parse_vlq_segment;
 
@@ -118,28 +119,6 @@ fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
         }
     }
     Ok(&slice[slice.len()..])
-}
-
-/// Represents the result of a decode operation
-pub enum DecodedMap {
-    /// Indicates a regular sourcemap
-    Regular(SourceMap),
-    /// Indicates a sourcemap index
-    Index(SourceMapIndex),
-}
-
-impl DecodedMap {
-
-    /// Shortcut to look up a token on either an index or a
-    /// regular sourcemap.  This method can only be used if
-    /// the contained index actually contains embedded maps
-    /// or it will not be able to look up anything.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
-        match *self {
-            DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
-            DecodedMap::Index(ref smi) => smi.lookup_token(line, col),
-        }
-    }
 }
 
 fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
@@ -294,7 +273,7 @@ pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
     decode_common(rsm)
 }
 
-/// Loads a sourcemap from a data URL.
+/// Loads a sourcemap from a data URL
 pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     if !url.starts_with(DATA_PREABLE) {
         fail!(Error::InvalidDataUrl);

@@ -50,10 +50,11 @@ extern crate serde_json;
 mod macros;
 
 pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex,
-                SourceMapSection, SourceMapSectionIter, RewriteOptions};
+                SourceMapSection, SourceMapSectionIter, RewriteOptions,
+                DecodedMap};
 pub use builder::SourceMapBuilder;
 pub use errors::{Result, Error};
-pub use decoder::{decode, decode_slice, decode_data_url, DecodedMap};
+pub use decoder::{decode, decode_slice, decode_data_url};
 pub use detector::{SourceMapRef, locate_sourcemap_reference};
 
 mod builder;

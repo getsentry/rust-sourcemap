@@ -7,10 +7,10 @@ use std::error;
 
 use serde_json;
 
-/// Represents results from this library.
+/// Represents results from this library
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Represents different failure cases.
+/// Represents different failure cases
 #[derive(Debug)]
 pub enum Error {
     /// a std::io error

@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::cmp::Ordering;
 
-use decoder::{decode, decode_slice, DecodedMap};
+use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
@@ -20,6 +20,46 @@ impl Default for RewriteOptions {
         RewriteOptions {
             with_names: true,
             with_source_contents: true,
+        }
+    }
+}
+
+/// Represents the result of a decode operation
+///
+/// This represents either an actual sourcemap or a source map index.
+/// Usually the two things are too distinct to provide a common
+/// interface however for token lookup and writing back into a writer
+/// general methods are provided.
+pub enum DecodedMap {
+    /// Indicates a regular sourcemap
+    Regular(SourceMap),
+    /// Indicates a sourcemap index
+    Index(SourceMapIndex),
+}
+
+impl DecodedMap {
+
+    /// Alias for `decode`.
+    pub fn from_reader<R: Read>(rdr: R) -> Result<DecodedMap> {
+        decode(rdr)
+    }
+
+    /// Writes a decoded sourcemap to a writer.
+    pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
+        match *self {
+            DecodedMap::Regular(ref sm) => encode(sm, w),
+            DecodedMap::Index(ref smi) => encode(smi, w),
+        }
+    }
+
+    /// Shortcut to look up a token on either an index or a
+    /// regular sourcemap.  This method can only be used if
+    /// the contained index actually contains embedded maps
+    /// or it will not be able to look up anything.
+    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+        match *self {
+            DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
+            DecodedMap::Index(ref smi) => smi.lookup_token(line, col),
         }
     }
 }

@@ -2,7 +2,8 @@ use std::str;
 use std::io::{Read, BufRead, BufReader};
 
 use errors::Result;
-use decoder::{decode_data_url, DecodedMap};
+use types::DecodedMap;
+use decoder::decode_data_url;
 
 
 /// Represents a reference to a sourcemap
