@@ -37,26 +37,15 @@ fn test_basic_indexed_sourcemap() {
             }
         ]
     }"#;
-    let file1 : Vec<&'static str> = r#"function add(a, b) {
- "use strict";
- return a + b; // fôo
-}
-"#.lines().collect();
-    let file2 : Vec<&'static str> = r#"function multiply(a, b) {
- "use strict";
- return a * b;
-}
-function divide(a, b) {
- "use strict";
- try {
-  return multiply(add(a, b), a, b) / c;
- } catch (e) {
-  Raven.captureException(e);
- }
-}
-"#.lines().collect();
 
-    println!("{:?}", file1);
+    let file1 : Vec<_> = "function add(a, b) {\n \"use strict\";\n \
+                          return a + b; // fôo\n}".lines().collect();
+    let file2 : Vec<_> = "function multiply(a, b) {\n \"use strict\";\n \
+                          return a * b;\n}\nfunction divide(a, b) {\n \
+                          \"use strict\";\n try {\n  return multiply(add(a, \
+                          b), a, b) / c;\n } catch (e) {\n  \
+                          Raven.captureException(e);\n }\n}".lines().collect();
+
     let mut files = HashMap::new();
     files.insert("file1.js", file1);
     files.insert("file2.js", file2);
@@ -66,7 +55,6 @@ function divide(a, b) {
 
     for token in flat_map.tokens() {
         let src = files.get(token.get_source().unwrap()).unwrap();
-        println!("{:?}", token);
         if let Some(name) = token.get_name() {
             let line = src[token.get_src_line() as usize];
             let idx = token.get_src_col() as usize;
