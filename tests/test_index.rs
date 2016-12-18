@@ -38,17 +38,17 @@ fn test_basic_indexed_sourcemap() {
         ]
     }"#;
 
-    let file1 : Vec<_> = "function add(a, b) {\n \"use strict\";\n \
-                          return a + b; // fôo\n}".lines().collect();
-    let file2 : Vec<_> = "function multiply(a, b) {\n \"use strict\";\n \
-                          return a * b;\n}\nfunction divide(a, b) {\n \
-                          \"use strict\";\n try {\n  return multiply(add(a, \
-                          b), a, b) / c;\n } catch (e) {\n  \
-                          Raven.captureException(e);\n }\n}".lines().collect();
+    let f1 : Vec<_> = "function add(a, b) {\n \"use strict\";\n \
+                       return a + b; // fôo\n}".lines().collect();
+    let f2 : Vec<_> = "function multiply(a, b) {\n \"use strict\";\n \
+                       return a * b;\n}\nfunction divide(a, b) {\n \
+                       \"use strict\";\n try {\n  return multiply(add(a, \
+                       b), a, b) / c;\n } catch (e) {\n  \
+                       Raven.captureException(e);\n }\n}".lines().collect();
 
     let mut files = HashMap::new();
-    files.insert("file1.js", file1);
-    files.insert("file2.js", file2);
+    files.insert("file1.js", f1);
+    files.insert("file2.js", f2);
 
     let ism = SourceMapIndex::from_reader(input).unwrap();
     let flat_map = ism.flatten().unwrap();
