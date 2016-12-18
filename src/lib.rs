@@ -46,6 +46,7 @@ extern crate serde_derive;
 extern crate base64;
 extern crate serde;
 extern crate serde_json;
+extern crate url;
 
 mod macros;
 

@@ -8,11 +8,20 @@ use errors::{Result, Error};
 use builder::SourceMapBuilder;
 
 /// Controls the `SourceMap::rewrite` behavior
+///
+/// Default configuration:
+///
+/// * `with_names`: true
+/// * `with_source_contents`: true
+/// * `load_local_source_contents`: false
 pub struct RewriteOptions {
     /// If enabled, names are kept in the rewritten sourcemap.
     pub with_names: bool,
     /// If enabled source contents are kept in the sourcemap.
     pub with_source_contents: bool,
+    /// If enabled local source contents that are not in the
+    /// file are automatically inlined.
+    pub load_local_source_contents: bool,
 }
 
 impl Default for RewriteOptions {
@@ -20,6 +29,7 @@ impl Default for RewriteOptions {
         RewriteOptions {
             with_names: true,
             with_source_contents: true,
+            load_local_source_contents: false,
         }
     }
 }
@@ -742,6 +752,13 @@ impl SourceMapIndex {
         }
 
         Ok(builder.into_sourcemap())
+    }
+
+    /// Flattens an indexed sourcemap into a regular one and automatically
+    /// rewrites it.  This is more useful than plain flattening as this will
+    /// cause the sourcemap to be properly deduplicated.
+    pub fn flatten_and_rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
+        Ok(try!(self.flatten()).rewrite(options))
     }
 }
 

@@ -1,5 +1,12 @@
+use std::env;
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
+use url::Url;
+
+use errors::Result;
 use types::{SourceMap, RawToken, Token};
 
 
@@ -16,6 +23,20 @@ pub struct SourceMapBuilder {
     source_map: HashMap<String, u32>,
     sources: Vec<String>,
     source_contents: Vec<Option<String>>,
+}
+
+fn resolve_local_reference(base: &Url, reference: &str) -> Option<PathBuf> {
+    let url = match base.join(reference) {
+        Ok(url) => {
+            if url.scheme() != "file" {
+                return None;
+            }
+            url
+        }
+        Err(_) => { return None; }
+    };
+
+    url.to_file_path().ok()
 }
 
 impl SourceMapBuilder {
@@ -79,6 +100,36 @@ impl SourceMapBuilder {
     /// Checks if a given source ID has source contents available.
     pub fn has_source_contents(&self, src_id: u32) -> bool {
         self.get_source_contents(src_id).is_some()
+    }
+
+    /// Loads source contents from locally accessible files if referenced
+    /// accordingly.  Returns the number of loaded source contents
+    pub fn load_local_source_contents(&mut self, base_path: Option<&Path>) -> Result<usize> {
+        let mut abs_path = try!(env::current_dir());
+        if let Some(path) = base_path {
+            abs_path.push(path);
+        }
+        let base_url = Url::from_directory_path(&abs_path).unwrap();
+
+        let mut to_read = vec![];
+        for (source, &src_id) in self.source_map.iter() {
+            if self.has_source_contents(src_id) {
+                continue;
+            }
+            if let Some(path) = resolve_local_reference(&base_url, &source) {
+                to_read.push((src_id, path));
+            }
+        }
+
+        let rv = to_read.len();
+        for (src_id, path) in to_read {
+            let mut f = try!(fs::File::open(&path));
+            let mut contents = String::new();
+            try!(f.read_to_string(&mut contents));
+            self.set_source_contents(src_id, Some(&contents));
+        }
+
+        Ok(rv)
     }
 
     /// Registers a name with the builder and returns the name ID.
