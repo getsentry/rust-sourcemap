@@ -1,4 +1,5 @@
 use serde_json::Value;
+use serde::de::impls::IgnoredAny;
 
 
 #[derive(Serialize, Deserialize)]
@@ -30,4 +31,18 @@ pub struct RawSourceMap {
     pub names: Option<Vec<Value>>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub mappings: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct MinimalRawSourceMap {
+    pub version: Option<u32>,
+    pub file: Option<IgnoredAny>,
+    pub sources: Option<IgnoredAny>,
+    #[serde(rename="sourceRoot")]
+    pub source_root: Option<IgnoredAny>,
+    #[serde(rename="sourcesContent")]
+    pub sources_content: Option<IgnoredAny>,
+    pub sections: Option<IgnoredAny>,
+    pub names: Option<IgnoredAny>,
+    pub mappings: Option<IgnoredAny>,
 }

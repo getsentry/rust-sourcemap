@@ -55,7 +55,8 @@ pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex,
                 DecodedMap};
 pub use builder::SourceMapBuilder;
 pub use errors::{Result, Error};
-pub use decoder::{decode, decode_slice, decode_data_url};
+pub use decoder::{decode, decode_slice, decode_data_url,
+                  is_sourcemap, is_sourcemap_slice};
 pub use detector::{SourceMapRef, locate_sourcemap_reference};
 
 mod builder;
