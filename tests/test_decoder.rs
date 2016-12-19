@@ -3,7 +3,7 @@ extern crate sourcemap;
 use std::io;
 use std::io::BufRead;
 
-use sourcemap::{decode_data_url, SourceMap, DecodedMap, is_sourcemap_slice};
+use sourcemap::{decode_data_url, SourceMap, DecodedMap};
 use sourcemap::internals::StripHeaderReader;
 
 #[test]
@@ -58,26 +58,6 @@ fn test_basic_sourcemap() {
     assert_eq!(iter.next().unwrap().to_tuple(), ("coolstuff.js", 1, 4, Some("x")));
     assert_eq!(iter.next().unwrap().to_tuple(), ("coolstuff.js", 2, 2, Some("alert")));
     assert!(iter.next().is_none());
-}
-
-#[test]
-fn test_detect_basic_sourcemap() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
-    assert!(is_sourcemap_slice(input));
-}
-
-#[test]
-fn test_detect_bad_sourcemap() {
-    let input: &[_] = b"{
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"]
-    }";
-    assert!(!is_sourcemap_slice(input));
 }
 
 #[test]

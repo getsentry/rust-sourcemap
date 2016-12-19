@@ -1,6 +1,7 @@
 extern crate sourcemap;
 
-use sourcemap::{SourceMapRef, locate_sourcemap_reference};
+use sourcemap::{SourceMapRef, locate_sourcemap_reference,
+                is_sourcemap_slice};
 
 #[test]
 fn test_basic_locate() {
@@ -23,4 +24,36 @@ fn test_no_ref() {
     let input : &[_] = b"foo();\nbar();\n// whatever";
     assert_eq!(locate_sourcemap_reference(input).unwrap(),
                SourceMapRef::Missing);
+}
+
+#[test]
+fn test_detect_basic_sourcemap() {
+    let input: &[_] = b"{
+        \"version\":3,
+        \"sources\":[\"coolstuff.js\"],
+        \"names\":[\"x\",\"alert\"],
+        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    }";
+    assert!(is_sourcemap_slice(input));
+}
+
+#[test]
+fn test_detect_bad_sourcemap() {
+    let input: &[_] = b"{
+        \"sources\":[\"coolstuff.js\"],
+        \"names\":[\"x\",\"alert\"]
+    }";
+    assert!(!is_sourcemap_slice(input));
+}
+
+#[test]
+fn test_detect_basic_sourcemap_with_junk_header() {
+    let input: &[_] = b")]}garbage\n
+    {
+        \"version\":3,
+        \"sources\":[\"coolstuff.js\"],
+        \"names\":[\"x\",\"alert\"],
+        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    }";
+    assert!(is_sourcemap_slice(input));
 }
