@@ -3,7 +3,10 @@ use std::io::{Read, BufRead, BufReader};
 
 use errors::Result;
 use types::DecodedMap;
-use decoder::decode_data_url;
+use jsontypes::MinimalRawSourceMap;
+use decoder::{StripHeaderReader, decode_data_url, strip_junk_header};
+
+use serde_json;
 
 
 /// Represents a reference to a sourcemap
@@ -58,4 +61,44 @@ pub fn locate_sourcemap_reference<R: Read>(rdr: R) -> Result<SourceMapRef> {
         }
     }
     Ok(SourceMapRef::Missing)
+}
+
+/// Locates a sourcemap reference in a slice
+///
+/// This is an alternative to `locate_sourcemap_reference` that operates
+/// on slices.
+pub fn locate_sourcemap_reference_slice(slice: &[u8]) -> Result<SourceMapRef> {
+    locate_sourcemap_reference(slice)
+}
+
+fn is_sourcemap_common(rsm: MinimalRawSourceMap) -> bool {
+    (rsm.version.is_some() || rsm.file.is_some()) && (
+        (rsm.sources.is_some() ||
+         rsm.source_root.is_some() ||
+         rsm.sources_content.is_some() ||
+         rsm.names.is_some()) && rsm.mappings.is_some()
+    ) || rsm.sections.is_some()
+}
+
+fn is_sourcemap_impl<R: Read>(rdr: R) -> Result<bool> {
+    let mut rdr = StripHeaderReader::new(rdr);
+    let mut rdr = BufReader::new(&mut rdr);
+    let rsm : MinimalRawSourceMap = try!(serde_json::from_reader(&mut rdr));
+    Ok(is_sourcemap_common(rsm))
+}
+
+fn is_sourcemap_slice_impl(slice: &[u8]) -> Result<bool> {
+    let content = try!(strip_junk_header(slice));
+    let rsm : MinimalRawSourceMap = try!(serde_json::from_slice(content));
+    Ok(is_sourcemap_common(rsm))
+}
+
+/// Checks if a valid sourcemap can be read from the given reader
+pub fn is_sourcemap<R: Read>(rdr: R) -> bool {
+    is_sourcemap_impl(rdr).unwrap_or(false)
+}
+
+/// Checks if the given byte slice contains a sourcemap
+pub fn is_sourcemap_slice(slice: &[u8]) -> bool {
+    is_sourcemap_slice_impl(slice).unwrap_or(false)
 }

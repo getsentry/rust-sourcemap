@@ -5,7 +5,7 @@ use base64;
 use serde_json;
 use serde_json::Value;
 
-use jsontypes::{RawSourceMap, MinimalRawSourceMap};
+use jsontypes::RawSourceMap;
 use types::{RawToken, SourceMap, SourceMapIndex, SourceMapSection, DecodedMap};
 use errors::{Result, Error};
 use vlq::parse_vlq_segment;
@@ -100,7 +100,7 @@ impl<R: Read> StripHeaderReader<R> {
 }
 
 
-fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
+pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     if slice.len() == 0 || !is_junk_json(slice[0]) {
         return Ok(slice);
     }
@@ -280,36 +280,4 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     let data_b64 = &url.as_bytes()[DATA_PREABLE.len()..];
     let data = try!(base64::u8de(data_b64).map_err(|_| Error::InvalidDataUrl));
     decode_slice(&data[..])
-}
-
-fn is_sourcemap_common(rsm: MinimalRawSourceMap) -> bool {
-    (rsm.version.is_some() || rsm.file.is_some()) && (
-        (rsm.sources.is_some() ||
-         rsm.source_root.is_some() ||
-         rsm.sources_content.is_some() ||
-         rsm.names.is_some()) && rsm.mappings.is_some()
-    ) || rsm.sections.is_some()
-}
-
-fn is_sourcemap_impl<R: Read>(rdr: R) -> Result<bool> {
-    let mut rdr = StripHeaderReader::new(rdr);
-    let mut rdr = BufReader::new(&mut rdr);
-    let rsm : MinimalRawSourceMap = try!(serde_json::from_reader(&mut rdr));
-    Ok(is_sourcemap_common(rsm))
-}
-
-fn is_sourcemap_slice_impl(slice: &[u8]) -> Result<bool> {
-    let content = try!(strip_junk_header(slice));
-    let rsm : MinimalRawSourceMap = try!(serde_json::from_slice(content));
-    Ok(is_sourcemap_common(rsm))
-}
-
-/// Checks if a valid sourcemap can be read from the given reader
-pub fn is_sourcemap<R: Read>(rdr: R) -> bool {
-    is_sourcemap_impl(rdr).unwrap_or(false)
-}
-
-/// Checks if the given byte slice contains a sourcemap
-pub fn is_sourcemap_slice(slice: &[u8]) -> bool {
-    is_sourcemap_slice_impl(slice).unwrap_or(false)
 }
