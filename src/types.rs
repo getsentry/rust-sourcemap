@@ -625,7 +625,7 @@ impl SourceMap {
             if options.with_source_contents &&
                !builder.has_source_contents(raw.src_id) {
                 builder.set_source_contents(
-                    raw.src_id, self.get_source_contents(raw.src_id));
+                    raw.src_id, self.get_source_contents(token.get_src_id()));
             }
         }
         if options.load_local_source_contents {
