@@ -7,6 +7,7 @@ use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
+use utils::find_common_prefix;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -26,6 +27,10 @@ pub struct RewriteOptions<'a> {
     /// The base path to the used for source reference resolving
     /// when loading local source contents is used.
     pub base_path: Option<&'a Path>,
+    /// Optionally strips common prefixes from the sources.  If
+    /// an item in the list is set to `~` then the common prefix
+    /// of all sources is stripped.
+    pub strip_prefixes: &'a [&'a str],
 }
 
 impl<'a> Default for RewriteOptions<'a> {
@@ -35,6 +40,7 @@ impl<'a> Default for RewriteOptions<'a> {
             with_source_contents: true,
             load_local_source_contents: false,
             base_path: None,
+            strip_prefixes: &[][..],
         }
     }
 }
@@ -620,6 +626,7 @@ impl SourceMap {
     /// ```
     pub fn rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
         let mut builder = SourceMapBuilder::new(self.get_file());
+
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
             if options.with_source_contents &&
@@ -631,6 +638,25 @@ impl SourceMap {
         if options.load_local_source_contents {
             try!(builder.load_local_source_contents(options.base_path));
         }
+
+        let mut prefixes = vec![];
+        let mut need_common_prefix = false;
+        for &prefix in options.strip_prefixes.iter() {
+            if prefix == "~" {
+                need_common_prefix = true;
+            } else {
+                prefixes.push(prefix.to_string());
+            }
+        }
+        if need_common_prefix {
+            if let Some(prefix) = find_common_prefix(self.sources.iter().map(|x| x.as_str())) {
+                prefixes.push(prefix);
+            }
+        }
+        if !prefixes.is_empty() {
+            builder.strip_prefixes(&prefixes);
+        }
+
         Ok(builder.into_sourcemap())
     }
 }

@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::convert::AsRef;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
@@ -173,6 +174,22 @@ impl SourceMapBuilder {
         self.add(token.get_dst_line(), token.get_dst_col(),
                  token.get_src_line(), token.get_src_col(),
                  token.get_source(), name)
+    }
+
+    /// Strips common prefixes from the sources in the builder
+    pub fn strip_prefixes<S: AsRef<str>>(&mut self, prefixes: &[S]) {
+        for source in self.sources.iter_mut() {
+            for prefix in prefixes {
+                let mut prefix = prefix.as_ref().to_string();
+                if !prefix.ends_with('/') {
+                    prefix.push('/');
+                }
+                if source.starts_with(&prefix) {
+                    *source = source[prefix.len()..].to_string();
+                    break;
+                }
+            }
+        }
     }
 
     /// Converts the builder into a sourcemap.

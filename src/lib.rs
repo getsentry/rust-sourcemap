@@ -68,6 +68,7 @@ mod decoder;
 mod encoder;
 mod detector;
 mod vlq;
+mod utils;
 
 #[doc(hidden)]
 pub mod internals {
