@@ -8,7 +8,7 @@ watch-docs:
 	@cargo watch build "doc --no-deps"
 
 test:
-	@cargo test
+	@cargo test --release
 
 docs: build
 	@cargo doc --no-deps
