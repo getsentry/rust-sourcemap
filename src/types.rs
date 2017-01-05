@@ -277,10 +277,9 @@ impl<'a> Iterator for SourceContentsIter<'a> {
         if self.next_idx >= self.i.get_source_count() {
             None
         } else {
-            Some(self.i.get_source_contents(self.next_idx).map(|contents| {
-                self.next_idx += 1;
-                contents
-            }))
+            let rv = Some(self.i.get_source_contents(self.next_idx));
+            self.next_idx += 1;
+            rv
         }
     }
 }
