@@ -67,7 +67,7 @@ fn test_basic_indexed_sourcemap() {
     let flat_map = ism.flatten().unwrap();
 
     let mut out : Vec<u8> = vec![];
-    flat_map.to_writer(&mut out);
+    flat_map.to_writer(&mut out).ok();
     println!("{}", String::from_utf8(out).unwrap());
 
     for token in flat_map.tokens() {
