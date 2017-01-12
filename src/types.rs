@@ -456,7 +456,12 @@ impl SourceMap {
     /// - `names`: a vector of names
     /// - `sources` a vector of source filenames
     /// - `sources_content` optional source contents
-    pub fn new(file: Option<String>, tokens: Vec<RawToken>, names: Vec<String>, sources: Vec<String>, sources_content: Option<Vec<Option<String>>>) -> SourceMap {
+    pub fn new(file: Option<String>,
+               tokens: Vec<RawToken>,
+               names: Vec<String>,
+               sources: Vec<String>,
+               sources_content: Option<Vec<Option<String>>>)
+               -> SourceMap {
         let mut index: Vec<_> = tokens.iter()
             .enumerate()
             .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32))
@@ -791,7 +796,8 @@ impl SourceMapIndex {
                                       token.get_source(),
                                       token.get_name());
                 if !builder.has_source_contents(raw.src_id) {
-                    builder.set_source_contents(raw.src_id, map.get_source_contents(token.get_src_id()));
+                    builder.set_source_contents(raw.src_id,
+                                                map.get_source_contents(token.get_src_id()));
                 }
             }
         }
@@ -813,7 +819,10 @@ impl SourceMapSection {
     /// - `offset`: offset as line and column
     /// - `url`: optional URL of where the sourcemap is located
     /// - `map`: an optional already resolved internal sourcemap
-    pub fn new(offset: (u32, u32), url: Option<String>, map: Option<SourceMap>) -> SourceMapSection {
+    pub fn new(offset: (u32, u32),
+               url: Option<String>,
+               map: Option<SourceMap>)
+               -> SourceMapSection {
         SourceMapSection {
             offset: offset,
             url: url,

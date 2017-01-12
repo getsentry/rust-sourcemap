@@ -182,7 +182,8 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             let source_root = source_root.trim_right_matches('/');
             sources = sources.into_iter()
                 .map(|x| {
-                    if x.len() > 0 && (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:")) {
+                    if x.len() > 0 &&
+                       (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:")) {
                         x
                     } else {
                         format!("{}/{}", source_root, x)

@@ -16,7 +16,8 @@ fn is_abs_path(s: &str) -> bool {
         return true;
     } else if s.len() > 3 {
         let b = s.as_bytes();
-        if b[1] == b':' && (b[2] == b'/' || b[2] == b'\\') && ((b[0] >= b'a' && b[0] <= b'z') || (b[0] >= b'A' && b[0] <= b'Z')) {
+        if b[1] == b':' && (b[2] == b'/' || b[2] == b'\\') &&
+           ((b[0] >= b'a' && b[0] <= b'z') || (b[0] >= b'A' && b[0] <= b'Z')) {
             return true;
         }
     }
@@ -89,6 +90,7 @@ fn test_find_common_prefix() {
     let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "foo"].into_iter());
     assert_eq!(rv, Some("/foo/bar/baz".into()));
 
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter());
+    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"]
+        .into_iter());
     assert_eq!(rv, None);
 }

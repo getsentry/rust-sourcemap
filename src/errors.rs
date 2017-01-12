@@ -116,7 +116,9 @@ impl fmt::Display for Error {
         match *self {
             Io(ref msg) => write!(f, "{}", msg),
             Utf8(ref msg) => write!(f, "{}", msg),
-            BadJson(line, col, ref msg) => write!(f, "bad json in line {}, column {}: {}", line, col, msg),
+            BadJson(line, col, ref msg) => {
+                write!(f, "bad json in line {}, column {}: {}", line, col, msg)
+            }
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),
             BadSegmentSize(size) => write!(f, "got {} segments, expected 4 or 5", size),

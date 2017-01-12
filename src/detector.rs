@@ -70,7 +70,9 @@ pub fn locate_sourcemap_reference_slice(slice: &[u8]) -> Result<SourceMapRef> {
 }
 
 fn is_sourcemap_common(rsm: MinimalRawSourceMap) -> bool {
-    (rsm.version.is_some() || rsm.file.is_some()) && ((rsm.sources.is_some() || rsm.source_root.is_some() || rsm.sources_content.is_some() || rsm.names.is_some()) && rsm.mappings.is_some()) || rsm.sections.is_some()
+    (rsm.version.is_some() || rsm.file.is_some()) &&
+    ((rsm.sources.is_some() || rsm.source_root.is_some() || rsm.sources_content.is_some() ||
+      rsm.names.is_some()) && rsm.mappings.is_some()) || rsm.sections.is_some()
 }
 
 fn is_sourcemap_impl<R: Read>(rdr: R) -> Result<bool> {

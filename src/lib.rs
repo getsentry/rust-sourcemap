@@ -50,11 +50,13 @@ extern crate url;
 
 mod macros;
 
-pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex, SourceMapSection, SourceMapSectionIter, RewriteOptions, DecodedMap};
+pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex, SourceMapSection,
+                SourceMapSectionIter, RewriteOptions, DecodedMap};
 pub use builder::SourceMapBuilder;
 pub use errors::{Result, Error};
 pub use decoder::{decode, decode_slice, decode_data_url};
-pub use detector::{SourceMapRef, locate_sourcemap_reference, locate_sourcemap_reference_slice, is_sourcemap, is_sourcemap_slice};
+pub use detector::{SourceMapRef, locate_sourcemap_reference, locate_sourcemap_reference_slice,
+                   is_sourcemap, is_sourcemap_slice};
 
 mod builder;
 mod errors;

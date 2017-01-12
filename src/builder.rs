@@ -145,7 +145,14 @@ impl SourceMapBuilder {
     }
 
     /// Adds a new mapping to the builder.
-    pub fn add(&mut self, dst_line: u32, dst_col: u32, src_line: u32, src_col: u32, source: Option<&str>, name: Option<&str>) -> RawToken {
+    pub fn add(&mut self,
+               dst_line: u32,
+               dst_col: u32,
+               src_line: u32,
+               src_col: u32,
+               source: Option<&str>,
+               name: Option<&str>)
+               -> RawToken {
         let src_id = match source {
             Some(source) => self.add_source(source),
             None => !0,

@@ -28,7 +28,10 @@ fn load_from_reader<R: Read>(mut rdr: R) -> SourceMap {
     match decode(&mut rdr).unwrap() {
         DecodedMap::Regular(sm) => sm,
         DecodedMap::Index(idx) => {
-            idx.flatten_and_rewrite(&RewriteOptions { load_local_source_contents: true, ..Default::default() })
+            idx.flatten_and_rewrite(&RewriteOptions {
+                    load_local_source_contents: true,
+                    ..Default::default()
+                })
                 .unwrap()
         }
     }
