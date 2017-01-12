@@ -59,7 +59,6 @@ pub enum DecodedMap {
 }
 
 impl DecodedMap {
-
     /// Alias for `decode`.
     pub fn from_reader<R: Read>(rdr: R) -> Result<DecodedMap> {
         decode(rdr)
@@ -216,12 +215,7 @@ impl<'a> Token<'a> {
     /// Converts the token into a debug tuple in the form
     /// `(source, src_line, src_col, name)`
     pub fn to_tuple(&self) -> (&'a str, u32, u32, Option<&'a str>) {
-        (
-            self.get_source().unwrap_or(""),
-            self.get_src_line(),
-            self.get_src_col(),
-            self.get_name()
-        )
+        (self.get_source().unwrap_or(""), self.get_src_line(), self.get_src_col(), self.get_name())
     }
 
     /// Get the underlying raw token
@@ -326,11 +320,13 @@ impl<'a> fmt::Debug for Token<'a> {
 
 impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}:{}{}",
+        write!(f,
+               "{}:{}:{}{}",
                self.get_source().unwrap_or("<unknown>"),
                self.get_src_line(),
                self.get_src_col(),
-               self.get_name().map(|x| format!(" name={}", x))
+               self.get_name()
+                   .map(|x| format!(" name={}", x))
                    .unwrap_or("".into()))
     }
 }
@@ -380,7 +376,6 @@ pub struct SourceMap {
 }
 
 impl SourceMap {
-
     /// Creates a sourcemap from a reader over a JSON stream in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case an indexed
@@ -461,12 +456,11 @@ impl SourceMap {
     /// - `names`: a vector of names
     /// - `sources` a vector of source filenames
     /// - `sources_content` optional source contents
-    pub fn new(file: Option<String>, tokens: Vec<RawToken>,
-               names: Vec<String>, sources: Vec<String>,
-               sources_content: Option<Vec<Option<String>>>) -> SourceMap {
-        let mut index : Vec<_> = tokens.iter().enumerate().map(|(idx, token)| {
-            (token.dst_line, token.dst_col, idx as u32)
-        }).collect();
+    pub fn new(file: Option<String>, tokens: Vec<RawToken>, names: Vec<String>, sources: Vec<String>, sources_content: Option<Vec<Option<String>>>) -> SourceMap {
+        let mut index: Vec<_> = tokens.iter()
+            .enumerate()
+            .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32))
+            .collect();
         index.sort();
         SourceMap {
             file: file,
@@ -491,7 +485,10 @@ impl SourceMap {
     /// Looks up a token by its index.
     pub fn get_token<'a>(&'a self, idx: u32) -> Option<Token<'a>> {
         self.tokens.get(idx as usize).map(|raw| {
-            Token { raw: raw, i: self }
+            Token {
+                raw: raw,
+                i: self,
+            }
         })
     }
 
@@ -502,7 +499,10 @@ impl SourceMap {
 
     /// Returns an iterator over the tokens.
     pub fn tokens<'a>(&'a self) -> TokenIter<'a> {
-        TokenIter { i: self, next_idx: 0 }
+        TokenIter {
+            i: self,
+            next_idx: 0,
+        }
     }
 
     /// Looks up the closest token to a given line and column.
@@ -547,13 +547,18 @@ impl SourceMap {
 
     /// Iterates over all sources
     pub fn sources<'a>(&'a self) -> SourceIter<'a> {
-        SourceIter { i: self, next_idx: 0 }
+        SourceIter {
+            i: self,
+            next_idx: 0,
+        }
     }
 
     /// Looks up the content for a source.
     pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
-        self.sources_content.get(idx as usize)
-            .and_then(|bucket| bucket.as_ref()).map(|x| &**x)
+        self.sources_content
+            .get(idx as usize)
+            .and_then(|bucket| bucket.as_ref())
+            .map(|x| &**x)
     }
 
     /// Sets source contents for a source.
@@ -566,12 +571,18 @@ impl SourceMap {
 
     /// Iterates over all source contents
     pub fn source_contents<'a>(&'a self) -> SourceContentsIter<'a> {
-        SourceContentsIter { i: self, next_idx: 0 }
+        SourceContentsIter {
+            i: self,
+            next_idx: 0,
+        }
     }
 
     /// Returns an iterator over the names.
     pub fn names<'a>(&'a self) -> NameIter<'a> {
-        NameIter { i: self, next_idx: 0 }
+        NameIter {
+            i: self,
+            next_idx: 0,
+        }
     }
 
     /// Returns the number of names in the sourcemap.
@@ -601,7 +612,10 @@ impl SourceMap {
 
     /// Returns the number of items in the index
     pub fn index_iter<'a>(&'a self) -> IndexIter<'a> {
-        IndexIter { i: self, next_idx: 0 }
+        IndexIter {
+            i: self,
+            next_idx: 0,
+        }
     }
 
     /// This rewrites the sourcemap accoridng to the provided rewrite
@@ -630,10 +644,8 @@ impl SourceMap {
 
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
-            if options.with_source_contents &&
-               !builder.has_source_contents(raw.src_id) {
-                builder.set_source_contents(
-                    raw.src_id, self.get_source_contents(token.get_src_id()));
+            if options.with_source_contents && !builder.has_source_contents(raw.src_id) {
+                builder.set_source_contents(raw.src_id, self.get_source_contents(token.get_src_id()));
             }
         }
         if options.load_local_source_contents {
@@ -663,7 +675,6 @@ impl SourceMap {
 }
 
 impl SourceMapIndex {
-
     /// Creates a sourcemap index from a reader over a JSON stream in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case a regular
@@ -695,8 +706,7 @@ impl SourceMapIndex {
     ///
     /// - `file`: an optional filename of the index
     /// - `sections`: a vector of source map index sections
-    pub fn new(file: Option<String>,
-               sections: Vec<SourceMapSection>) -> SourceMapIndex {
+    pub fn new(file: Option<String>, sections: Vec<SourceMapSection>) -> SourceMapIndex {
         SourceMapIndex {
             file: file,
             sections: sections,
@@ -732,7 +742,7 @@ impl SourceMapIndex {
     pub fn sections<'a>(&'a self) -> SourceMapSectionIter<'a> {
         SourceMapSectionIter {
             i: self,
-            next_idx: 0
+            next_idx: 0,
         }
     }
 
@@ -766,9 +776,10 @@ impl SourceMapIndex {
             let map = match section.get_sourcemap() {
                 Some(map) => map,
                 None => {
-                    return Err(Error::CannotFlatten(format!(
-                        "Section has an unresolved sourcemap: {}",
-                        section.get_url().unwrap_or("<unknown url>"))));
+                    return Err(Error::CannotFlatten(format!("Section has an unresolved \
+                                                             sourcemap: {}",
+                                                            section.get_url()
+                                                                .unwrap_or("<unknown url>"))));
                 }
             };
 
@@ -780,8 +791,7 @@ impl SourceMapIndex {
                                       token.get_source(),
                                       token.get_name());
                 if !builder.has_source_contents(raw.src_id) {
-                    builder.set_source_contents(
-                        raw.src_id, map.get_source_contents(token.get_src_id()));
+                    builder.set_source_contents(raw.src_id, map.get_source_contents(token.get_src_id()));
                 }
             }
         }
@@ -798,7 +808,6 @@ impl SourceMapIndex {
 }
 
 impl SourceMapSection {
-
     /// Create a new sourcemap index section
     ///
     /// - `offset`: offset as line and column

@@ -27,22 +27,22 @@ fn test(sm: &SourceMap) {
 fn load_from_reader<R: Read>(mut rdr: R) -> SourceMap {
     match decode(&mut rdr).unwrap() {
         DecodedMap::Regular(sm) => sm,
-        DecodedMap::Index(idx) => idx.flatten_and_rewrite(&RewriteOptions {
-            load_local_source_contents: true,
-            ..Default::default()
-        }).unwrap(),
+        DecodedMap::Index(idx) => {
+            idx.flatten_and_rewrite(&RewriteOptions { load_local_source_contents: true, ..Default::default() })
+                .unwrap()
+        }
     }
 }
 
 fn main() {
-    let args : Vec<_> = env::args().collect();
+    let args: Vec<_> = env::args().collect();
     let mut f = fs::File::open(&args[1]).unwrap();
     let sm = load_from_reader(&mut f);
     println!("before dump");
     test(&sm);
 
     println!("after dump");
-    let mut json : Vec<u8> = vec![];
+    let mut json: Vec<u8> = vec![];
     sm.to_writer(&mut json).unwrap();
     let sm = load_from_reader(json.as_slice());
     test(&sm);

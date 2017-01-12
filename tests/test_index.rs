@@ -40,17 +40,15 @@ fn test_basic_indexed_sourcemap() {
 
     let f1 = "function add(a, b) {\n \"use strict\";\n \
               return a + b; // fôo\n}";
-    let f2 = "function multiply(a, b) {\n \"use strict\";\n \
-              return a * b;\n}\nfunction divide(a, b) {\n \
-              \"use strict\";\n try {\n  return multiply(add(a, \
-              b), a, b) / c;\n } catch (e) {\n  \
-              Raven.captureException(e);\n }\n}";
+    let f2 = "function multiply(a, b) {\n \"use strict\";\n return a * b;\n}\nfunction divide(a, \
+              b) {\n \"use strict\";\n try {\n  return multiply(add(a, b), a, b) / c;\n } catch \
+              (e) {\n  Raven.captureException(e);\n }\n}";
 
     let mut raw_files = HashMap::new();
     raw_files.insert("file1.js", f1);
     raw_files.insert("file2.js", f2);
 
-    let mut files : HashMap<_, Vec<_>> = HashMap::new();
+    let mut files: HashMap<_, Vec<_>> = HashMap::new();
     files.insert("file1.js", f1.lines().collect());
     files.insert("file2.js", f2.lines().collect());
 
@@ -66,7 +64,7 @@ fn test_basic_indexed_sourcemap() {
     }
     let flat_map = ism.flatten().unwrap();
 
-    let mut out : Vec<u8> = vec![];
+    let mut out: Vec<u8> = vec![];
     flat_map.to_writer(&mut out).ok();
     println!("{}", String::from_utf8(out).unwrap());
 
@@ -82,8 +80,10 @@ fn test_basic_indexed_sourcemap() {
 
     for (src_id, filename) in flat_map.sources().enumerate() {
         let ref_contents = files.get(filename).unwrap();
-        let contents : Vec<_> = flat_map.get_source_contents(src_id as u32).expect(
-            &format!("no source for {}", filename)).lines().collect();
+        let contents: Vec<_> = flat_map.get_source_contents(src_id as u32)
+            .expect(&format!("no source for {}", filename))
+            .lines()
+            .collect();
         assert_eq!(&contents, ref_contents);
     }
 }

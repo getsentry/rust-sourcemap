@@ -50,10 +50,9 @@ impl<R: Read> Read for StripHeaderReader<R> {
 }
 
 impl<R: Read> StripHeaderReader<R> {
-
     fn strip_head_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut backing = vec![0; buf.len()];
-        let mut local_buf : &mut [u8] = &mut *backing;
+        let mut local_buf: &mut [u8] = &mut *backing;
 
         loop {
             let read = try!(self.r.read(local_buf));
@@ -70,7 +69,7 @@ impl<R: Read> StripHeaderReader<R> {
                             self.header_state = HeaderState::PastHeader;
                             return Ok(read);
                         }
-                    },
+                    }
                     HeaderState::Junk => {
                         if byte == b'\r' {
                             HeaderState::AwaitingNewline
@@ -79,15 +78,14 @@ impl<R: Read> StripHeaderReader<R> {
                         } else {
                             HeaderState::Junk
                         }
-                    },
+                    }
                     HeaderState::AwaitingNewline => {
                         if byte == b'\n' {
                             HeaderState::PastHeader
                         } else {
-                            fail!(io::Error::new(io::ErrorKind::InvalidData,
-                                                 "expected newline"));
+                            fail!(io::Error::new(io::ErrorKind::InvalidData, "expected newline"));
                         }
-                    },
+                    }
                     HeaderState::PastHeader => {
                         let rem = read - offset;
                         (&mut buf[..rem]).copy_from_slice(&local_buf[offset..read]);
@@ -107,8 +105,7 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     let mut need_newline = false;
     for (idx, &byte) in slice.iter().enumerate() {
         if need_newline && byte != b'\n' {
-            fail!(io::Error::new(io::ErrorKind::InvalidData,
-                                 "expected newline"));
+            fail!(io::Error::new(io::ErrorKind::InvalidData, "expected newline"));
         } else if is_junk_json(byte) {
             continue;
         } else if byte == b'\r' {
@@ -183,33 +180,35 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     if let Some(source_root) = rsm.source_root {
         if !source_root.is_empty() {
             let source_root = source_root.trim_right_matches('/');
-            sources = sources.into_iter().map(|x| {
-                if x.len() > 0 && (x.starts_with('/') ||
-                                   x.starts_with("http:") ||
-                                   x.starts_with("https:")) {
-                    x
-                } else {
-                    format!("{}/{}", source_root, x)
-                }
-            }).collect();
+            sources = sources.into_iter()
+                .map(|x| {
+                    if x.len() > 0 && (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:")) {
+                        x
+                    } else {
+                        format!("{}/{}", source_root, x)
+                    }
+                })
+                .collect();
         }
     }
 
     // apparently we can encounter some non string types in real world
     // sourcemaps :(
-    let names = names.into_iter().map(|val| {
-        match val {
-            Value::String(s) => s,
-            Value::U64(i) => format!("{}", i),
-            _ => "".into(),
-        }
-    }).collect::<Vec<String>>();
+    let names = names.into_iter()
+        .map(|val| {
+            match val {
+                Value::String(s) => s,
+                Value::U64(i) => format!("{}", i),
+                _ => "".into(),
+            }
+        })
+        .collect::<Vec<String>>();
 
     // file sometimes is not a string for unexplicable reasons
     let file = rsm.file.map(|val| {
         match val {
             Value::String(s) => s,
-            _ => "<invalid>".into()
+            _ => "<invalid>".into(),
         }
     });
 
@@ -220,14 +219,12 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
     let mut sections = vec![];
 
     for mut raw_section in rsm.sections.unwrap_or(vec![]) {
-        sections.push(SourceMapSection::new(
-            (raw_section.offset.line, raw_section.offset.column),
-            raw_section.url,
-            match raw_section.map.take() {
-                Some(map) => Some(try!(decode_regular(*map))),
-                None => None,
-            }
-        ));
+        sections.push(SourceMapSection::new((raw_section.offset.line, raw_section.offset.column),
+                                            raw_section.url,
+                                            match raw_section.map.take() {
+                                                Some(map) => Some(try!(decode_regular(*map))),
+                                                None => None,
+                                            }));
     }
 
     sections.sort_by_key(|sect| sect.get_offset());
@@ -236,7 +233,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
     let file = rsm.file.map(|val| {
         match val {
             Value::String(s) => s,
-            _ => "<invalid>".into()
+            _ => "<invalid>".into(),
         }
     });
 
@@ -258,7 +255,7 @@ fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
 pub fn decode<R: Read>(rdr: R) -> Result<DecodedMap> {
     let mut rdr = StripHeaderReader::new(rdr);
     let mut rdr = BufReader::new(&mut rdr);
-    let rsm : RawSourceMap = try!(serde_json::from_reader(&mut rdr));
+    let rsm: RawSourceMap = try!(serde_json::from_reader(&mut rdr));
     decode_common(rsm)
 }
 
@@ -268,7 +265,7 @@ pub fn decode<R: Read>(rdr: R) -> Result<DecodedMap> {
 /// specialized methods on the individual types.
 pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
     let content = try!(strip_junk_header(slice));
-    let rsm : RawSourceMap = try!(serde_json::from_slice(content));
+    let rsm: RawSourceMap = try!(serde_json::from_slice(content));
     decode_common(rsm)
 }
 

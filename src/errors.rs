@@ -42,7 +42,6 @@ pub enum Error {
 }
 
 impl Error {
-
     /// If the error originated in a JSON file that can be located, then
     /// this method returns that location.
     pub fn source_location(&self) -> Option<(usize, usize)> {
@@ -77,9 +76,7 @@ impl From<serde_json::Error> for Error {
         use serde_json::Error::*;
         match err {
             Io(err) => From::from(err),
-            Syntax(code, line, col) => {
-                Error::BadJson(line, col, format!("{:?}", code))
-            }
+            Syntax(code, line, col) => Error::BadJson(line, col, format!("{:?}", code)),
         }
     }
 }
@@ -126,7 +123,10 @@ impl fmt::Display for Error {
             BadSourceReference(id) => write!(f, "bad reference to source #{}", id),
             BadNameReference(id) => write!(f, "bad reference to name #{}", id),
             IndexedSourcemap => write!(f, "encountered unexpected indexed sourcemap"),
-            RegularSourcemap => write!(f, "encountered unexpected sourcemap where index was expected"),
+            RegularSourcemap => {
+                write!(f,
+                       "encountered unexpected sourcemap where index was expected")
+            }
             InvalidDataUrl => write!(f, "the provided data URL is invalid"),
             CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
         }

@@ -72,25 +72,23 @@ fn serialize_mappings(sm: &SourceMap) -> String {
 impl Encodable for SourceMap {
     fn as_raw_sourcemap(&self) -> RawSourceMap {
         let mut have_contents = false;
-        let contents = self.source_contents().map(|contents| {
-            if let Some(contents) = contents {
-                have_contents = true;
-                Some(contents.to_string())
-            } else {
-                None
-            }
-        }).collect();
+        let contents = self.source_contents()
+            .map(|contents| {
+                if let Some(contents) = contents {
+                    have_contents = true;
+                    Some(contents.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
         RawSourceMap {
             version: Some(3),
             file: self.get_file().map(|x| Value::String(x.to_string())),
             sources: Some(self.sources().map(|x| x.to_string()).collect()),
             // XXX: consider setting this to common root
             source_root: None,
-            sources_content: if have_contents {
-                Some(contents)
-            } else {
-                None
-            },
+            sources_content: if have_contents { Some(contents) } else { None },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
             mappings: Some(serialize_mappings(self)),
@@ -106,18 +104,18 @@ impl Encodable for SourceMapIndex {
             sources: None,
             source_root: None,
             sources_content: None,
-            sections: Some(self.sections().map(|section| {
-                RawSection {
-                    offset: RawSectionOffset {
-                        line: section.get_offset_line(),
-                        column: section.get_offset_col(),
-                    },
-                    url: section.get_url().map(|x| x.to_string()),
-                    map: section.get_sourcemap().map(|sm| {
-                        Box::new(sm.as_raw_sourcemap())
-                    }),
-                }
-            }).collect()),
+            sections: Some(self.sections()
+                .map(|section| {
+                    RawSection {
+                        offset: RawSectionOffset {
+                            line: section.get_offset_line(),
+                            column: section.get_offset_col(),
+                        },
+                        url: section.get_url().map(|x| x.to_string()),
+                        map: section.get_sourcemap().map(|sm| Box::new(sm.as_raw_sourcemap())),
+                    }
+                })
+                .collect()),
             names: None,
             mappings: None,
         }

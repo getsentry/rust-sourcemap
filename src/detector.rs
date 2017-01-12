@@ -17,11 +17,10 @@ pub enum SourceMapRef {
     /// A legacy URL reference
     LegacyRef(String),
     /// Indicates a missing reference
-    Missing
+    Missing,
 }
 
 impl SourceMapRef {
-
     /// Return the URL of the reference
     pub fn get_url(&self) -> Option<&str> {
         match *self {
@@ -50,8 +49,7 @@ impl SourceMapRef {
 pub fn locate_sourcemap_reference<R: Read>(rdr: R) -> Result<SourceMapRef> {
     for line in BufReader::new(rdr).lines() {
         let line = try!(line);
-        if line.starts_with("//# sourceMappingURL=") ||
-           line.starts_with("//@ sourceMappingURL=") {
+        if line.starts_with("//# sourceMappingURL=") || line.starts_with("//@ sourceMappingURL=") {
             let url = try!(str::from_utf8(&line.as_bytes()[21..])).trim().to_owned();
             if line.starts_with("//@") {
                 return Ok(SourceMapRef::LegacyRef(url));
@@ -72,24 +70,19 @@ pub fn locate_sourcemap_reference_slice(slice: &[u8]) -> Result<SourceMapRef> {
 }
 
 fn is_sourcemap_common(rsm: MinimalRawSourceMap) -> bool {
-    (rsm.version.is_some() || rsm.file.is_some()) && (
-        (rsm.sources.is_some() ||
-         rsm.source_root.is_some() ||
-         rsm.sources_content.is_some() ||
-         rsm.names.is_some()) && rsm.mappings.is_some()
-    ) || rsm.sections.is_some()
+    (rsm.version.is_some() || rsm.file.is_some()) && ((rsm.sources.is_some() || rsm.source_root.is_some() || rsm.sources_content.is_some() || rsm.names.is_some()) && rsm.mappings.is_some()) || rsm.sections.is_some()
 }
 
 fn is_sourcemap_impl<R: Read>(rdr: R) -> Result<bool> {
     let mut rdr = StripHeaderReader::new(rdr);
     let mut rdr = BufReader::new(&mut rdr);
-    let rsm : MinimalRawSourceMap = try!(serde_json::from_reader(&mut rdr));
+    let rsm: MinimalRawSourceMap = try!(serde_json::from_reader(&mut rdr));
     Ok(is_sourcemap_common(rsm))
 }
 
 fn is_sourcemap_slice_impl(slice: &[u8]) -> Result<bool> {
     let content = try!(strip_junk_header(slice));
-    let rsm : MinimalRawSourceMap = try!(serde_json::from_slice(content));
+    let rsm: MinimalRawSourceMap = try!(serde_json::from_slice(content));
     Ok(is_sourcemap_common(rsm))
 }
 

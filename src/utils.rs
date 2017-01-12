@@ -16,20 +16,20 @@ fn is_abs_path(s: &str) -> bool {
         return true;
     } else if s.len() > 3 {
         let b = s.as_bytes();
-        if b[1] == b':' && (b[2] == b'/' || b[2] == b'\\') &&
-           ((b[0] >= b'a' && b[0] <= b'z') || (b[0] >= b'A' && b[0] <= b'Z')) {
-           return true;
-       }
+        if b[1] == b':' && (b[2] == b'/' || b[2] == b'\\') && ((b[0] >= b'a' && b[0] <= b'z') || (b[0] >= b'A' && b[0] <= b'Z')) {
+            return true;
+        }
     }
     false
 }
 
 
-pub fn find_common_prefix<'a, I: Iterator<Item=&'a str>>(iter: I) -> Option<String> {
+pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<String> {
     // TODO: this technically does not really do the same thing on windows
     // but honestly, i don't care that much about it right now.
-    let mut items : Vec<Vec<&str>> = iter
-        .filter(|x| is_abs_path(x)).map(|x| split_path(x)).collect();
+    let mut items: Vec<Vec<&str>> = iter.filter(|x| is_abs_path(x))
+        .map(|x| split_path(x))
+        .collect();
     if items.is_empty() {
         return None;
     }

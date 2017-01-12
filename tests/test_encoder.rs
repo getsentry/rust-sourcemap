@@ -11,7 +11,7 @@ fn test_basic_sourcemap() {
         \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
     }";
     let sm = SourceMap::from_reader(input).unwrap();
-    let mut out : Vec<u8> = vec![];
+    let mut out: Vec<u8> = vec![];
     sm.to_writer(&mut out).unwrap();
 
     let sm2 = SourceMap::from_reader(&out[..]).unwrap();
