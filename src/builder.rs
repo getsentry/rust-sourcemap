@@ -107,7 +107,7 @@ impl SourceMapBuilder {
     /// Loads source contents from locally accessible files if referenced
     /// accordingly.  Returns the number of loaded source contents
     pub fn load_local_source_contents(&mut self, base_path: Option<&Path>) -> Result<usize> {
-        let mut abs_path = try!(env::current_dir());
+        let mut abs_path = env::current_dir()?;
         if let Some(path) = base_path {
             abs_path.push(path);
         }
@@ -125,9 +125,9 @@ impl SourceMapBuilder {
 
         let rv = to_read.len();
         for (src_id, path) in to_read {
-            let mut f = try!(fs::File::open(&path));
+            let mut f = fs::File::open(&path)?;
             let mut contents = String::new();
-            try!(f.read_to_string(&mut contents));
+            f.read_to_string(&mut contents)?;
             self.set_source_contents(src_id, Some(&contents));
         }
 

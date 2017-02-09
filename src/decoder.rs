@@ -55,7 +55,7 @@ impl<R: Read> StripHeaderReader<R> {
         let mut local_buf: &mut [u8] = &mut *backing;
 
         loop {
-            let read = try!(self.r.read(local_buf));
+            let read = self.r.read(local_buf)?;
             if read == 0 {
                 return Ok(0);
             }
@@ -138,7 +138,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 continue;
             }
 
-            let nums = try!(parse_vlq_segment(segment));
+            let nums = parse_vlq_segment(segment)?;
             dst_col = (dst_col as i64 + nums[0]) as u32;
 
             let mut src = !0;
@@ -223,7 +223,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         sections.push(SourceMapSection::new((raw_section.offset.line, raw_section.offset.column),
                                             raw_section.url,
                                             match raw_section.map.take() {
-                                                Some(map) => Some(try!(decode_regular(*map))),
+                                                Some(map) => Some(decode_regular(*map)?),
                                                 None => None,
                                             }));
     }
@@ -243,9 +243,9 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
     Ok(if rsm.sections.is_some() {
-        DecodedMap::Index(try!(decode_index(rsm)))
+        DecodedMap::Index(decode_index(rsm)?)
     } else {
-        DecodedMap::Regular(try!(decode_regular(rsm)))
+        DecodedMap::Regular(decode_regular(rsm)?)
     })
 }
 
@@ -256,7 +256,7 @@ fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
 pub fn decode<R: Read>(rdr: R) -> Result<DecodedMap> {
     let mut rdr = StripHeaderReader::new(rdr);
     let mut rdr = BufReader::new(&mut rdr);
-    let rsm: RawSourceMap = try!(serde_json::from_reader(&mut rdr));
+    let rsm: RawSourceMap = serde_json::from_reader(&mut rdr)?;
     decode_common(rsm)
 }
 
@@ -265,8 +265,8 @@ pub fn decode<R: Read>(rdr: R) -> Result<DecodedMap> {
 /// This supports both sourcemaps and sourcemap indexes unless the
 /// specialized methods on the individual types.
 pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
-    let content = try!(strip_junk_header(slice));
-    let rsm: RawSourceMap = try!(serde_json::from_slice(content));
+    let content = strip_junk_header(slice)?;
+    let rsm: RawSourceMap = serde_json::from_slice(content)?;
     decode_common(rsm)
 }
 
@@ -276,6 +276,6 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
         fail!(Error::InvalidDataUrl);
     }
     let data_b64 = &url.as_bytes()[DATA_PREABLE.len()..];
-    let data = try!(base64::u8de(data_b64).map_err(|_| Error::InvalidDataUrl));
+    let data = base64::u8de(data_b64).map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }

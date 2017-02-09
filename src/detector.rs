@@ -34,7 +34,7 @@ impl SourceMapRef {
     pub fn get_embedded_sourcemap(&self) -> Result<Option<DecodedMap>> {
         if let Some(url) = self.get_url() {
             if url.starts_with("data:") {
-                return Ok(Some(try!(decode_data_url(url))));
+                return Ok(Some(decode_data_url(url)?));
             }
         }
         Ok(None)
@@ -48,9 +48,9 @@ impl SourceMapRef {
 /// sourcemap reference comment and return it.
 pub fn locate_sourcemap_reference<R: Read>(rdr: R) -> Result<SourceMapRef> {
     for line in BufReader::new(rdr).lines() {
-        let line = try!(line);
+        let line = line?;
         if line.starts_with("//# sourceMappingURL=") || line.starts_with("//@ sourceMappingURL=") {
-            let url = try!(str::from_utf8(&line.as_bytes()[21..])).trim().to_owned();
+            let url = str::from_utf8(&line.as_bytes()[21..])?.trim().to_owned();
             if line.starts_with("//@") {
                 return Ok(SourceMapRef::LegacyRef(url));
             } else {
@@ -78,13 +78,13 @@ fn is_sourcemap_common(rsm: MinimalRawSourceMap) -> bool {
 fn is_sourcemap_impl<R: Read>(rdr: R) -> Result<bool> {
     let mut rdr = StripHeaderReader::new(rdr);
     let mut rdr = BufReader::new(&mut rdr);
-    let rsm: MinimalRawSourceMap = try!(serde_json::from_reader(&mut rdr));
+    let rsm: MinimalRawSourceMap = serde_json::from_reader(&mut rdr)?;
     Ok(is_sourcemap_common(rsm))
 }
 
 fn is_sourcemap_slice_impl(slice: &[u8]) -> Result<bool> {
-    let content = try!(strip_junk_header(slice));
-    let rsm: MinimalRawSourceMap = try!(serde_json::from_slice(content));
+    let content = strip_junk_header(slice)?;
+    let rsm: MinimalRawSourceMap = serde_json::from_slice(content)?;
     Ok(is_sourcemap_common(rsm))
 }
 

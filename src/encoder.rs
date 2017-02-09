@@ -15,7 +15,7 @@ pub trait Encodable {
 
 pub fn encode<M: Encodable, W: Write>(sm: &M, mut w: W) -> Result<()> {
     let ty = sm.as_raw_sourcemap();
-    try!(serde_json::to_writer(&mut w, &ty));
+    serde_json::to_writer(&mut w, &ty)?;
     Ok(())
 }
 

@@ -397,7 +397,7 @@ impl SourceMap {
     /// creating sourcemaps from scratch or for general operations for
     /// modifying a sourcemap have a look at the `SourceMapBuilder`.
     pub fn from_reader<R: Read>(rdr: R) -> Result<SourceMap> {
-        match try!(decode(rdr)) {
+        match decode(rdr)? {
             DecodedMap::Regular(sm) => Ok(sm),
             DecodedMap::Index(_) => Err(Error::IndexedSourcemap),
         }
@@ -443,7 +443,7 @@ impl SourceMap {
     /// let sm = SourceMap::from_slice(input).unwrap();
     /// ```
     pub fn from_slice(slice: &[u8]) -> Result<SourceMap> {
-        match try!(decode_slice(slice)) {
+        match decode_slice(slice)? {
             DecodedMap::Regular(sm) => Ok(sm),
             DecodedMap::Index(_) => Err(Error::IndexedSourcemap),
         }
@@ -654,7 +654,7 @@ impl SourceMap {
             }
         }
         if options.load_local_source_contents {
-            try!(builder.load_local_source_contents(options.base_path));
+            builder.load_local_source_contents(options.base_path)?;
         }
 
         let mut prefixes = vec![];
@@ -685,7 +685,7 @@ impl SourceMapIndex {
     /// sourcemap draft specification is supported.  In case a regular
     /// sourcemap is encountered an error is returned.
     pub fn from_reader<R: Read>(rdr: R) -> Result<SourceMapIndex> {
-        match try!(decode(rdr)) {
+        match decode(rdr)? {
             DecodedMap::Regular(_) => Err(Error::RegularSourcemap),
             DecodedMap::Index(smi) => Ok(smi),
         }
@@ -701,7 +701,7 @@ impl SourceMapIndex {
     /// sourcemap draft specification is supported.  In case a regular
     /// sourcemap is encountered an error is returned.
     pub fn from_slice(slice: &[u8]) -> Result<SourceMapIndex> {
-        match try!(decode_slice(slice)) {
+        match decode_slice(slice)? {
             DecodedMap::Regular(_) => Err(Error::RegularSourcemap),
             DecodedMap::Index(smi) => Ok(smi),
         }
@@ -809,7 +809,7 @@ impl SourceMapIndex {
     /// rewrites it.  This is more useful than plain flattening as this will
     /// cause the sourcemap to be properly deduplicated.
     pub fn flatten_and_rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
-        try!(self.flatten()).rewrite(options)
+        self.flatten()?.rewrite(options)
     }
 }
 

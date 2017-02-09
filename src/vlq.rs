@@ -26,7 +26,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
         let enc = B64[c as usize] as i64;
         let val = enc & 0b11111;
         let cont = enc >> 5;
-        cur += try!(val.checked_shl(shift).ok_or(Error::VlqOverflow));
+        cur += val.checked_shl(shift).ok_or(Error::VlqOverflow)?;
         shift += 5;
 
         if cont == 0 {
