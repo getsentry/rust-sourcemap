@@ -23,6 +23,8 @@ pub enum Error {
     VlqLeftover,
     /// a VLQ string was empty and no values could be decoded.
     VlqNoValues,
+    /// Overflow in Vlq handling
+    VlqOverflow,
     /// a mapping segment had an unsupported size
     BadSegmentSize(u32),
     /// a reference to a non existing source was encountered
@@ -90,6 +92,7 @@ impl error::Error for Error {
             BadJson(_, _, _) => "bad json",
             VlqLeftover => "vlq leftover",
             VlqNoValues => "no vlq values",
+            VlqOverflow => "overflow in vlq",
             BadSegmentSize(_) => "bad segment size",
             BadSourceReference(_) => "bad source reference",
             BadNameReference(_) => "bad name reference",
@@ -121,6 +124,7 @@ impl fmt::Display for Error {
             }
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),
+            VlqOverflow => write!(f, "vlq decode caused an overflow"),
             BadSegmentSize(size) => write!(f, "got {} segments, expected 4 or 5", size),
             BadSourceReference(id) => write!(f, "bad reference to source #{}", id),
             BadNameReference(id) => write!(f, "bad reference to name #{}", id),

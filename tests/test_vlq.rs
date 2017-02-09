@@ -17,3 +17,13 @@ fn test_vlq_encode() {
     let rv = generate_vlq_segment(&[3, 0, 0, 4, 0]).unwrap();
     assert_eq!(rv.as_str(), "GAAIA");
 }
+
+#[test]
+fn test_overflow() {
+    use sourcemap::internals::parse_vlq_segment;
+    use sourcemap::Error;
+    match parse_vlq_segment("00000000000000") {
+        Err(Error::VlqOverflow) => {},
+        e => { panic!("Unexpeted result: {:?}", e); }
+    }
+}
