@@ -18,7 +18,7 @@ pub enum Error {
     /// a std::str::Utf8Error
     Utf8(str::Utf8Error),
     /// a JSON parsing related failure
-    BadJson(usize, usize, String),
+    BadJson(serde_json::Error),
     /// a VLQ string was malformed and data was left over
     VlqLeftover,
     /// a VLQ string was empty and no values could be decoded.
@@ -43,17 +43,6 @@ pub enum Error {
     CannotFlatten(String),
 }
 
-impl Error {
-    /// If the error originated in a JSON file that can be located, then
-    /// this method returns that location.
-    pub fn source_location(&self) -> Option<(usize, usize)> {
-        match *self {
-            Error::BadJson(lineno, col, _) => Some((lineno, col)),
-            _ => None,
-        }
-    }
-}
-
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
@@ -75,11 +64,7 @@ impl From<str::Utf8Error> for Error {
 
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Error {
-        use serde_json::Error::*;
-        match err {
-            Io(err) => From::from(err),
-            Syntax(code, line, col) => Error::BadJson(line, col, format!("{:?}", code)),
-        }
+        Error::BadJson(err)
     }
 }
 
@@ -89,7 +74,7 @@ impl error::Error for Error {
         match *self {
             Io(ref err) => err.description(),
             Utf8(ref err) => err.description(),
-            BadJson(_, _, _) => "bad json",
+            BadJson(ref err) => err.description(),
             VlqLeftover => "vlq leftover",
             VlqNoValues => "no vlq values",
             VlqOverflow => "overflow in vlq",
@@ -119,9 +104,7 @@ impl fmt::Display for Error {
         match *self {
             Io(ref msg) => write!(f, "{}", msg),
             Utf8(ref msg) => write!(f, "{}", msg),
-            BadJson(line, col, ref msg) => {
-                write!(f, "bad json in line {}, column {}: {}", line, col, msg)
-            }
+            BadJson(ref err) => write!(f, "bad json: {}", err),
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),
             VlqOverflow => write!(f, "vlq decode caused an overflow"),

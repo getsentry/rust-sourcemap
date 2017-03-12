@@ -199,7 +199,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         .map(|val| {
             match val {
                 Value::String(s) => s,
-                Value::U64(i) => format!("{}", i),
+                Value::Number(num) => num.to_string(),
                 _ => "".into(),
             }
         })
@@ -275,7 +275,7 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     if !url.starts_with(DATA_PREABLE) {
         fail!(Error::InvalidDataUrl);
     }
-    let data_b64 = &url.as_bytes()[DATA_PREABLE.len()..];
-    let data = base64::u8de(data_b64).map_err(|_| Error::InvalidDataUrl)?;
+    let data_b64 = &url[DATA_PREABLE.len()..];
+    let data = base64::decode(data_b64).map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }

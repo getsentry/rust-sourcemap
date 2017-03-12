@@ -1,6 +1,6 @@
 [package]
 name = "sourcemap"
-version = "0.14.0"
+version = "0.15.0"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
@@ -8,18 +8,10 @@ homepage = "https://github.com/mitsuhiko/rust-sourcemap"
 documentation = "http://mitsuhiko.github.io/rust-sourcemap/"
 license = "BSD-3-Clause"
 readme = "README.md"
-build = "build.rs"
-
-[features]
-default = ["serde_codegen"]
-nightly = ["serde_derive"]
-
-[build-dependencies]
-serde_codegen = { version = "^0.8", optional = true }
 
 [dependencies]
-url = "^1.2"
-serde = "^0.8"
-serde_derive = { version = "^0.8", optional = true }
-serde_json = "^0.8"
-base64 = "^0.1"
+url = "1.4"
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
+base64 = "0.4"
