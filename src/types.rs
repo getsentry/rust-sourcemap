@@ -649,8 +649,10 @@ impl SourceMap {
 
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
-            if options.with_source_contents && !builder.has_source_contents(raw.src_id) {
-                builder.set_source_contents(raw.src_id, self.get_source_contents(token.get_src_id()));
+            if raw.src_id != !0 && options.with_source_contents &&
+               !builder.has_source_contents(raw.src_id) {
+                builder.set_source_contents(
+                    raw.src_id, self.get_source_contents(token.get_src_id()));
             }
         }
         if options.load_local_source_contents {
