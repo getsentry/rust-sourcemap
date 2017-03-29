@@ -82,11 +82,11 @@ pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<St
 /// Example:
 ///
 /// ```
-/// #use sourcemap::make_relative_path;
+/// # use sourcemap::make_relative_path;
 /// assert_eq!(&make_relative_path(
-///     "/foo/bar/baz.js", "/foo/baz.map").unwrap(), "../baz.map");
+///     "/foo/bar/baz.js", "/foo/baz.map"), "../baz.map");
 /// ```
-pub fn make_relative_path<'a>(base: &str, target: &str) -> Option<String> {
+pub fn make_relative_path<'a>(base: &str, target: &str) -> String {
     let target_path: Vec<_> = target.split(&['/', '\\'][..]).filter(|x| x.len() > 0).collect();
     let mut base_path: Vec<_> = base.split(&['/', '\\'][..]).filter(|x| x.len() > 0).collect();
     base_path.pop();
@@ -101,9 +101,9 @@ pub fn make_relative_path<'a>(base: &str, target: &str) -> Option<String> {
     let mut rel_list: Vec<_> = repeat("../").take(base_path.len() - prefix).collect();
     rel_list.extend_from_slice(&target_path[prefix..]);
     if rel_list.is_empty() {
-        Some(".".into())
+        ".".into()
     } else {
-        Some(rel_list.join(""))
+        rel_list.join("")
     }
 }
 
@@ -147,9 +147,9 @@ fn test_find_common_prefix() {
 
 #[test]
 fn test_make_relative_path() {
-    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map").unwrap(), "baz.map");
-    assert_eq!(&make_relative_path("/foo/bar/.", "/foo/bar/baz.map").unwrap(), "baz.map");
-    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/baz.map").unwrap(), "../baz.map");
-    assert_eq!(&make_relative_path("foo.txt", "foo.js").unwrap(), "foo.js");
-    assert_eq!(&make_relative_path("blah/foo.txt", "foo.js").unwrap(), "../foo.js");
+    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map"), "baz.map");
+    assert_eq!(&make_relative_path("/foo/bar/.", "/foo/bar/baz.map"), "baz.map");
+    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/baz.map"), "../baz.map");
+    assert_eq!(&make_relative_path("foo.txt", "foo.js"), "foo.js");
+    assert_eq!(&make_relative_path("blah/foo.txt", "foo.js"), "../foo.js");
 }
