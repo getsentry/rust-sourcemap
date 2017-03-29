@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+use std::iter::repeat;
+
+
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;
     let mut rv = vec![];
@@ -24,19 +28,14 @@ fn is_abs_path(s: &str) -> bool {
     false
 }
 
-
-pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<String> {
-    // TODO: this technically does not really do the same thing on windows
-    // but honestly, i don't care that much about it right now.
-    let mut items: Vec<Vec<&str>> = iter.filter(|x| is_abs_path(x))
-        .map(|x| split_path(x))
-        .collect();
+fn find_common_prefix_of_sorted_vec<'a>(items: &'a [Cow<'a, [&'a str]>])
+    -> Option<&'a [&'a str]>
+{
     if items.is_empty() {
         return None;
     }
-    items.sort_by_key(|x| x.len());
-    let shortest = &items[0];
 
+    let shortest = &items[0];
     let mut max_idx = None;
     for seq in items.iter() {
         let mut seq_max_idx = None;
@@ -52,13 +51,60 @@ pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<St
     }
 
     if let Some(max_idx) = max_idx {
-        let rv = shortest[..max_idx + 1].join("");
+        Some(&shortest[..max_idx + 1])
+    } else {
+        None
+    }
+}
+
+pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<String> {
+    let mut items: Vec<Cow<[&str]>> = iter
+        .filter(|x| is_abs_path(x))
+        .map(|x| Cow::Owned(split_path(x)))
+        .collect();
+    items.sort_by_key(|x| x.len());
+
+    if let Some(slice) = find_common_prefix_of_sorted_vec(&items) {
+        let rv = slice.join("");
         if !rv.is_empty() && &rv != "/" {
             return Some(rv);
         }
     }
 
     None
+}
+
+/// Helper function to calculate the path from a base file to a target file.
+///
+/// This is intended to caculate the path from a minified JavaScript file
+/// to a sourcemap if they are both on the same server.
+///
+/// Example:
+///
+/// ```
+/// #use sourcemap::make_relative_path;
+/// assert_eq!(&make_relative_path(
+///     "/foo/bar/baz.js", "/foo/baz.map").unwrap(), "../baz.map");
+/// ```
+pub fn make_relative_path<'a>(base: &str, target: &str) -> Option<String> {
+    let target_path: Vec<_> = target.split(&['/', '\\'][..]).filter(|x| x.len() > 0).collect();
+    let mut base_path: Vec<_> = base.split(&['/', '\\'][..]).filter(|x| x.len() > 0).collect();
+    base_path.pop();
+
+    let mut items = vec![
+        Cow::Borrowed(target_path.as_slice()),
+        Cow::Borrowed(base_path.as_slice()),
+    ];
+    items.sort_by_key(|x| x.len());
+
+    let prefix = find_common_prefix_of_sorted_vec(&items).map(|x| x.len()).unwrap_or(0);
+    let mut rel_list: Vec<_> = repeat("../").take(base_path.len() - prefix).collect();
+    rel_list.extend_from_slice(&target_path[prefix..]);
+    if rel_list.is_empty() {
+        Some(".".into())
+    } else {
+        Some(rel_list.join(""))
+    }
 }
 
 
@@ -93,4 +139,17 @@ fn test_find_common_prefix() {
     let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"]
         .into_iter());
     assert_eq!(rv, None);
+
+    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"]
+        .into_iter());
+    assert_eq!(rv, None);
+}
+
+#[test]
+fn test_make_relative_path() {
+    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map").unwrap(), "baz.map");
+    assert_eq!(&make_relative_path("/foo/bar/.", "/foo/bar/baz.map").unwrap(), "baz.map");
+    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/baz.map").unwrap(), "../baz.map");
+    assert_eq!(&make_relative_path("foo.txt", "foo.js").unwrap(), "foo.js");
+    assert_eq!(&make_relative_path("blah/foo.txt", "foo.js").unwrap(), "../foo.js");
 }
