@@ -125,10 +125,12 @@ impl SourceMapBuilder {
 
         let rv = to_read.len();
         for (src_id, path) in to_read {
-            let mut f = fs::File::open(&path)?;
-            let mut contents = String::new();
-            f.read_to_string(&mut contents)?;
-            self.set_source_contents(src_id, Some(&contents));
+            if let Ok(mut f) = fs::File::open(&path) {
+                let mut contents = String::new();
+                if f.read_to_string(&mut contents).is_ok() {
+                    self.set_source_contents(src_id, Some(&contents));
+                }
+            }
         }
 
         Ok(rv)
