@@ -22,6 +22,10 @@ lazy_static! {
         "#).unwrap();
 }
 
+fn is_valid_javascript_identifier(s: &str) -> bool {
+    s.trim() == s && ANCHORED_IDENT_RE.is_match(s)
+}
+
 /// Controls the `SourceMap::rewrite` behavior
 ///
 /// Default configuration:
@@ -234,11 +238,16 @@ impl<'a> Token<'a> {
     /// keywords from non keywords without parsing the entire source.
     pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
         let lines_iter = source.lines();
-        if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
-            let offset_line = &source_line[self.get_dst_col() as usize..];
-            if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
-                let rng = m.get(1).unwrap();
-                return Some(&offset_line[rng.start()..rng.end()]);
+        if_chain! {
+            // character offset is in unicode characters and not bytes
+            if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next();
+            if let Some((offset, _)) = source_line.char_indices().skip(self.get_dst_col() as usize).next();
+            then {
+                let offset_line = &source_line[offset..];
+                if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
+                    let rng = m.get(1).unwrap();
+                    return Some(&offset_line[rng.start()..rng.end()]);
+                }
             }
         }
         None
@@ -579,6 +588,10 @@ impl SourceMap {
     /// function).
     pub fn get_original_function_name(&self, line: u32, col: u32,
                                       minified_name: &str, source: &str) -> Option<&str> {
+        // fast way out if we are not looking up a valid javascript identifier
+        if !is_valid_javascript_identifier(minified_name) {
+            return None;
+        }
         let mut token_opt = self.lookup_token(line, col);
         while let Some(token) = token_opt.take() {
             // see if we find a name match.  In that case we go back an additional token
