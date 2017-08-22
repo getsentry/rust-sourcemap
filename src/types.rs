@@ -9,6 +9,19 @@ use errors::{Result, Error};
 use builder::SourceMapBuilder;
 use utils::find_common_prefix;
 
+use regex::Regex;
+
+
+lazy_static! {
+    static ref ANCHORED_IDENT_RE: Regex = Regex::new(
+        r#"(?x)
+            ^
+            \s*
+            ([\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_]
+            [\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$_]*)
+        "#).unwrap();
+}
+
 /// Controls the `SourceMap::rewrite` behavior
 ///
 /// Default configuration:
@@ -110,6 +123,7 @@ pub struct RawToken {
 pub struct Token<'a> {
     raw: &'a RawToken,
     i: &'a SourceMap,
+    idx: u32,
 }
 
 impl<'a> PartialEq for Token<'a> {
@@ -210,6 +224,20 @@ impl<'a> Token<'a> {
     /// Return the name ID of the token
     pub fn get_name_id(&self) -> u32 {
         self.raw.name_id
+    }
+
+    /// Given some minified source this returns the most likely
+    /// minified name.
+    pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
+        let lines_iter = source.lines();
+        if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
+            let offset_line = &source_line[self.get_dst_col() as usize..];
+            if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
+                let rng = m.get(1).unwrap();
+                return Some(&offset_line[rng.start()..rng.end()]);
+            }
+        }
+        None
     }
 
     /// Converts the token into a debug tuple in the form
@@ -493,6 +521,7 @@ impl SourceMap {
             Token {
                 raw: raw,
                 i: self,
+                idx: idx,
             }
         })
     }
@@ -530,6 +559,31 @@ impl SourceMap {
         } else {
             None
         }
+    }
+
+    /// Given a location, name and minified source file resolve a minified
+    /// name to an original name (involves guesswork).
+    pub fn map_minified_name(&self, line: u32, col: u32,
+                             minified_name: &str, source: &str) -> Option<&str> {
+        if let Some(token) = self.lookup_token(line, col) {
+            if let Some(ident) = token.get_minified_name(source) {
+                if ident == minified_name {
+                    return token.get_name();
+                }
+            }
+
+            let mut idx = token.idx as i64 - 1;
+            while idx > 0 {
+                let token = self.get_token(idx as u32).unwrap();
+                if let Some(ident) = token.get_minified_name(source) {
+                    if ident == minified_name {
+                        return token.get_name();
+                    }
+                }
+                idx -= 1;
+            }
+        }
+        None
     }
 
     /// Returns the number of sources in the sourcemap.
