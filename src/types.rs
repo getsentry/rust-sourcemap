@@ -226,8 +226,12 @@ impl<'a> Token<'a> {
         self.raw.name_id
     }
 
-    /// Given some minified source this returns the most likely
-    /// minified name.
+    /// Given some minified source this returns the most likely minified name.
+    ///
+    /// Note that this scans for identifiers in the source file so in some cases it can happen that
+    /// values are returned that are not actually names.  For instance a token that points to a
+    /// keyword will return the keyword.  This is done because it is not always possible to tell
+    /// keywords from non keywords without parsing the entire source.
     pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
         let lines_iter = source.lines();
         if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
@@ -342,7 +346,7 @@ impl<'a> Iterator for IndexIter<'a> {
 
 impl<'a> fmt::Debug for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Token {}>", self)
+        write!(f, "<Token {:#}>", self)
     }
 }
 
@@ -355,7 +359,11 @@ impl<'a> fmt::Display for Token<'a> {
                self.get_src_col(),
                self.get_name()
                    .map(|x| format!(" name={}", x))
-                   .unwrap_or("".into()))
+                   .unwrap_or("".into()))?;
+        if f.alternate() {
+            write!(f, " ({}:{})", self.get_dst_line(), self.get_dst_col())?;
+        }
+        Ok(())
     }
 }
 
@@ -562,26 +570,33 @@ impl SourceMap {
     }
 
     /// Given a location, name and minified source file resolve a minified
-    /// name to an original name (involves guesswork).
-    pub fn map_minified_name(&self, line: u32, col: u32,
-                             minified_name: &str, source: &str) -> Option<&str> {
-        if let Some(token) = self.lookup_token(line, col) {
-            if let Some(ident) = token.get_minified_name(source) {
-                if ident == minified_name {
+    /// name to an original function name.
+    ///
+    /// This invokes some guesswork and requires access to the original minified
+    /// source.  This will not yield proper results for anonymous functions or
+    /// functions that do not have clear function names.  (For instance it's
+    /// recommended that dotted function names are not passed to this
+    /// function).
+    pub fn get_original_function_name(&self, line: u32, col: u32,
+                                      minified_name: &str, source: &str) -> Option<&str> {
+        let mut token_opt = self.lookup_token(line, col);
+        while let Some(token) = token_opt.take() {
+            // see if we find a name match.  In that case we go back an additional token
+            // and see if we encounter `function`.
+            if_chain! {
+                if let Some(ident) = token.get_minified_name(source);
+                if token.idx > 0 && ident == minified_name;
+                if let Some(prev_token) = self.get_token(token.idx - 1);
+                if prev_token.get_minified_name(source) == Some("function");
+                then {
                     return token.get_name();
                 }
             }
 
-            let mut idx = token.idx as i64 - 1;
-            while idx > 0 {
-                let token = self.get_token(idx as u32).unwrap();
-                if let Some(ident) = token.get_minified_name(source) {
-                    if ident == minified_name {
-                        return token.get_name();
-                    }
-                }
-                idx -= 1;
+            if token.idx == 0 {
+                break;
             }
+            token_opt = self.get_token(((token.idx as i64) - 1) as u32);
         }
         None
     }
