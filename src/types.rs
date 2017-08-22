@@ -26,6 +26,18 @@ fn is_valid_javascript_identifier(s: &str) -> bool {
     s.trim() == s && ANCHORED_IDENT_RE.is_match(s)
 }
 
+// slices an utf-8 string by wtf16 offsets
+fn wtf16_slice(s: &str, offset: usize) -> &str {
+    let mut char_off = 0;
+    for (idx, c) in s.chars().enumerate() {
+        if idx == offset {
+            break;
+        }
+        char_off += c.len_utf16();
+    }
+    &s[char_off..]
+}
+
 /// Controls the `SourceMap::rewrite` behavior
 ///
 /// Default configuration:
@@ -238,16 +250,12 @@ impl<'a> Token<'a> {
     /// keywords from non keywords without parsing the entire source.
     pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
         let lines_iter = source.lines();
-        if_chain! {
-            // character offset is in unicode characters and not bytes
-            if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next();
-            if let Some((offset, _)) = source_line.char_indices().skip(self.get_dst_col() as usize).next();
-            then {
-                let offset_line = &source_line[offset..];
-                if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
-                    let rng = m.get(1).unwrap();
-                    return Some(&offset_line[rng.start()..rng.end()]);
-                }
+        // character offset is in unicode characters and not bytes
+        if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
+            let offset_line = wtf16_slice(source_line, self.get_dst_col() as usize);
+            if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
+                let rng = m.get(1).unwrap();
+                return Some(&offset_line[rng.start()..rng.end()]);
             }
         }
         None
