@@ -21,6 +21,19 @@ fn test_basic_name_mapping() {
     assert_eq!(tok.get_name(), Some("onFailure"));
     assert_eq!(tok.get_minified_name(minified_file), Some("e"));
 
-    let name = sm.map_minified_name(0, 107, "e", minified_file);
+    let name = sm.get_original_function_name(0, 107, "e", minified_file);
     assert_eq!(name, Some("onFailure"));
+
+
+    // a stacktrae
+    let locs = &[
+        (0, 107, "e", "onFailure"),
+        (0, 179, "i", "invoke"),
+        (0, 226, "u", "test"),
+    ];
+
+    for &(line, col, minified_name, original_name) in locs {
+        let name = sm.get_original_function_name(line, col, minified_name, minified_file);
+        assert_eq!(name, Some(original_name));
+    }
 }
