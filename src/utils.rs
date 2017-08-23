@@ -31,10 +31,6 @@ fn wtf16_slice(s: &str, offset: usize) -> &str {
     &s[char_off..]
 }
 
-pub struct Wtf16Scanner<'a> {
-    source: &'a str,
-}
-
 pub fn get_javascript_token_at(source: &str, line: usize, col: usize) -> Option<&str> {
     let lines_iter = source.lines();
     // character offset is in unicode characters and not bytes

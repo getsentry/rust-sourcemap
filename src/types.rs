@@ -7,8 +7,41 @@ use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
-use utils::{find_common_prefix, Wtf16Scanner, is_valid_javascript_identifier,
-            get_javascript_token_at};
+use utils::{find_common_prefix, is_valid_javascript_identifier, get_javascript_token_at};
+
+
+struct ReverseOriginalTokenIter<'a, 'b> {
+    sm: &'a SourceMap,
+    token: Option<Token<'a>>,
+    source: &'b str,
+}
+
+impl<'a, 'b> ReverseOriginalTokenIter<'a, 'b> {
+    pub fn new(sm: &'a SourceMap, line: u32, col: u32, source: &'b str)
+        -> ReverseOriginalTokenIter<'a, 'b>
+    {
+        ReverseOriginalTokenIter {
+            sm: sm,
+            token: sm.lookup_token(line, col),
+            source: source,
+        }
+    }
+}
+
+impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
+    type Item = (Token<'a>, Option<&'b str>);
+
+    fn next(&mut self) -> Option<(Token<'a>, Option<&'b str>)> {
+        if let Some(token) = self.token.take() {
+            if token.idx > 0 {
+                self.token = self.sm.get_token(token.idx - 1);
+            }
+            Some((token, token.get_minified_name(self.source)))
+        } else {
+            None
+        }
+    }
+}
 
 
 /// Controls the `SourceMap::rewrite` behavior
@@ -109,6 +142,7 @@ pub struct RawToken {
 }
 
 /// Represents a token from a sourcemap
+#[derive(Copy, Clone)]
 pub struct Token<'a> {
     raw: &'a RawToken,
     i: &'a SourceMap,
@@ -565,34 +599,20 @@ impl SourceMap {
         if !is_valid_javascript_identifier(minified_name) {
             return None;
         }
-        let mut token_opt = self.lookup_token(line, col);
-        let mut distance = 0;
 
-        while let Some(token) = token_opt.take() {
-            // see if we find a name match.  In that case we go back an additional token
-            // and see if we encounter `function`.
+        let mut iter = ReverseOriginalTokenIter::new(self, line, col, source).peekable();
+
+        while let Some((token, original_identifier)) = iter.next() {
             if_chain! {
-                if let Some(ident) = token.get_minified_name(source);
-                if token.idx > 0 && ident == minified_name;
-                if let Some(prev_token) = self.get_token(token.idx - 1);
-                if prev_token.get_minified_name(source) == Some("function");
+                if original_identifier == Some(minified_name);
+                if let Some(item) = iter.peek();
+                if item.1 == Some("function");
                 then {
                     return token.get_name();
                 }
             }
-
-            // if we hit the first token or we moved more than 2000 tokens back
-            // we just give up.  In theory this menas that if a function is very
-            // long we might not find the function name.  However since scanning
-            // through the source this way is really expensive we do want to
-            // stop at one point.
-            distance += 1;
-            if token.idx == 0 && distance > 2000 {
-                break;
-            }
-
-            token_opt = self.get_token(((token.idx as i64) - 1) as u32);
         }
+
         None
     }
 
