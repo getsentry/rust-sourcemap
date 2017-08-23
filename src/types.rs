@@ -670,7 +670,14 @@ impl SourceMap {
             return None;
         }
 
-        let mut iter = ReverseOriginalTokenIter::new(self, line, col, source).peekable();
+        // make a reverse iterator over the tokens together with the original
+        // identifier and walk over this.  We only allow moving backwards for a
+        // total of 1000 tokens so that we do not completely exhaust the file
+        // on garbage input.  This also means that if a function is larger than
+        // 1000 tokens you might not get a match but this is most likely acceptable.
+        let mut iter = ReverseOriginalTokenIter::new(self, line, col, source)
+            .take(1000)
+            .peekable();
 
         while let Some((token, original_identifier)) = iter.next() {
             if_chain! {
