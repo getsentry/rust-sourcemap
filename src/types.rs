@@ -84,9 +84,6 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
             new_offset
         };
 
-        // attempt to consume on javascript token
-        let jstok = get_javascript_token(&source_line[byte_offset..]);
-
         // remember where we were
         self.source_line = Some((
             source_line,
@@ -95,7 +92,13 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
             byte_offset,
         ));
 
-        Some((token, jstok))
+        // in case we run out of bounds here we reset the cache
+        if byte_offset >= source_line.len() {
+            self.source_line = None;
+            Some((token, None))
+        } else {
+            Some((token, get_javascript_token(&source_line[byte_offset..])))
+        }
     }
 }
 
