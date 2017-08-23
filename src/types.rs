@@ -7,36 +7,9 @@ use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
-use utils::find_common_prefix;
+use utils::{find_common_prefix, Wtf16Scanner, is_valid_javascript_identifier,
+            get_javascript_token_at};
 
-use regex::Regex;
-
-
-lazy_static! {
-    static ref ANCHORED_IDENT_RE: Regex = Regex::new(
-        r#"(?x)
-            ^
-            \s*
-            ([\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_]
-            [\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$_]*)
-        "#).unwrap();
-}
-
-fn is_valid_javascript_identifier(s: &str) -> bool {
-    s.trim() == s && ANCHORED_IDENT_RE.is_match(s)
-}
-
-// slices an utf-8 string by wtf16 offsets
-fn wtf16_slice(s: &str, offset: usize) -> &str {
-    let mut char_off = 0;
-    for (idx, c) in s.chars().enumerate() {
-        if idx == offset {
-            break;
-        }
-        char_off += c.len_utf16();
-    }
-    &s[char_off..]
-}
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -249,16 +222,8 @@ impl<'a> Token<'a> {
     /// keyword will return the keyword.  This is done because it is not always possible to tell
     /// keywords from non keywords without parsing the entire source.
     pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
-        let lines_iter = source.lines();
-        // character offset is in unicode characters and not bytes
-        if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
-            let offset_line = wtf16_slice(source_line, self.get_dst_col() as usize);
-            if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
-                let rng = m.get(1).unwrap();
-                return Some(&offset_line[rng.start()..rng.end()]);
-            }
-        }
-        None
+        get_javascript_token_at(source, self.get_dst_line() as usize,
+                                self.get_dst_col() as usize)
     }
 
     /// Converts the token into a debug tuple in the form
@@ -601,6 +566,8 @@ impl SourceMap {
             return None;
         }
         let mut token_opt = self.lookup_token(line, col);
+        let mut distance = 0;
+
         while let Some(token) = token_opt.take() {
             // see if we find a name match.  In that case we go back an additional token
             // and see if we encounter `function`.
@@ -614,9 +581,16 @@ impl SourceMap {
                 }
             }
 
-            if token.idx == 0 {
+            // if we hit the first token or we moved more than 2000 tokens back
+            // we just give up.  In theory this menas that if a function is very
+            // long we might not find the function name.  However since scanning
+            // through the source this way is really expensive we do want to
+            // stop at one point.
+            distance += 1;
+            if token.idx == 0 && distance > 2000 {
                 break;
             }
+
             token_opt = self.get_token(((token.idx as i64) - 1) as u32);
         }
         None

@@ -1,6 +1,52 @@
 use std::borrow::Cow;
 use std::iter::repeat;
 
+use regex::Regex;
+
+
+lazy_static! {
+    static ref ANCHORED_IDENT_RE: Regex = Regex::new(
+        r#"(?x)
+            ^
+            \s*
+            ([\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_]
+            [\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$_]*)
+        "#).unwrap();
+}
+
+pub fn is_valid_javascript_identifier(s: &str) -> bool {
+    s.trim() == s && ANCHORED_IDENT_RE.is_match(s)
+}
+
+// slices an utf-8 string by wtf16 offsets
+#[inline(always)]
+fn wtf16_slice(s: &str, offset: usize) -> &str {
+    let mut char_off = 0;
+    for (idx, c) in s.chars().enumerate() {
+        if idx == offset {
+            break;
+        }
+        char_off += c.len_utf16();
+    }
+    &s[char_off..]
+}
+
+pub struct Wtf16Scanner<'a> {
+    source: &'a str,
+}
+
+pub fn get_javascript_token_at(source: &str, line: usize, col: usize) -> Option<&str> {
+    let lines_iter = source.lines();
+    // character offset is in unicode characters and not bytes
+    if let Some(source_line) = lines_iter.skip(line).next() {
+        let offset_line = wtf16_slice(source_line, col);
+        if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
+            let rng = m.get(1).unwrap();
+            return Some(&offset_line[rng.start()..rng.end()]);
+        }
+    }
+    None
+}
 
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;
@@ -14,7 +60,7 @@ fn split_path(path: &str) -> Vec<&str> {
     }
     rv
 }
-
+ 
 fn is_abs_path(s: &str) -> bool {
     if s.starts_with('/') {
         return true;
