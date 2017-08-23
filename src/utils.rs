@@ -18,30 +18,13 @@ pub fn is_valid_javascript_identifier(s: &str) -> bool {
     s.trim() == s && ANCHORED_IDENT_RE.is_match(s)
 }
 
-// slices an utf-8 string by wtf16 offsets
-#[inline(always)]
-fn wtf16_slice(s: &str, offset: usize) -> &str {
-    let mut char_off = 0;
-    for (idx, c) in s.chars().enumerate() {
-        if idx == offset {
-            break;
-        }
-        char_off += c.len_utf16();
+pub fn get_javascript_token(source_line: &str) -> Option<&str> {
+    if let Some(m) = ANCHORED_IDENT_RE.captures(source_line) {
+        let rng = m.get(1).unwrap();
+        Some(&source_line[rng.start()..rng.end()])
+    } else {
+        None
     }
-    &s[char_off..]
-}
-
-pub fn get_javascript_token_at(source: &str, line: usize, col: usize) -> Option<&str> {
-    let lines_iter = source.lines();
-    // character offset is in unicode characters and not bytes
-    if let Some(source_line) = lines_iter.skip(line).next() {
-        let offset_line = wtf16_slice(source_line, col);
-        if let Some(m) = ANCHORED_IDENT_RE.captures(offset_line) {
-            let rng = m.get(1).unwrap();
-            return Some(&offset_line[rng.start()..rng.end()]);
-        }
-    }
-    None
 }
 
 fn split_path(path: &str) -> Vec<&str> {

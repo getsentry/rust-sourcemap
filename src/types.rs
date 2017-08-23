@@ -7,13 +7,14 @@ use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
-use utils::{find_common_prefix, is_valid_javascript_identifier, get_javascript_token_at};
+use utils::{find_common_prefix, is_valid_javascript_identifier, get_javascript_token};
 
 
 struct ReverseOriginalTokenIter<'a, 'b> {
     sm: &'a SourceMap,
     token: Option<Token<'a>>,
     source: &'b str,
+    source_line: Option<(&'b str, usize, usize, usize)>,
 }
 
 impl<'a, 'b> ReverseOriginalTokenIter<'a, 'b> {
@@ -24,6 +25,7 @@ impl<'a, 'b> ReverseOriginalTokenIter<'a, 'b> {
             sm: sm,
             token: sm.lookup_token(line, col),
             source: source,
+            source_line: None,
         }
     }
 }
@@ -32,14 +34,68 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
     type Item = (Token<'a>, Option<&'b str>);
 
     fn next(&mut self) -> Option<(Token<'a>, Option<&'b str>)> {
-        if let Some(token) = self.token.take() {
-            if token.idx > 0 {
-                self.token = self.sm.get_token(token.idx - 1);
-            }
-            Some((token, token.get_minified_name(self.source)))
-        } else {
-            None
+        let token = match self.token.take() {
+            None => { return None; }
+            Some(token) => token
+        };
+
+        if token.idx > 0 {
+            self.token = self.sm.get_token(token.idx - 1);
         }
+
+        // if we are going to the same line as we did last iteration, we don't have to scan
+        // up to it again.  For normal sourcemaps this should mean we only ever go to the
+        // line once.
+        let (source_line, last_char_offset, last_byte_offset) = if_chain! {
+            if let Some((source_line, dst_line, last_char_offset, last_byte_offset)) = self.source_line;
+            if dst_line == token.get_dst_line() as usize;
+            then {
+                (source_line, last_char_offset, last_byte_offset)
+            } else {
+                let lines_iter = self.source.lines();
+                if let Some(source_line) = lines_iter.skip(token.get_dst_line() as usize).next() {
+                    (source_line, !0, !0)
+                } else {
+                    self.source_line = None;
+                    return Some((token, None));
+                }
+            }
+        };
+
+        // find the byte offset where our token starts
+        let byte_offset = if last_byte_offset == !0 {
+            let mut off = 0;
+            for (idx, c) in source_line.chars().enumerate() {
+                if idx == token.get_dst_col() as usize {
+                    break;
+                }
+                off += c.len_utf16();
+            }
+            off
+        } else {
+            let chars_to_move = last_char_offset - token.get_dst_col() as usize;
+            let mut new_offset = last_byte_offset;
+            for (idx, c) in source_line[last_char_offset..].chars().rev().enumerate() {
+                if idx >= chars_to_move {
+                    break;
+                }
+                new_offset -= c.len_utf16();
+            }
+            new_offset
+        };
+
+        // attempt to consume on javascript token
+        let jstok = get_javascript_token(&source_line[byte_offset..]);
+
+        // remember where we were
+        self.source_line = Some((
+            source_line,
+            token.get_dst_line() as usize,
+            token.get_dst_col() as usize,
+            byte_offset,
+        ));
+
+        Some((token, jstok))
     }
 }
 
@@ -256,8 +312,19 @@ impl<'a> Token<'a> {
     /// keyword will return the keyword.  This is done because it is not always possible to tell
     /// keywords from non keywords without parsing the entire source.
     pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
-        get_javascript_token_at(source, self.get_dst_line() as usize,
-                                self.get_dst_col() as usize)
+        let lines_iter = source.lines();
+        if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
+            let mut off = 0;
+            for (idx, c) in source_line.chars().enumerate() {
+                if idx == self.get_dst_col() as usize {
+                    break;
+                }
+                off += c.len_utf16();
+            }
+            get_javascript_token(&source_line[off..])
+        } else {
+            None
+        }
     }
 
     /// Converts the token into a debug tuple in the form
