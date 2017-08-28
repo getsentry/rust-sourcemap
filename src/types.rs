@@ -56,8 +56,8 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
                 if let Some(source_line) = lines_iter.skip(token.get_dst_line() as usize).next() {
                     (source_line, !0, !0)
                 } else {
-                    self.source_line = None;
-                    return Some((token, None));
+                    // if we can't find the line, return am empty one
+                    ("", !0, !0)
                 }
             }
         };
@@ -65,21 +65,25 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
         // find the byte offset where our token starts
         let byte_offset = if last_byte_offset == !0 {
             let mut off = 0;
-            for (idx, c) in source_line.chars().enumerate() {
-                if idx == token.get_dst_col() as usize {
+            let mut idx = 0;
+            for c in source_line.chars() {
+                if idx >= token.get_dst_col() as usize {
                     break;
                 }
-                off += c.len_utf16();
+                off += c.len_utf8();
+                idx += c.len_utf16();
             }
             off
         } else {
             let chars_to_move = last_char_offset - token.get_dst_col() as usize;
             let mut new_offset = last_byte_offset;
-            for (idx, c) in source_line[last_char_offset..].chars().rev().enumerate() {
+            let mut idx = 0;
+            for c in source_line[last_char_offset..].chars().rev() {
                 if idx >= chars_to_move {
                     break;
                 }
-                new_offset -= c.len_utf16();
+                new_offset -= c.len_utf8();
+                idx += c.len_utf16();
             }
             new_offset
         };
@@ -318,11 +322,13 @@ impl<'a> Token<'a> {
         let lines_iter = source.lines();
         if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
             let mut off = 0;
-            for (idx, c) in source_line.chars().enumerate() {
-                if idx == self.get_dst_col() as usize {
+            let mut idx = 0;
+            for c in source_line.chars() {
+                if idx >= self.get_dst_col() as usize {
                     break;
                 }
-                off += c.len_utf16();
+                off += c.len_utf8();
+                idx += c.len_utf16();
             }
             get_javascript_token(&source_line[off..])
         } else {
