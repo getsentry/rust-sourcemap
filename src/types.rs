@@ -7,8 +7,20 @@ use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
-use utils::{find_common_prefix, is_valid_javascript_identifier, get_javascript_token};
+use utils::{find_common_prefix, is_valid_javascript_identifier,
+            get_javascript_token};
 
+
+macro_rules! safe_str_slice {
+    ($s:expr, $idx:expr) => {
+        match () {
+            #[cfg(safe_str_slice)]
+            () => $s.get($idx),
+            #[cfg(not(safe_str_slice))]
+            () => Some(&$s[$idx])
+        }
+    }
+}
 
 struct ReverseOriginalTokenIter<'a, 'b> {
     sm: &'a SourceMap,
@@ -78,7 +90,7 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
             let chars_to_move = last_char_offset - token.get_dst_col() as usize;
             let mut new_offset = last_byte_offset;
             let mut idx = 0;
-            for c in source_line[..last_byte_offset].chars().rev() {
+            for c in safe_str_slice!(source_line, ..last_byte_offset).unwrap_or("").chars().rev() {
                 if idx >= chars_to_move {
                     break;
                 }
@@ -101,7 +113,11 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
             self.source_line = None;
             Some((token, None))
         } else {
-            Some((token, get_javascript_token(&source_line[byte_offset..])))
+            Some((
+                token,
+                safe_str_slice!(source_line, byte_offset..)
+                    .and_then(|s| get_javascript_token(s))
+            ))
         }
     }
 }
@@ -330,7 +346,7 @@ impl<'a> Token<'a> {
                 off += c.len_utf8();
                 idx += c.len_utf16();
             }
-            get_javascript_token(&source_line[off..])
+            safe_str_slice!(source_line, off..).and_then(|x| get_javascript_token(x))
         } else {
             None
         }

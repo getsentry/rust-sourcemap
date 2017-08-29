@@ -8,6 +8,7 @@ homepage = "https://github.com/mitsuhiko/rust-sourcemap"
 documentation = "http://mitsuhiko.github.io/rust-sourcemap/"
 license = "BSD-3-Clause"
 readme = "README.md"
+build = "build.rs"
 
 [dependencies]
 url = "1.4"
@@ -18,3 +19,6 @@ base64 = "0.4"
 regex = "0.2"
 lazy_static = "0.2.8"
 if_chain = "^0.1.2"
+
+[build-dependencies]
+rustc_version = "0.2"
