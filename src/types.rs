@@ -78,7 +78,7 @@ impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
             let chars_to_move = last_char_offset - token.get_dst_col() as usize;
             let mut new_offset = last_byte_offset;
             let mut idx = 0;
-            for c in source_line[last_char_offset..].chars().rev() {
+            for c in source_line[..last_byte_offset].chars().rev() {
                 if idx >= chars_to_move {
                     break;
                 }
