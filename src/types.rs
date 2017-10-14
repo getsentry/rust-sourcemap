@@ -7,120 +7,8 @@ use decoder::{decode, decode_slice};
 use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
-use utils::{find_common_prefix, is_valid_javascript_identifier,
-            get_javascript_token};
-
-
-macro_rules! safe_str_slice {
-    ($s:expr, $idx:expr) => {
-        match () {
-            #[cfg(safe_str_slice)]
-            () => $s.get($idx),
-            #[cfg(not(safe_str_slice))]
-            () => Some(&$s[$idx])
-        }
-    }
-}
-
-struct ReverseOriginalTokenIter<'a, 'b> {
-    sm: &'a SourceMap,
-    token: Option<Token<'a>>,
-    source: &'b str,
-    source_line: Option<(&'b str, usize, usize, usize)>,
-}
-
-impl<'a, 'b> ReverseOriginalTokenIter<'a, 'b> {
-    pub fn new(sm: &'a SourceMap, line: u32, col: u32, source: &'b str)
-        -> ReverseOriginalTokenIter<'a, 'b>
-    {
-        ReverseOriginalTokenIter {
-            sm: sm,
-            token: sm.lookup_token(line, col),
-            source: source,
-            source_line: None,
-        }
-    }
-}
-
-impl<'a, 'b> Iterator for ReverseOriginalTokenIter<'a, 'b> {
-    type Item = (Token<'a>, Option<&'b str>);
-
-    fn next(&mut self) -> Option<(Token<'a>, Option<&'b str>)> {
-        let token = match self.token.take() {
-            None => { return None; }
-            Some(token) => token
-        };
-
-        if token.idx > 0 {
-            self.token = self.sm.get_token(token.idx - 1);
-        }
-
-        // if we are going to the same line as we did last iteration, we don't have to scan
-        // up to it again.  For normal sourcemaps this should mean we only ever go to the
-        // line once.
-        let (source_line, last_char_offset, last_byte_offset) = if_chain! {
-            if let Some((source_line, dst_line, last_char_offset, last_byte_offset)) = self.source_line;
-            if dst_line == token.get_dst_line() as usize;
-            then {
-                (source_line, last_char_offset, last_byte_offset)
-            } else {
-                let lines_iter = self.source.lines();
-                if let Some(source_line) = lines_iter.skip(token.get_dst_line() as usize).next() {
-                    (source_line, !0, !0)
-                } else {
-                    // if we can't find the line, return am empty one
-                    ("", !0, !0)
-                }
-            }
-        };
-
-        // find the byte offset where our token starts
-        let byte_offset = if last_byte_offset == !0 {
-            let mut off = 0;
-            let mut idx = 0;
-            for c in source_line.chars() {
-                if idx >= token.get_dst_col() as usize {
-                    break;
-                }
-                off += c.len_utf8();
-                idx += c.len_utf16();
-            }
-            off
-        } else {
-            let chars_to_move = last_char_offset - token.get_dst_col() as usize;
-            let mut new_offset = last_byte_offset;
-            let mut idx = 0;
-            for c in safe_str_slice!(source_line, ..last_byte_offset).unwrap_or("").chars().rev() {
-                if idx >= chars_to_move {
-                    break;
-                }
-                new_offset -= c.len_utf8();
-                idx += c.len_utf16();
-            }
-            new_offset
-        };
-
-        // remember where we were
-        self.source_line = Some((
-            source_line,
-            token.get_dst_line() as usize,
-            token.get_dst_col() as usize,
-            byte_offset,
-        ));
-
-        // in case we run out of bounds here we reset the cache
-        if byte_offset >= source_line.len() {
-            self.source_line = None;
-            Some((token, None))
-        } else {
-            Some((
-                token,
-                safe_str_slice!(source_line, byte_offset..)
-                    .and_then(|s| get_javascript_token(s))
-            ))
-        }
-    }
-}
+use utils::{find_common_prefix};
+use sourceview::MinifiedSourceView;
 
 
 /// Controls the `SourceMap::rewrite` behavior
@@ -328,30 +216,6 @@ impl<'a> Token<'a> {
         self.raw.name_id
     }
 
-    /// Given some minified source this returns the most likely minified name.
-    ///
-    /// Note that this scans for identifiers in the source file so in some cases it can happen that
-    /// values are returned that are not actually names.  For instance a token that points to a
-    /// keyword will return the keyword.  This is done because it is not always possible to tell
-    /// keywords from non keywords without parsing the entire source.
-    pub fn get_minified_name<'b>(&self, source: &'b str) -> Option<&'b str> {
-        let lines_iter = source.lines();
-        if let Some(source_line) = lines_iter.skip(self.get_dst_line() as usize).next() {
-            let mut off = 0;
-            let mut idx = 0;
-            for c in source_line.chars() {
-                if idx >= self.get_dst_col() as usize {
-                    break;
-                }
-                off += c.len_utf8();
-                idx += c.len_utf16();
-            }
-            safe_str_slice!(source_line, off..).and_then(|x| get_javascript_token(x))
-        } else {
-            None
-        }
-    }
-
     /// Converts the token into a debug tuple in the form
     /// `(source, src_line, src_col, name)`
     pub fn to_tuple(&self) -> (&'a str, u32, u32, Option<&'a str>) {
@@ -362,6 +226,14 @@ impl<'a> Token<'a> {
     pub fn get_raw_token(&self) -> RawToken {
         *self.raw
     }
+}
+
+pub fn idx_from_token(token: &Token) -> u32 {
+    token.idx
+}
+
+pub fn sourcemap_from_token<'a>(token: &Token<'a>) -> &'a SourceMap {
+    token.i
 }
 
 /// Iterates over all tokens in a sourcemap
@@ -685,34 +557,14 @@ impl SourceMap {
     /// functions that do not have clear function names.  (For instance it's
     /// recommended that dotted function names are not passed to this
     /// function).
-    pub fn get_original_function_name(&self, line: u32, col: u32,
-                                      minified_name: &str, source: &str) -> Option<&str> {
-        // fast way out if we are not looking up a valid javascript identifier
-        if !is_valid_javascript_identifier(minified_name) {
-            return None;
+    pub fn get_original_function_name<'a>(&self, line: u32, col: u32,
+                                          minified_name: &str, source: &'a str) -> Option<&str> {
+        let sv = MinifiedSourceView::new(source);
+        if let Some(token) = self.lookup_token(line, col) {
+            sv.get_original_function_name(token, minified_name)
+        } else {
+            None
         }
-
-        // make a reverse iterator over the tokens together with the original
-        // identifier and walk over this.  We only allow moving backwards for a
-        // total of 1000 tokens so that we do not completely exhaust the file
-        // on garbage input.  This also means that if a function is larger than
-        // 1000 tokens you might not get a match but this is most likely acceptable.
-        let mut iter = ReverseOriginalTokenIter::new(self, line, col, source)
-            .take(1000)
-            .peekable();
-
-        while let Some((token, original_identifier)) = iter.next() {
-            if_chain! {
-                if original_identifier == Some(minified_name);
-                if let Some(item) = iter.peek();
-                if item.1 == Some("function");
-                then {
-                    return token.get_name();
-                }
-            }
-        }
-
-        None
     }
 
     /// Returns the number of sources in the sourcemap.
