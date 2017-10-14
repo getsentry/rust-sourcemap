@@ -558,13 +558,13 @@ impl SourceMap {
     /// recommended that dotted function names are not passed to this
     /// function).
     pub fn get_original_function_name<'a>(&self, line: u32, col: u32,
-                                          minified_name: &str, source: &'a str) -> Option<&str> {
-        let sv = MinifiedSourceView::new(source);
-        if let Some(token) = self.lookup_token(line, col) {
+                                          minified_name: &str,
+                                          sv: &'a MinifiedSourceView<'a>)
+        -> Option<&str>
+    {
+        self.lookup_token(line, col).and_then(|token| {
             sv.get_original_function_name(token, minified_name)
-        } else {
-            None
-        }
+        })
     }
 
     /// Returns the number of sources in the sourcemap.
