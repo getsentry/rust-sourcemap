@@ -6,13 +6,14 @@ use types::{Token, idx_from_token, sourcemap_from_token};
 use utils::{get_javascript_token, is_valid_javascript_identifier};
 
 
-pub struct ReverseTokenIter<'view, 'map> {
+/// An iterator that iterates over tokens in reverse.
+pub struct RevTokenIter<'view, 'map> {
     sv: &'view MinifiedSourceView<'view>,
     token: Option<Token<'map>>,
     source_line: Option<(&'view str, usize, usize, usize)>,
 }
 
-impl<'view, 'map> Iterator for ReverseTokenIter<'view, 'map> {
+impl<'view, 'map> Iterator for RevTokenIter<'view, 'map> {
     type Item = (Token<'map>, Option<&'view str>);
 
     fn next(&mut self) -> Option<(Token<'map>, Option<&'view str>)> {
@@ -142,14 +143,10 @@ impl<'a> MinifiedSourceView<'a> {
         self.source
     }
 
-    /// Iterates backwards over the tokens.
-    ///
-    /// The iterator is starting from a given one while also yielding the original
-    /// identifier if one exists at that location.
-    pub fn rev_token_iter<'map>(&'a self, token: Token<'map>)
-        -> ReverseTokenIter<'a, 'map>
+    fn rev_token_iter<'map>(&'a self, token: Token<'map>)
+        -> RevTokenIter<'a, 'map>
     {
-        ReverseTokenIter {
+        RevTokenIter {
             sv: self,
             token: Some(token),
             source_line: None,
