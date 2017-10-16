@@ -7,16 +7,20 @@ use utils::{get_javascript_token, is_valid_javascript_identifier};
 
 
 /// An iterator that iterates over tokens in reverse.
-pub struct RevTokenIter<'view, 'map> {
-    sv: &'view SourceView<'view>,
+pub struct RevTokenIter<'view, 'viewbase, 'map>
+    where 'viewbase: 'view
+{
+    sv: &'view SourceView<'viewbase>,
     token: Option<Token<'map>>,
-    source_line: Option<(&'view str, usize, usize, usize)>,
+    source_line: Option<(&'viewbase str, usize, usize, usize)>,
 }
 
-impl<'view, 'map> Iterator for RevTokenIter<'view, 'map> {
-    type Item = (Token<'map>, Option<&'view str>);
+impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
+    where 'viewbase: 'view
+{
+    type Item = (Token<'map>, Option<&'viewbase str>);
 
-    fn next(&mut self) -> Option<(Token<'map>, Option<&'view str>)> {
+    fn next(&mut self) -> Option<(Token<'map>, Option<&'viewbase str>)> {
         let token = match self.token.take() {
             None => { return None; }
             Some(token) => token
@@ -143,8 +147,8 @@ impl<'a> SourceView<'a> {
         self.source
     }
 
-    fn rev_token_iter<'map>(&'a self, token: Token<'map>)
-        -> RevTokenIter<'a, 'map>
+    fn rev_token_iter<'this, 'map>(&'this self, token: Token<'map>)
+        -> RevTokenIter<'this, 'a, 'map>
     {
         RevTokenIter {
             sv: self,
@@ -161,7 +165,7 @@ impl<'a> SourceView<'a> {
     /// functions that do not have clear function names.  (For instance it's
     /// recommended that dotted function names are not passed to this
     /// function).
-    pub fn get_original_function_name<'map>(&'a self, token: Token<'map>, minified_name: &str)
+    pub fn get_original_function_name<'map>(&self, token: Token<'map>, minified_name: &str)
         -> Option<&'map str>
     {
         if !is_valid_javascript_identifier(minified_name) {
