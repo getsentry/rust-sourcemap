@@ -54,8 +54,8 @@ fn test_basic_indexed_sourcemap() {
 
     let mut ism = SourceMapIndex::from_reader(input).unwrap();
     for section_id in 0..ism.get_section_count() {
-        let mut section = ism.get_section_mut(section_id).unwrap();
-        let mut map = section.get_sourcemap_mut().unwrap();
+        let section = ism.get_section_mut(section_id).unwrap();
+        let map = section.get_sourcemap_mut().unwrap();
         let contents = {
             let filename = map.get_source(0).unwrap();
             *raw_files.get(filename).unwrap()

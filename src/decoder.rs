@@ -52,7 +52,7 @@ impl<R: Read> Read for StripHeaderReader<R> {
 impl<R: Read> StripHeaderReader<R> {
     fn strip_head_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut backing = vec![0; buf.len()];
-        let mut local_buf: &mut [u8] = &mut *backing;
+        let local_buf: &mut [u8] = &mut *backing;
 
         loop {
             let read = self.r.read(local_buf)?;

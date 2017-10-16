@@ -57,6 +57,7 @@ pub use errors::{Result, Error};
 pub use decoder::{decode, decode_slice, decode_data_url};
 pub use detector::{SourceMapRef, locate_sourcemap_reference, locate_sourcemap_reference_slice,
                    is_sourcemap, is_sourcemap_slice};
+pub use sourceview::SourceView;
 pub use utils::make_relative_path;
 
 mod builder;
@@ -66,6 +67,7 @@ mod jsontypes;
 mod decoder;
 mod encoder;
 mod detector;
+mod sourceview;
 mod vlq;
 mod utils;
 

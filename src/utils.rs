@@ -15,7 +15,9 @@ lazy_static! {
 }
 
 pub fn is_valid_javascript_identifier(s: &str) -> bool {
-    s.trim() == s && ANCHORED_IDENT_RE.is_match(s)
+    // check explicitly we do not have a dot in this identifier so that
+    // we do not match on foo.bar
+    s.trim() == s && !s.contains('.') && ANCHORED_IDENT_RE.is_match(s)
 }
 
 pub fn get_javascript_token(source_line: &str) -> Option<&str> {
