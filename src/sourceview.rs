@@ -101,6 +101,24 @@ impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
     }
 }
 
+pub struct Lines<'a> {
+    sv: &'a SourceView<'a>,
+    idx: u32,
+}
+
+impl<'a> Iterator for Lines<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        if let Some(line) = self.sv.get_line(self.idx) {
+            self.idx += 1;
+            Some(line)
+        } else {
+            None
+        }
+    }
+}
+
 /// Provides efficient access to minified sources.
 ///
 /// This type is used to implement farily efficient source mapping
@@ -222,6 +240,14 @@ impl<'a> SourceView<'a> {
                 line.get(off..off_end)
             }
         })
+    }
+
+    /// Returns an iterator over all lines.
+    pub fn lines(&'a self) -> Lines<'a> {
+        Lines {
+            sv: self,
+            idx: 0,
+        }
     }
 
     /// Returns the source.

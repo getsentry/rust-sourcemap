@@ -85,5 +85,9 @@ fn test_basic_indexed_sourcemap() {
             .lines()
             .collect();
         assert_eq!(&contents, ref_contents);
+
+        let view = flat_map.get_source_view(src_id as u32)
+            .expect(&format!("no source for {}", filename));
+        assert_eq!(&view.lines().collect::<Vec<_>>(), ref_contents);
     }
 }
