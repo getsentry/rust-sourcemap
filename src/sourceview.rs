@@ -8,7 +8,7 @@ use utils::{get_javascript_token, is_valid_javascript_identifier};
 
 /// An iterator that iterates over tokens in reverse.
 pub struct RevTokenIter<'view, 'map> {
-    sv: &'view MinifiedSourceView<'view>,
+    sv: &'view SourceView<'view>,
     token: Option<Token<'map>>,
     source_line: Option<(&'view str, usize, usize, usize)>,
 }
@@ -100,16 +100,16 @@ impl<'view, 'map> Iterator for RevTokenIter<'view, 'map> {
 ///
 /// This type is used to implement farily efficient source mapping
 /// operations.
-pub struct MinifiedSourceView<'a> {
+pub struct SourceView<'a> {
     source: &'a str,
     source_iter: RefCell<Fuse<Lines<'a>>>,
     lines: RefCell<Vec<&'a str>>,
 }
 
-impl<'a> MinifiedSourceView<'a> {
+impl<'a> SourceView<'a> {
     /// Creates an optimized view of a given minified source.
-    pub fn new(source: &'a str) -> MinifiedSourceView<'a> {
-        MinifiedSourceView {
+    pub fn new(source: &'a str) -> SourceView<'a> {
+        SourceView {
             source: source,
             source_iter: RefCell::new(source.lines().fuse()),
             lines: RefCell::new(vec![]),
@@ -193,7 +193,7 @@ impl<'a> MinifiedSourceView<'a> {
 
 #[test]
 fn test_minified_source_view() {
-    let view = MinifiedSourceView::new("a\nb\nc");
+    let view = SourceView::new("a\nb\nc");
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(2), Some("c"));

@@ -8,7 +8,7 @@ use encoder::encode;
 use errors::{Result, Error};
 use builder::SourceMapBuilder;
 use utils::{find_common_prefix};
-use sourceview::MinifiedSourceView;
+use sourceview::SourceView;
 
 
 /// Controls the `SourceMap::rewrite` behavior
@@ -559,7 +559,7 @@ impl SourceMap {
     /// function).
     pub fn get_original_function_name<'a>(&self, line: u32, col: u32,
                                           minified_name: &str,
-                                          sv: &'a MinifiedSourceView<'a>)
+                                          sv: &'a SourceView<'a>)
         -> Option<&str>
     {
         self.lookup_token(line, col).and_then(|token| {
