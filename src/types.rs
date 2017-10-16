@@ -388,7 +388,7 @@ pub struct SourceMap {
     index: Vec<(u32, u32, u32)>,
     names: Vec<String>,
     sources: Vec<String>,
-    sources_content: Vec<Option<String>>,
+    sources_content: Vec<Option<SourceView<'static>>>,
 }
 
 impl SourceMap {
@@ -489,7 +489,11 @@ impl SourceMap {
             index: index,
             names: names,
             sources: sources,
-            sources_content: sources_content.unwrap_or(vec![]),
+            sources_content: sources_content
+                .unwrap_or(vec![])
+                .into_iter()
+                .map(|opt| opt.map(|source| SourceView::from_string(source)))
+                .collect(),
         }
     }
 
@@ -593,12 +597,18 @@ impl SourceMap {
         }
     }
 
+    /// Returns the sources content as source view.
+    pub fn get_source_view<'a>(&'a self, idx: u32) -> Option<&'a SourceView<'a>> {
+        self.sources_content.get(idx as usize)
+            .and_then(|x| x.as_ref())
+    }
+
     /// Looks up the content for a source.
     pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
         self.sources_content
             .get(idx as usize)
             .and_then(|bucket| bucket.as_ref())
-            .map(|x| &**x)
+            .map(|x| x.source())
     }
 
     /// Sets source contents for a source.
@@ -606,7 +616,8 @@ impl SourceMap {
         if self.sources_content.len() != self.sources.len() {
             self.sources_content.resize(self.sources.len(), None);
         }
-        self.sources_content[idx as usize] = value.map(|x| x.to_string());
+        self.sources_content[idx as usize] = value
+            .map(|x| SourceView::from_string(x.to_string()));
     }
 
     /// Iterates over all source contents

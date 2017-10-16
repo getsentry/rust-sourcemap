@@ -1,5 +1,6 @@
-use std::str::Lines;
-use std::iter::Fuse;
+use std::str;
+use std::slice;
+use std::borrow::Cow;
 use std::cell::RefCell;
 
 use types::{Token, idx_from_token, sourcemap_from_token};
@@ -12,15 +13,15 @@ pub struct RevTokenIter<'view, 'viewbase, 'map>
 {
     sv: &'view SourceView<'viewbase>,
     token: Option<Token<'map>>,
-    source_line: Option<(&'viewbase str, usize, usize, usize)>,
+    source_line: Option<(&'view str, usize, usize, usize)>,
 }
 
 impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
     where 'viewbase: 'view
 {
-    type Item = (Token<'map>, Option<&'viewbase str>);
+    type Item = (Token<'map>, Option<&'view str>);
 
-    fn next(&mut self) -> Option<(Token<'map>, Option<&'viewbase str>)> {
+    fn next(&mut self) -> Option<(Token<'map>, Option<&'view str>)> {
         let token = match self.token.take() {
             None => { return None; }
             Some(token) => token
@@ -105,46 +106,127 @@ impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
 /// This type is used to implement farily efficient source mapping
 /// operations.
 pub struct SourceView<'a> {
-    source: &'a str,
-    source_iter: RefCell<Fuse<Lines<'a>>>,
-    lines: RefCell<Vec<&'a str>>,
+    source: Cow<'a, str>,
+    processed_until: RefCell<usize>,
+    lines: RefCell<Vec<(*const u8, usize)>>,
+}
+
+impl<'a> Clone for SourceView<'a> {
+    fn clone(&self) -> SourceView<'a> {
+        SourceView {
+            source: self.source.clone(),
+            processed_until: RefCell::new(0),
+            lines: RefCell::new(vec![]),
+        }
+    }
+}
+
+unsafe fn make_str<'a>(tup: (*const u8, usize)) -> &'a str {
+    let (data, len) = tup;
+    str::from_utf8_unchecked(slice::from_raw_parts(data, len))
 }
 
 impl<'a> SourceView<'a> {
-    /// Creates an optimized view of a given minified source.
+    /// Creates an optimized view of a given source.
     pub fn new(source: &'a str) -> SourceView<'a> {
         SourceView {
-            source: source,
-            source_iter: RefCell::new(source.lines().fuse()),
+            source: Cow::Borrowed(source),
+            processed_until: RefCell::new(0),
+            lines: RefCell::new(vec![]),
+        }
+    }
+
+    /// Creates an optimized view from a given source string
+    pub fn from_string(source: String) -> SourceView<'static> {
+        SourceView {
+            source: Cow::Owned(source),
+            processed_until: RefCell::new(0),
             lines: RefCell::new(vec![]),
         }
     }
 
     /// Returns a requested minified line.
-    pub fn get_line(&self, idx: u32) -> Option<&'a str> {
+    pub fn get_line(&self, idx: u32) -> Option<&str> {
         let idx = idx as usize;
         {
             let lines = self.lines.borrow();
             if idx < lines.len() {
-                return Some(lines[idx]);
+                return Some(unsafe { make_str(lines[idx]) });
             }
         }
 
-        let mut source_iter = self.source_iter.borrow_mut();
+        // fetched everything
+        if *self.processed_until.borrow() >= self.source.len() {
+            return None;
+        }
+
+        let mut processed_until = self.processed_until.borrow_mut();
         let mut lines = self.lines.borrow_mut();
-        while let Some(item) = source_iter.next() {
-            lines.push(item);
-            if lines.len() - 1 >= idx {
-                return Some(lines[lines.len() - 1]);
+
+        loop {
+            let rest = &self.source.as_bytes()[*processed_until..];
+            if rest.is_empty() {
+                break;
+            }
+
+            let rv = if let Some(mut idx) = rest.iter().position(|&x| x == b'\n' || x == b'\r') {
+                let rv = &rest[..idx];
+                if rest[idx] == b'\r' && rest.get(idx + 1) == Some(&b'\n') {
+                    idx += 1;
+                }
+                *processed_until += idx + 1;
+                rv
+            } else {
+                *processed_until += rest.len();
+                rest
+            };
+            lines.push((rv.as_ptr(), rv.len()));
+            if let Some(&line) = lines.get(idx) {
+                return Some(unsafe { make_str(line) });
             }
         }
 
         None
     }
 
+    /// Returns a line slice.
+    ///
+    /// Note that columns are indexed as JavaScript WTF-16 columns.
+    pub fn get_line_slice(&self, line: u32, col: u32, span: u32) -> Option<&str> {
+        self.get_line(line).and_then(|line| {
+            let mut off = 0;
+            let mut idx = 0;
+            let mut char_iter = line.chars().peekable();
+
+            while let Some(&c) = char_iter.peek() {
+                if idx >= col as usize {
+                    break;
+                }
+                char_iter.next();
+                off += c.len_utf8();
+                idx += c.len_utf16();
+            }
+
+            let mut off_end = off;
+            while let Some(c) = char_iter.next() {
+                if idx >= (col + span) as usize {
+                    break;
+                }
+                off_end += c.len_utf8();
+                idx += c.len_utf16();
+            }
+
+            if idx < ((col + span) as usize) {
+                None
+            } else {
+                line.get(off..off_end)
+            }
+        })
+    }
+
     /// Returns the source.
     pub fn source(&self) -> &str {
-        self.source
+        &self.source
     }
 
     fn rev_token_iter<'this, 'map>(&'this self, token: Token<'map>)
@@ -205,4 +287,25 @@ fn test_minified_source_view() {
     assert_eq!(view.get_line(3), None);
 
     assert_eq!(view.line_count(), 3);
+
+    let view = SourceView::new("a\r\nb\r\nc");
+    assert_eq!(view.get_line(0), Some("a"));
+    assert_eq!(view.get_line(0), Some("a"));
+    assert_eq!(view.get_line(2), Some("c"));
+    assert_eq!(view.get_line(1), Some("b"));
+    assert_eq!(view.get_line(3), None);
+
+    assert_eq!(view.line_count(), 3);
+
+    let view = SourceView::new("abc👌def\nblah");
+    assert_eq!(view.get_line_slice(0, 0, 3), Some("abc"));
+    assert_eq!(view.get_line_slice(0, 3, 1), Some("👌"));
+    assert_eq!(view.get_line_slice(0, 3, 2), Some("👌"));
+    assert_eq!(view.get_line_slice(0, 3, 3), Some("👌d"));
+    assert_eq!(view.get_line_slice(0, 0, 4), Some("abc👌"));
+    assert_eq!(view.get_line_slice(0, 0, 5), Some("abc👌"));
+    assert_eq!(view.get_line_slice(0, 0, 6), Some("abc👌d"));
+    assert_eq!(view.get_line_slice(1, 0, 4), Some("blah"));
+    assert_eq!(view.get_line_slice(1, 0, 5), None);
+    assert_eq!(view.get_line_slice(1, 0, 12), None);
 }
