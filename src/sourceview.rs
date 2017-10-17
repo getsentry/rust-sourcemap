@@ -174,18 +174,16 @@ impl<'a> SourceView<'a> {
         }
 
         // fetched everything
-        if *self.processed_until.borrow() >= self.source.len() {
+        if *self.processed_until.borrow() > self.source.len() {
             return None;
         }
 
         let mut processed_until = self.processed_until.borrow_mut();
         let mut lines = self.lines.borrow_mut();
+        let mut done = false;
 
-        loop {
+        while !done {
             let rest = &self.source.as_bytes()[*processed_until..];
-            if rest.is_empty() {
-                break;
-            }
 
             let rv = if let Some(mut idx) = rest.iter().position(|&x| x == b'\n' || x == b'\r') {
                 let rv = &rest[..idx];
@@ -195,7 +193,8 @@ impl<'a> SourceView<'a> {
                 *processed_until += idx + 1;
                 rv
             } else {
-                *processed_until += rest.len();
+                *processed_until += rest.len() + 1;
+                done = true;
                 rest
             };
             lines.push((rv.as_ptr(), rv.len()));
@@ -334,4 +333,11 @@ fn test_minified_source_view() {
     assert_eq!(view.get_line_slice(1, 0, 4), Some("blah"));
     assert_eq!(view.get_line_slice(1, 0, 5), None);
     assert_eq!(view.get_line_slice(1, 0, 12), None);
+
+    let view = SourceView::new("a\nb\nc\n");
+    assert_eq!(view.get_line(0), Some("a"));
+    assert_eq!(view.get_line(1), Some("b"));
+    assert_eq!(view.get_line(2), Some("c"));
+    assert_eq!(view.get_line(3), Some(""));
+    assert_eq!(view.get_line(4), None);
 }
