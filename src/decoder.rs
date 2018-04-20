@@ -131,6 +131,10 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut tokens = Vec::with_capacity(allocation_size);
 
     for (dst_line, line) in mappings.split(';').enumerate() {
+        if line.len() == 0 {
+            continue;
+        }
+        
         dst_col = 0;
 
         for segment in line.split(',') {
