@@ -3,9 +3,10 @@ use std::str;
 use std::io;
 use std::fmt;
 use std::string;
-use std::error;
 
 use serde_json;
+
+use failure::Fail;
 
 /// Represents results from this library
 pub type Result<T> = std::result::Result<T, Error>;
@@ -68,43 +69,13 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        use Error::*;
-        match *self {
-            Io(ref err) => err.description(),
-            Utf8(ref err) => err.description(),
-            BadJson(ref err) => err.description(),
-            VlqLeftover => "vlq leftover",
-            VlqNoValues => "no vlq values",
-            VlqOverflow => "overflow in vlq",
-            BadSegmentSize(_) => "bad segment size",
-            BadSourceReference(_) => "bad source reference",
-            BadNameReference(_) => "bad name reference",
-            IndexedSourcemap => "unexpected indexed sourcemap",
-            RegularSourcemap => "unexpected sourcemap",
-            InvalidDataUrl => "invalid data URL",
-            CannotFlatten(_) => "cannot flatten the given indexed sourcemap",
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        use Error::*;
-        match *self {
-            Io(ref err) => Some(&*err),
-            Utf8(ref err) => Some(&*err),
-            _ => None,
-        }
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Error::*;
         match *self {
-            Io(ref msg) => write!(f, "{}", msg),
-            Utf8(ref msg) => write!(f, "{}", msg),
-            BadJson(ref err) => write!(f, "bad json: {}", err),
+            Io(..) => write!(f, "io error while parsing sourcemap"),
+            Utf8(..) => write!(f, "bad utf-8 data while parsing sourcemap"),
+            BadJson(..) => write!(f, "sourcemap parsing failed due to invalid JSON"),
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),
             VlqOverflow => write!(f, "vlq decode caused an overflow"),
@@ -118,6 +89,17 @@ impl fmt::Display for Error {
             }
             InvalidDataUrl => write!(f, "the provided data URL is invalid"),
             CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
+        }
+    }
+}
+
+impl Fail for Error {
+    fn cause(&self) -> Option<&Fail> {
+        match *self {
+            Error::Io(ref err) => Some(err),
+            Error::Utf8(ref err) => Some(err),
+            Error::BadJson(ref err) => Some(err),
+            _ => None,
         }
     }
 }

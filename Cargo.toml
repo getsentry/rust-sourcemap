@@ -19,6 +19,7 @@ base64 = "0.4"
 regex = "0.2"
 lazy_static = "0.2.8"
 if_chain = "^0.1.2"
+failure = "0.1.1"
 
 [build-dependencies]
 rustc_version = "0.2"

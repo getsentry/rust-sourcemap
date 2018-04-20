@@ -45,6 +45,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate url;
 extern crate regex;
+extern crate failure;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate if_chain;
 
