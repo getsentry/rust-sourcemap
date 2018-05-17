@@ -843,7 +843,7 @@ impl SourceMapIndex {
                                       token.get_src_col(),
                                       token.get_source(),
                                       token.get_name());
-                if !builder.has_source_contents(raw.src_id) {
+                if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
                     builder.set_source_contents(raw.src_id,
                                                 map.get_source_contents(token.get_src_id()));
                 }

@@ -78,6 +78,7 @@ impl SourceMapBuilder {
 
     /// Changes the source name for an already set source.
     pub fn set_source(&mut self, src_id: u32, src: &str) {
+        assert!(src_id != !0, "Cannot set sources for tombstone source id");
         self.sources[src_id as usize] = src.to_string();
     }
 
@@ -88,6 +89,7 @@ impl SourceMapBuilder {
 
     /// Sets the source contents for an already existing source.
     pub fn set_source_contents(&mut self, src_id: u32, contents: Option<&str>) {
+        assert!(src_id != !0, "Cannot set sources for tombstone source id");
         if self.sources.len() > self.source_contents.len() {
             self.source_contents.resize(self.sources.len(), None);
         }
