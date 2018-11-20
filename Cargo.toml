@@ -1,6 +1,6 @@
 [package]
 name = "sourcemap"
-version = "2.2.1"
+version = "2.2.2"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
@@ -12,12 +12,12 @@ build = "build.rs"
 
 [dependencies]
 url = "1.4"
-serde = "0.9"
-serde_derive = "0.9"
-serde_json = "0.9"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 base64 = "0.4"
 regex = "0.2"
-lazy_static = "0.2.8"
+lazy_static = "1.2"
 if_chain = "^0.1.2"
 
 [build-dependencies]
