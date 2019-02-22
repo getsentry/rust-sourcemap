@@ -1,15 +1,14 @@
+use std::collections::HashMap;
+use std::convert::AsRef;
 use std::env;
 use std::fs;
-use std::convert::AsRef;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
 use url::Url;
 
 use errors::Result;
-use types::{SourceMap, RawToken, Token};
-
+use types::{RawToken, SourceMap, Token};
 
 /// Helper for sourcemap generation
 ///
@@ -98,7 +97,9 @@ impl SourceMapBuilder {
 
     /// Returns the current source contents for a source.
     pub fn get_source_contents(&self, src_id: u32) -> Option<&str> {
-        self.source_contents.get(src_id as usize).and_then(|x| x.as_ref().map(|x| &x[..]))
+        self.source_contents
+            .get(src_id as usize)
+            .and_then(|x| x.as_ref().map(|x| &x[..]))
     }
 
     /// Checks if a given source ID has source contents available.
@@ -149,14 +150,15 @@ impl SourceMapBuilder {
     }
 
     /// Adds a new mapping to the builder.
-    pub fn add(&mut self,
-               dst_line: u32,
-               dst_col: u32,
-               src_line: u32,
-               src_col: u32,
-               source: Option<&str>,
-               name: Option<&str>)
-               -> RawToken {
+    pub fn add(
+        &mut self,
+        dst_line: u32,
+        dst_col: u32,
+        src_line: u32,
+        src_col: u32,
+        source: Option<&str>,
+        name: Option<&str>,
+    ) -> RawToken {
         let src_id = match source {
             Some(source) => self.add_source(source),
             None => !0,
@@ -181,12 +183,14 @@ impl SourceMapBuilder {
     /// optionally removing the name.
     pub fn add_token(&mut self, token: &Token, with_name: bool) -> RawToken {
         let name = if with_name { token.get_name() } else { None };
-        self.add(token.get_dst_line(),
-                 token.get_dst_col(),
-                 token.get_src_line(),
-                 token.get_src_col(),
-                 token.get_source(),
-                 name)
+        self.add(
+            token.get_dst_line(),
+            token.get_dst_col(),
+            token.get_src_line(),
+            token.get_src_col(),
+            token.get_source(),
+            name,
+        )
     }
 
     /// Strips common prefixes from the sources in the builder

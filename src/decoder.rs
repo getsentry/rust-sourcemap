@@ -1,13 +1,13 @@
 use std::io;
-use std::io::{Read, BufReader};
+use std::io::{BufReader, Read};
 
 use base64;
 use serde_json;
 use serde_json::Value;
 
+use errors::{Error, Result};
 use jsontypes::RawSourceMap;
-use types::{RawToken, SourceMap, SourceMapIndex, SourceMapSection, DecodedMap};
-use errors::{Result, Error};
+use types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
 use vlq::parse_vlq_segment;
 
 const DATA_PREABLE: &'static str = "data:application/json;base64,";
@@ -19,7 +19,6 @@ enum HeaderState {
     AwaitingNewline,
     PastHeader,
 }
-
 
 pub struct StripHeaderReader<R: Read> {
     r: R,
@@ -83,7 +82,10 @@ impl<R: Read> StripHeaderReader<R> {
                         if byte == b'\n' {
                             HeaderState::PastHeader
                         } else {
-                            fail!(io::Error::new(io::ErrorKind::InvalidData, "expected newline"));
+                            fail!(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "expected newline"
+                            ));
                         }
                     }
                     HeaderState::PastHeader => {
@@ -97,7 +99,6 @@ impl<R: Read> StripHeaderReader<R> {
     }
 }
 
-
 pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     if slice.len() == 0 || !is_junk_json(slice[0]) {
         return Ok(slice);
@@ -105,7 +106,10 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     let mut need_newline = false;
     for (idx, &byte) in slice.iter().enumerate() {
         if need_newline && byte != b'\n' {
-            fail!(io::Error::new(io::ErrorKind::InvalidData, "expected newline"));
+            fail!(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "expected newline"
+            ));
         } else if is_junk_json(byte) {
             continue;
         } else if byte == b'\r' {
@@ -134,7 +138,7 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         if line.len() == 0 {
             continue;
         }
-        
+
         dst_col = 0;
 
         for segment in line.split(',') {
@@ -184,10 +188,12 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     if let Some(source_root) = rsm.source_root {
         if !source_root.is_empty() {
             let source_root = source_root.trim_right_matches('/');
-            sources = sources.into_iter()
+            sources = sources
+                .into_iter()
                 .map(|x| {
-                    if x.len() > 0 &&
-                       (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:")) {
+                    if x.len() > 0
+                        && (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:"))
+                    {
                         x
                     } else {
                         format!("{}/{}", source_root, x)
@@ -199,47 +205,50 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     // apparently we can encounter some non string types in real world
     // sourcemaps :(
-    let names = names.into_iter()
-        .map(|val| {
-            match val {
-                Value::String(s) => s,
-                Value::Number(num) => num.to_string(),
-                _ => "".into(),
-            }
+    let names = names
+        .into_iter()
+        .map(|val| match val {
+            Value::String(s) => s,
+            Value::Number(num) => num.to_string(),
+            _ => "".into(),
         })
         .collect::<Vec<String>>();
 
     // file sometimes is not a string for unexplicable reasons
-    let file = rsm.file.map(|val| {
-        match val {
-            Value::String(s) => s,
-            _ => "<invalid>".into(),
-        }
+    let file = rsm.file.map(|val| match val {
+        Value::String(s) => s,
+        _ => "<invalid>".into(),
     });
 
-    Ok(SourceMap::new(file, tokens, names, sources, rsm.sources_content))
+    Ok(SourceMap::new(
+        file,
+        tokens,
+        names,
+        sources,
+        rsm.sources_content,
+    ))
 }
 
 fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
     let mut sections = vec![];
 
     for mut raw_section in rsm.sections.unwrap_or(vec![]) {
-        sections.push(SourceMapSection::new((raw_section.offset.line, raw_section.offset.column),
-                                            raw_section.url,
-                                            match raw_section.map.take() {
-                                                Some(map) => Some(decode_regular(*map)?),
-                                                None => None,
-                                            }));
+        sections.push(SourceMapSection::new(
+            (raw_section.offset.line, raw_section.offset.column),
+            raw_section.url,
+            match raw_section.map.take() {
+                Some(map) => Some(decode_regular(*map)?),
+                None => None,
+            },
+        ));
     }
 
     sections.sort_by_key(|sect| sect.get_offset());
 
     // file sometimes is not a string for unexplicable reasons
-    let file = rsm.file.map(|val| {
-        match val {
-            Value::String(s) => s,
-            _ => "<invalid>".into(),
-        }
+    let file = rsm.file.map(|val| match val {
+        Value::String(s) => s,
+        _ => "<invalid>".into(),
     });
 
     Ok(SourceMapIndex::new(file, sections))

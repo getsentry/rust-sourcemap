@@ -2,7 +2,6 @@ extern crate sourcemap;
 
 use sourcemap::{SourceMap, SourceView};
 
-
 #[test]
 fn test_basic_name_mapping() {
     let input = r#"{"version":3,"file":"test.min.js","sources":["test.js"],"names":["makeAFailure","testingStuff","Error","onSuccess","data","onFailure","invoke","cb","failed","test","value"],"mappings":"AAAA,GAAIA,cAAe,WACjB,QAASC,KACP,GAAIA,GAAe,EACnB,MAAM,IAAIC,OAAMD,GAGlB,QAASE,GAAUC,GACjBH,IAGF,QAASI,GAAUD,GACjB,KAAM,IAAIF,OAAM,WAGlB,QAASI,GAAOF,GACd,GAAIG,GAAK,IACT,IAAIH,EAAKI,OAAQ,CACfD,EAAKF,MACA,CACLE,EAAKJ,EAEPI,EAAGH,GAGL,QAASK,KACP,GAAIL,IAAQI,OAAQ,KAAME,MAAO,GACjCJ,GAAOF,GAGT,MAAOK","sourcesContent":["var makeAFailure = (function() {\n  function testingStuff() {\n    var testingStuff = 42;\n    throw new Error(testingStuff);\n  }\n\n  function onSuccess(data) {\n    testingStuff();\n  }\n\n  function onFailure(data) {\n    throw new Error('failed!');\n  }\n\n  function invoke(data) {\n    var cb = null;\n    if (data.failed) {\n      cb = onFailure;\n    } else {\n      cb = onSuccess;\n    }\n    cb(data);\n  }\n\n  function test() {\n    var data = {failed: true, value: 42};\n    invoke(data);\n  }\n\n  return test;\n})();\n"]}"#.as_bytes();
@@ -12,7 +11,6 @@ fn test_basic_name_mapping() {
 
     let name = sm.get_original_function_name(0, 107, "e", &sv);
     assert_eq!(name, Some("onFailure"));
-
 
     // a stacktrae
     let locs = &[
@@ -26,7 +24,6 @@ fn test_basic_name_mapping() {
         assert_eq!(name, Some(original_name));
     }
 }
-
 
 #[test]
 fn test_unicode_mapping() {

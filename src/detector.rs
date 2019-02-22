@@ -1,13 +1,12 @@
+use std::io::{BufRead, BufReader, Read};
 use std::str;
-use std::io::{Read, BufRead, BufReader};
 
+use decoder::{decode_data_url, strip_junk_header, StripHeaderReader};
 use errors::Result;
-use types::DecodedMap;
 use jsontypes::MinimalRawSourceMap;
-use decoder::{StripHeaderReader, decode_data_url, strip_junk_header};
+use types::DecodedMap;
 
 use serde_json;
-
 
 /// Represents a reference to a sourcemap
 #[derive(PartialEq, Debug)]
@@ -41,7 +40,6 @@ impl SourceMapRef {
     }
 }
 
-
 /// Locates a sourcemap reference
 ///
 /// Given a reader to a JavaScript file this tries to find the correct
@@ -70,9 +68,13 @@ pub fn locate_sourcemap_reference_slice(slice: &[u8]) -> Result<SourceMapRef> {
 }
 
 fn is_sourcemap_common(rsm: MinimalRawSourceMap) -> bool {
-    (rsm.version.is_some() || rsm.file.is_some()) &&
-    ((rsm.sources.is_some() || rsm.source_root.is_some() || rsm.sources_content.is_some() ||
-      rsm.names.is_some()) && rsm.mappings.is_some()) || rsm.sections.is_some()
+    (rsm.version.is_some() || rsm.file.is_some())
+        && ((rsm.sources.is_some()
+            || rsm.source_root.is_some()
+            || rsm.sources_content.is_some()
+            || rsm.names.is_some())
+            && rsm.mappings.is_some())
+        || rsm.sections.is_some()
 }
 
 fn is_sourcemap_impl<R: Read>(rdr: R) -> Result<bool> {

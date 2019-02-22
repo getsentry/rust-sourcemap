@@ -1,15 +1,14 @@
+use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::Path;
-use std::cmp::Ordering;
 
+use builder::SourceMapBuilder;
 use decoder::{decode, decode_slice};
 use encoder::encode;
-use errors::{Result, Error};
-use builder::SourceMapBuilder;
-use utils::{find_common_prefix};
+use errors::{Error, Result};
 use sourceview::SourceView;
-
+use utils::find_common_prefix;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -134,8 +133,13 @@ impl<'a> Ord for Token<'a> {
     fn cmp(&self, other: &Token) -> Ordering {
         macro_rules! try_cmp {
             ($a:expr, $b:expr) => {
-                match $a.cmp(&$b) { Ordering::Equal => {}, x => { return x; } }
-            }
+                match $a.cmp(&$b) {
+                    Ordering::Equal => {}
+                    x => {
+                        return x;
+                    }
+                }
+            };
         }
         try_cmp!(self.get_dst_line(), other.get_dst_line());
         try_cmp!(self.get_dst_col(), other.get_dst_col());
@@ -219,7 +223,12 @@ impl<'a> Token<'a> {
     /// Converts the token into a debug tuple in the form
     /// `(source, src_line, src_col, name)`
     pub fn to_tuple(&self) -> (&'a str, u32, u32, Option<&'a str>) {
-        (self.get_source().unwrap_or(""), self.get_src_line(), self.get_src_col(), self.get_name())
+        (
+            self.get_source().unwrap_or(""),
+            self.get_src_line(),
+            self.get_src_col(),
+            self.get_name(),
+        )
     }
 
     /// Get the underlying raw token
@@ -332,14 +341,16 @@ impl<'a> fmt::Debug for Token<'a> {
 
 impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "{}:{}:{}{}",
-               self.get_source().unwrap_or("<unknown>"),
-               self.get_src_line(),
-               self.get_src_col(),
-               self.get_name()
-                   .map(|x| format!(" name={}", x))
-                   .unwrap_or("".into()))?;
+        write!(
+            f,
+            "{}:{}:{}{}",
+            self.get_source().unwrap_or("<unknown>"),
+            self.get_src_line(),
+            self.get_src_col(),
+            self.get_name()
+                .map(|x| format!(" name={}", x))
+                .unwrap_or("".into())
+        )?;
         if f.alternate() {
             write!(f, " ({}:{})", self.get_dst_line(), self.get_dst_col())?;
         }
@@ -472,13 +483,15 @@ impl SourceMap {
     /// - `names`: a vector of names
     /// - `sources` a vector of source filenames
     /// - `sources_content` optional source contents
-    pub fn new(file: Option<String>,
-               tokens: Vec<RawToken>,
-               names: Vec<String>,
-               sources: Vec<String>,
-               sources_content: Option<Vec<Option<String>>>)
-               -> SourceMap {
-        let mut index: Vec<_> = tokens.iter()
+    pub fn new(
+        file: Option<String>,
+        tokens: Vec<RawToken>,
+        names: Vec<String>,
+        sources: Vec<String>,
+        sources_content: Option<Vec<Option<String>>>,
+    ) -> SourceMap {
+        let mut index: Vec<_> = tokens
+            .iter()
             .enumerate()
             .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32))
             .collect();
@@ -509,12 +522,10 @@ impl SourceMap {
 
     /// Looks up a token by its index.
     pub fn get_token<'a>(&'a self, idx: u32) -> Option<Token<'a>> {
-        self.tokens.get(idx as usize).map(|raw| {
-            Token {
-                raw: raw,
-                i: self,
-                idx: idx,
-            }
+        self.tokens.get(idx as usize).map(|raw| Token {
+            raw: raw,
+            i: self,
+            idx: idx,
         })
     }
 
@@ -561,14 +572,15 @@ impl SourceMap {
     /// functions that do not have clear function names.  (For instance it's
     /// recommended that dotted function names are not passed to this
     /// function).
-    pub fn get_original_function_name<'a>(&self, line: u32, col: u32,
-                                          minified_name: &str,
-                                          sv: &'a SourceView<'a>)
-        -> Option<&str>
-    {
-        self.lookup_token(line, col).and_then(|token| {
-            sv.get_original_function_name(token, minified_name)
-        })
+    pub fn get_original_function_name<'a>(
+        &self,
+        line: u32,
+        col: u32,
+        minified_name: &str,
+        sv: &'a SourceView<'a>,
+    ) -> Option<&str> {
+        self.lookup_token(line, col)
+            .and_then(|token| sv.get_original_function_name(token, minified_name))
     }
 
     /// Returns the number of sources in the sourcemap.
@@ -599,7 +611,8 @@ impl SourceMap {
 
     /// Returns the sources content as source view.
     pub fn get_source_view<'a>(&'a self, idx: u32) -> Option<&'a SourceView<'a>> {
-        self.sources_content.get(idx as usize)
+        self.sources_content
+            .get(idx as usize)
             .and_then(|x| x.as_ref())
     }
 
@@ -616,8 +629,7 @@ impl SourceMap {
         if self.sources_content.len() != self.sources.len() {
             self.sources_content.resize(self.sources.len(), None);
         }
-        self.sources_content[idx as usize] = value
-            .map(|x| SourceView::from_string(x.to_string()));
+        self.sources_content[idx as usize] = value.map(|x| SourceView::from_string(x.to_string()));
     }
 
     /// Iterates over all source contents
@@ -695,10 +707,12 @@ impl SourceMap {
 
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
-            if raw.src_id != !0 && options.with_source_contents &&
-               !builder.has_source_contents(raw.src_id) {
-                builder.set_source_contents(
-                    raw.src_id, self.get_source_contents(token.get_src_id()));
+            if raw.src_id != !0
+                && options.with_source_contents
+                && !builder.has_source_contents(raw.src_id)
+            {
+                builder
+                    .set_source_contents(raw.src_id, self.get_source_contents(token.get_src_id()));
             }
         }
         if options.load_local_source_contents {
@@ -829,23 +843,28 @@ impl SourceMapIndex {
             let map = match section.get_sourcemap() {
                 Some(map) => map,
                 None => {
-                    return Err(Error::CannotFlatten(format!("Section has an unresolved \
-                                                             sourcemap: {}",
-                                                            section.get_url()
-                                                                .unwrap_or("<unknown url>"))));
+                    return Err(Error::CannotFlatten(format!(
+                        "Section has an unresolved \
+                         sourcemap: {}",
+                        section.get_url().unwrap_or("<unknown url>")
+                    )));
                 }
             };
 
             for token in map.tokens() {
-                let raw = builder.add(token.get_dst_line() + off_line,
-                                      token.get_dst_col() + off_col,
-                                      token.get_src_line(),
-                                      token.get_src_col(),
-                                      token.get_source(),
-                                      token.get_name());
+                let raw = builder.add(
+                    token.get_dst_line() + off_line,
+                    token.get_dst_col() + off_col,
+                    token.get_src_line(),
+                    token.get_src_col(),
+                    token.get_source(),
+                    token.get_name(),
+                );
                 if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
-                    builder.set_source_contents(raw.src_id,
-                                                map.get_source_contents(token.get_src_id()));
+                    builder.set_source_contents(
+                        raw.src_id,
+                        map.get_source_contents(token.get_src_id()),
+                    );
                 }
             }
         }
@@ -867,10 +886,11 @@ impl SourceMapSection {
     /// - `offset`: offset as line and column
     /// - `url`: optional URL of where the sourcemap is located
     /// - `map`: an optional already resolved internal sourcemap
-    pub fn new(offset: (u32, u32),
-               url: Option<String>,
-               map: Option<SourceMap>)
-               -> SourceMapSection {
+    pub fn new(
+        offset: (u32, u32),
+        url: Option<String>,
+        map: Option<SourceMap>,
+    ) -> SourceMapSection {
         SourceMapSection {
             offset: offset,
             url: url,

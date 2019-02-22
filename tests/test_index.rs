@@ -1,7 +1,7 @@
 extern crate sourcemap;
 
-use std::collections::HashMap;
 use sourcemap::SourceMapIndex;
+use std::collections::HashMap;
 
 #[test]
 fn test_basic_indexed_sourcemap() {
@@ -80,13 +80,15 @@ fn test_basic_indexed_sourcemap() {
 
     for (src_id, filename) in flat_map.sources().enumerate() {
         let ref_contents = files.get(filename).unwrap();
-        let contents: Vec<_> = flat_map.get_source_contents(src_id as u32)
+        let contents: Vec<_> = flat_map
+            .get_source_contents(src_id as u32)
             .expect(&format!("no source for {}", filename))
             .lines()
             .collect();
         assert_eq!(&contents, ref_contents);
 
-        let view = flat_map.get_source_view(src_id as u32)
+        let view = flat_map
+            .get_source_view(src_id as u32)
             .expect(&format!("no source for {}", filename));
         assert_eq!(&view.lines().collect::<Vec<_>>(), ref_contents);
     }

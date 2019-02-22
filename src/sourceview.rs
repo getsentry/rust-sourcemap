@@ -1,15 +1,15 @@
-use std::str;
-use std::slice;
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::slice;
+use std::str;
 
-use types::{Token, idx_from_token, sourcemap_from_token};
+use types::{idx_from_token, sourcemap_from_token, Token};
 use utils::{get_javascript_token, is_valid_javascript_identifier};
-
 
 /// An iterator that iterates over tokens in reverse.
 pub struct RevTokenIter<'view, 'viewbase, 'map>
-    where 'viewbase: 'view
+where
+    'viewbase: 'view,
 {
     sv: &'view SourceView<'viewbase>,
     token: Option<Token<'map>>,
@@ -17,14 +17,17 @@ pub struct RevTokenIter<'view, 'viewbase, 'map>
 }
 
 impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
-    where 'viewbase: 'view
+where
+    'viewbase: 'view,
 {
     type Item = (Token<'map>, Option<&'view str>);
 
     fn next(&mut self) -> Option<(Token<'map>, Option<&'view str>)> {
         let token = match self.token.take() {
-            None => { return None; }
-            Some(token) => token
+            None => {
+                return None;
+            }
+            Some(token) => token,
         };
 
         let idx = idx_from_token(&token);
@@ -69,7 +72,12 @@ impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
             let chars_to_move = last_char_offset - token.get_dst_col() as usize;
             let mut new_offset = last_byte_offset;
             let mut idx = 0;
-            for c in source_line.get(..last_byte_offset).unwrap_or("").chars().rev() {
+            for c in source_line
+                .get(..last_byte_offset)
+                .unwrap_or("")
+                .chars()
+                .rev()
+            {
                 if idx >= chars_to_move {
                     break;
                 }
@@ -94,8 +102,9 @@ impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
         } else {
             Some((
                 token,
-                source_line.get(byte_offset..)
-                    .and_then(|s| get_javascript_token(s))
+                source_line
+                    .get(byte_offset..)
+                    .and_then(|s| get_javascript_token(s)),
             ))
         }
     }
@@ -243,10 +252,7 @@ impl<'a> SourceView<'a> {
 
     /// Returns an iterator over all lines.
     pub fn lines(&'a self) -> Lines<'a> {
-        Lines {
-            sv: self,
-            idx: 0,
-        }
+        Lines { sv: self, idx: 0 }
     }
 
     /// Returns the source.
@@ -254,9 +260,10 @@ impl<'a> SourceView<'a> {
         &self.source
     }
 
-    fn rev_token_iter<'this, 'map>(&'this self, token: Token<'map>)
-        -> RevTokenIter<'this, 'a, 'map>
-    {
+    fn rev_token_iter<'this, 'map>(
+        &'this self,
+        token: Token<'map>,
+    ) -> RevTokenIter<'this, 'a, 'map> {
         RevTokenIter {
             sv: self,
             token: Some(token),
@@ -272,9 +279,11 @@ impl<'a> SourceView<'a> {
     /// functions that do not have clear function names.  (For instance it's
     /// recommended that dotted function names are not passed to this
     /// function).
-    pub fn get_original_function_name<'map>(&self, token: Token<'map>, minified_name: &str)
-        -> Option<&'map str>
-    {
+    pub fn get_original_function_name<'map>(
+        &self,
+        token: Token<'map>,
+        minified_name: &str,
+    ) -> Option<&'map str> {
         if !is_valid_javascript_identifier(minified_name) {
             return None;
         }

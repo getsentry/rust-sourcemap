@@ -3,7 +3,6 @@ use std::iter::repeat;
 
 use regex::Regex;
 
-
 lazy_static! {
     static ref ANCHORED_IDENT_RE: Regex = Regex::new(
         r#"(?x)
@@ -11,7 +10,9 @@ lazy_static! {
             \s*
             ([\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_]
             [\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$_]*)
-        "#).unwrap();
+        "#
+    )
+    .unwrap();
 }
 
 pub fn is_valid_javascript_identifier(s: &str) -> bool {
@@ -41,23 +42,23 @@ fn split_path(path: &str) -> Vec<&str> {
     }
     rv
 }
- 
+
 fn is_abs_path(s: &str) -> bool {
     if s.starts_with('/') {
         return true;
     } else if s.len() > 3 {
         let b = s.as_bytes();
-        if b[1] == b':' && (b[2] == b'/' || b[2] == b'\\') &&
-           ((b[0] >= b'a' && b[0] <= b'z') || (b[0] >= b'A' && b[0] <= b'Z')) {
+        if b[1] == b':'
+            && (b[2] == b'/' || b[2] == b'\\')
+            && ((b[0] >= b'a' && b[0] <= b'z') || (b[0] >= b'A' && b[0] <= b'Z'))
+        {
             return true;
         }
     }
     false
 }
 
-fn find_common_prefix_of_sorted_vec<'a>(items: &'a [Cow<'a, [&'a str]>])
-    -> Option<&'a [&'a str]>
-{
+fn find_common_prefix_of_sorted_vec<'a>(items: &'a [Cow<'a, [&'a str]>]) -> Option<&'a [&'a str]> {
     if items.is_empty() {
         return None;
     }
@@ -114,8 +115,14 @@ pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<St
 ///     "/foo/bar/baz.js", "/foo/baz.map"), "../baz.map");
 /// ```
 pub fn make_relative_path<'a>(base: &str, target: &str) -> String {
-    let target_path: Vec<_> = target.split(&['/', '\\'][..]).filter(|x| x.len() > 0).collect();
-    let mut base_path: Vec<_> = base.split(&['/', '\\'][..]).filter(|x| x.len() > 0).collect();
+    let target_path: Vec<_> = target
+        .split(&['/', '\\'][..])
+        .filter(|x| x.len() > 0)
+        .collect();
+    let mut base_path: Vec<_> = base
+        .split(&['/', '\\'][..])
+        .filter(|x| x.len() > 0)
+        .collect();
     base_path.pop();
 
     let mut items = vec![
@@ -124,7 +131,9 @@ pub fn make_relative_path<'a>(base: &str, target: &str) -> String {
     ];
     items.sort_by_key(|x| x.len());
 
-    let prefix = find_common_prefix_of_sorted_vec(&items).map(|x| x.len()).unwrap_or(0);
+    let prefix = find_common_prefix_of_sorted_vec(&items)
+        .map(|x| x.len())
+        .unwrap_or(0);
     let mut rel_list: Vec<_> = repeat("../").take(base_path.len() - prefix).collect();
     rel_list.extend_from_slice(&target_path[prefix..]);
     if rel_list.is_empty() {
@@ -133,7 +142,6 @@ pub fn make_relative_path<'a>(base: &str, target: &str) -> String {
         rel_list.join("")
     }
 }
-
 
 #[test]
 fn test_is_abs_path() {
@@ -163,20 +171,29 @@ fn test_find_common_prefix() {
     let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "foo"].into_iter());
     assert_eq!(rv, Some("/foo/bar/baz".into()));
 
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"]
-        .into_iter());
+    let rv =
+        find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter());
     assert_eq!(rv, None);
 
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"]
-        .into_iter());
+    let rv =
+        find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter());
     assert_eq!(rv, None);
 }
 
 #[test]
 fn test_make_relative_path() {
-    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map"), "baz.map");
-    assert_eq!(&make_relative_path("/foo/bar/.", "/foo/bar/baz.map"), "baz.map");
-    assert_eq!(&make_relative_path("/foo/bar/baz.js", "/foo/baz.map"), "../baz.map");
+    assert_eq!(
+        &make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map"),
+        "baz.map"
+    );
+    assert_eq!(
+        &make_relative_path("/foo/bar/.", "/foo/bar/baz.map"),
+        "baz.map"
+    );
+    assert_eq!(
+        &make_relative_path("/foo/bar/baz.js", "/foo/baz.map"),
+        "../baz.map"
+    );
     assert_eq!(&make_relative_path("foo.txt", "foo.js"), "foo.js");
     assert_eq!(&make_relative_path("blah/foo.txt", "foo.js"), "../foo.js");
 }

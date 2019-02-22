@@ -41,38 +41,44 @@
 extern crate serde_derive;
 
 extern crate base64;
+extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate url;
-extern crate regex;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate if_chain;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate if_chain;
 
 mod macros;
 
-pub use types::{RawToken, Token, TokenIter, SourceMap, SourceMapIndex, SourceMapSection,
-                SourceMapSectionIter, RewriteOptions, DecodedMap};
 pub use builder::SourceMapBuilder;
-pub use errors::{Result, Error};
-pub use decoder::{decode, decode_slice, decode_data_url};
-pub use detector::{SourceMapRef, locate_sourcemap_reference, locate_sourcemap_reference_slice,
-                   is_sourcemap, is_sourcemap_slice};
+pub use decoder::{decode, decode_data_url, decode_slice};
+pub use detector::{
+    is_sourcemap, is_sourcemap_slice, locate_sourcemap_reference, locate_sourcemap_reference_slice,
+    SourceMapRef,
+};
+pub use errors::{Error, Result};
 pub use sourceview::SourceView;
+pub use types::{
+    DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,
+    SourceMapSectionIter, Token, TokenIter,
+};
 pub use utils::make_relative_path;
 
 mod builder;
-mod errors;
-mod types;
-mod jsontypes;
 mod decoder;
-mod encoder;
 mod detector;
+mod encoder;
+mod errors;
+mod jsontypes;
 mod sourceview;
-mod vlq;
+mod types;
 mod utils;
+mod vlq;
 
 #[doc(hidden)]
 pub mod internals {
     pub use super::decoder::StripHeaderReader;
-    pub use vlq::{parse_vlq_segment, generate_vlq_segment};
+    pub use vlq::{generate_vlq_segment, parse_vlq_segment};
 }

@@ -23,7 +23,9 @@ fn test_overflow() {
     use sourcemap::internals::parse_vlq_segment;
     use sourcemap::Error;
     match parse_vlq_segment("00000000000000") {
-        Err(Error::VlqOverflow) => {},
-        e => { panic!("Unexpeted result: {:?}", e); }
+        Err(Error::VlqOverflow) => {}
+        e => {
+            panic!("Unexpeted result: {:?}", e);
+        }
     }
 }

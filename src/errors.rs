@@ -1,9 +1,9 @@
 use std;
-use std::str;
-use std::io;
-use std::fmt;
-use std::string;
 use std::error;
+use std::fmt;
+use std::io;
+use std::str;
+use std::string;
 
 use serde_json;
 
@@ -42,7 +42,6 @@ pub enum Error {
     /// Flatten failed
     CannotFlatten(String),
 }
-
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
@@ -112,10 +111,10 @@ impl fmt::Display for Error {
             BadSourceReference(id) => write!(f, "bad reference to source #{}", id),
             BadNameReference(id) => write!(f, "bad reference to name #{}", id),
             IndexedSourcemap => write!(f, "encountered unexpected indexed sourcemap"),
-            RegularSourcemap => {
-                write!(f,
-                       "encountered unexpected sourcemap where index was expected")
-            }
+            RegularSourcemap => write!(
+                f,
+                "encountered unexpected sourcemap where index was expected"
+            ),
             InvalidDataUrl => write!(f, "the provided data URL is invalid"),
             CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
         }
