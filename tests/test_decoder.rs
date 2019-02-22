@@ -1,5 +1,3 @@
-extern crate sourcemap;
-
 use std::io;
 use std::io::BufRead;
 

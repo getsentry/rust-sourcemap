@@ -1,5 +1,3 @@
-extern crate sourcemap;
-
 use sourcemap::SourceMapIndex;
 use std::collections::HashMap;
 

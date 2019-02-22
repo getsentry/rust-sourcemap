@@ -1,4 +1,3 @@
-extern crate rustc_version;
 use rustc_version::{version, Version};
 
 pub fn main() {

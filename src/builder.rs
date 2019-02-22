@@ -181,7 +181,7 @@ impl SourceMapBuilder {
 
     /// Shortcut for adding a new mapping based of an already existing token,
     /// optionally removing the name.
-    pub fn add_token(&mut self, token: &Token, with_name: bool) -> RawToken {
+    pub fn add_token(&mut self, token: &Token<'_>, with_name: bool) -> RawToken {
         let name = if with_name { token.get_name() } else { None };
         self.add(
             token.get_dst_line(),

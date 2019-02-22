@@ -1,5 +1,3 @@
-extern crate sourcemap;
-
 use std::env;
 use std::fs;
 use std::io::Read;

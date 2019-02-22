@@ -37,19 +37,6 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
-#[macro_use]
-extern crate serde_derive;
-
-extern crate base64;
-extern crate regex;
-extern crate serde;
-extern crate serde_json;
-extern crate url;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate if_chain;
-
 mod macros;
 
 pub use crate::builder::SourceMapBuilder;

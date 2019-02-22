@@ -1,5 +1,3 @@
-extern crate sourcemap;
-
 use sourcemap::SourceMap;
 
 #[test]

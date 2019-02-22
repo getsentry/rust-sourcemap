@@ -3,6 +3,8 @@ use std::cell::RefCell;
 use std::slice;
 use std::str;
 
+use if_chain::if_chain;
+
 use crate::types::{idx_from_token, sourcemap_from_token, Token};
 use crate::utils::{get_javascript_token, is_valid_javascript_identifier};
 

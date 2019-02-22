@@ -116,7 +116,7 @@ pub struct Token<'a> {
 }
 
 impl<'a> PartialEq for Token<'a> {
-    fn eq(&self, other: &Token) -> bool {
+    fn eq(&self, other: &Token<'_>) -> bool {
         self.raw == other.raw
     }
 }
@@ -124,13 +124,13 @@ impl<'a> PartialEq for Token<'a> {
 impl<'a> Eq for Token<'a> {}
 
 impl<'a> PartialOrd for Token<'a> {
-    fn partial_cmp(&self, other: &Token) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Token<'_>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl<'a> Ord for Token<'a> {
-    fn cmp(&self, other: &Token) -> Ordering {
+    fn cmp(&self, other: &Token<'_>) -> Ordering {
         macro_rules! try_cmp {
             ($a:expr, $b:expr) => {
                 match $a.cmp(&$b) {
@@ -237,7 +237,7 @@ impl<'a> Token<'a> {
     }
 }
 
-pub fn idx_from_token(token: &Token) -> u32 {
+pub fn idx_from_token(token: &Token<'_>) -> u32 {
     token.idx
 }
 
@@ -334,13 +334,13 @@ impl<'a> Iterator for IndexIter<'a> {
 }
 
 impl<'a> fmt::Debug for Token<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "<Token {:#}>", self)
     }
 }
 
 impl<'a> fmt::Display for Token<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}:{}:{}{}",
@@ -702,7 +702,7 @@ impl SourceMap {
     ///     ..Default::default()
     /// });
     /// ```
-    pub fn rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
+    pub fn rewrite(self, options: &RewriteOptions<'_>) -> Result<SourceMap> {
         let mut builder = SourceMapBuilder::new(self.get_file());
 
         for token in self.tokens() {
@@ -875,7 +875,7 @@ impl SourceMapIndex {
     /// Flattens an indexed sourcemap into a regular one and automatically
     /// rewrites it.  This is more useful than plain flattening as this will
     /// cause the sourcemap to be properly deduplicated.
-    pub fn flatten_and_rewrite(self, options: &RewriteOptions) -> Result<SourceMap> {
+    pub fn flatten_and_rewrite(self, options: &RewriteOptions<'_>) -> Result<SourceMap> {
         self.flatten()?.rewrite(options)
     }
 }

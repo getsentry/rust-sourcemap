@@ -1,5 +1,3 @@
-extern crate sourcemap;
-
 use sourcemap::{is_sourcemap_slice, locate_sourcemap_reference, SourceMapRef};
 
 #[test]

@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::iter::repeat;
 
+use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
@@ -86,7 +87,7 @@ fn find_common_prefix_of_sorted_vec<'a>(items: &'a [Cow<'a, [&'a str]>]) -> Opti
 }
 
 pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<String> {
-    let mut items: Vec<Cow<[&str]>> = iter
+    let mut items: Vec<Cow<'_, [&str]>> = iter
         .filter(|x| is_abs_path(x))
         .map(|x| Cow::Owned(split_path(x)))
         .collect();

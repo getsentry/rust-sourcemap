@@ -1,5 +1,3 @@
-extern crate sourcemap;
-
 #[test]
 fn test_vlq_decode() {
     use sourcemap::internals::parse_vlq_segment;
