@@ -1,6 +1,6 @@
 [package]
 name = "sourcemap"
-version = "2.3.0"
+version = "3.0.0"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
