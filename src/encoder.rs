@@ -3,10 +3,10 @@ use std::io::Write;
 use serde_json;
 use serde_json::Value;
 
-use errors::Result;
-use jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
-use types::{SourceMap, SourceMapIndex};
-use vlq::encode_vlq;
+use crate::errors::Result;
+use crate::jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
+use crate::types::{SourceMap, SourceMapIndex};
+use crate::vlq::encode_vlq;
 
 pub trait Encodable {
     fn as_raw_sourcemap(&self) -> RawSourceMap;

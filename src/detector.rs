@@ -1,10 +1,10 @@
 use std::io::{BufRead, BufReader, Read};
 use std::str;
 
-use decoder::{decode_data_url, strip_junk_header, StripHeaderReader};
-use errors::Result;
-use jsontypes::MinimalRawSourceMap;
-use types::DecodedMap;
+use crate::decoder::{decode_data_url, strip_junk_header, StripHeaderReader};
+use crate::errors::Result;
+use crate::jsontypes::MinimalRawSourceMap;
+use crate::types::DecodedMap;
 
 use serde_json;
 

@@ -69,7 +69,7 @@ impl From<serde_json::Error> for Error {
 
 impl error::Error for Error {
     fn description(&self) -> &str {
-        use Error::*;
+        use crate::Error::*;
         match *self {
             Io(ref err) => err.description(),
             Utf8(ref err) => err.description(),
@@ -88,7 +88,7 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        use Error::*;
+        use crate::Error::*;
         match *self {
             Io(ref err) => Some(&*err),
             Utf8(ref err) => Some(&*err),
@@ -99,7 +99,7 @@ impl error::Error for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
+        use crate::Error::*;
         match *self {
             Io(ref msg) => write!(f, "{}", msg),
             Utf8(ref msg) => write!(f, "{}", msg),

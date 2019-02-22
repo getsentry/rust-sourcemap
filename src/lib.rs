@@ -52,19 +52,19 @@ extern crate if_chain;
 
 mod macros;
 
-pub use builder::SourceMapBuilder;
-pub use decoder::{decode, decode_data_url, decode_slice};
-pub use detector::{
+pub use crate::builder::SourceMapBuilder;
+pub use crate::decoder::{decode, decode_data_url, decode_slice};
+pub use crate::detector::{
     is_sourcemap, is_sourcemap_slice, locate_sourcemap_reference, locate_sourcemap_reference_slice,
     SourceMapRef,
 };
-pub use errors::{Error, Result};
-pub use sourceview::SourceView;
-pub use types::{
+pub use crate::errors::{Error, Result};
+pub use crate::sourceview::SourceView;
+pub use crate::types::{
     DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,
     SourceMapSectionIter, Token, TokenIter,
 };
-pub use utils::make_relative_path;
+pub use crate::utils::make_relative_path;
 
 mod builder;
 mod decoder;
@@ -80,5 +80,5 @@ mod vlq;
 #[doc(hidden)]
 pub mod internals {
     pub use super::decoder::StripHeaderReader;
-    pub use vlq::{generate_vlq_segment, parse_vlq_segment};
+    pub use crate::vlq::{generate_vlq_segment, parse_vlq_segment};
 }

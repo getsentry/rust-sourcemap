@@ -9,6 +9,7 @@ documentation = "http://mitsuhiko.github.io/rust-sourcemap/"
 license = "BSD-3-Clause"
 readme = "README.md"
 build = "build.rs"
+edition = "2018"
 
 [dependencies]
 url = "1.7.2"

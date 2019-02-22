@@ -1,4 +1,4 @@
-use errors::{Error, Result};
+use crate::errors::{Error, Result};
 
 const B64_CHARS: &'static [u8] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

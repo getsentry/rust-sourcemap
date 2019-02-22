@@ -5,10 +5,10 @@ use base64;
 use serde_json;
 use serde_json::Value;
 
-use errors::{Error, Result};
-use jsontypes::RawSourceMap;
-use types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
-use vlq::parse_vlq_segment;
+use crate::errors::{Error, Result};
+use crate::jsontypes::RawSourceMap;
+use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
+use crate::vlq::parse_vlq_segment;
 
 const DATA_PREABLE: &'static str = "data:application/json;base64,";
 

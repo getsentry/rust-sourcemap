@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use url::Url;
 
-use errors::Result;
-use types::{RawToken, SourceMap, Token};
+use crate::errors::Result;
+use crate::types::{RawToken, SourceMap, Token};
 
 /// Helper for sourcemap generation
 ///

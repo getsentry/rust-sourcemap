@@ -3,12 +3,12 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::path::Path;
 
-use builder::SourceMapBuilder;
-use decoder::{decode, decode_slice};
-use encoder::encode;
-use errors::{Error, Result};
-use sourceview::SourceView;
-use utils::find_common_prefix;
+use crate::builder::SourceMapBuilder;
+use crate::decoder::{decode, decode_slice};
+use crate::encoder::encode;
+use crate::errors::{Error, Result};
+use crate::sourceview::SourceView;
+use crate::utils::find_common_prefix;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
