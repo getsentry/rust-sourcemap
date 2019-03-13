@@ -1,0 +1,15 @@
+os: linux
+language: rust
+cache:
+  cargo: true
+
+git:
+  depth: 1
+
+if: tag IS blank
+script: make $SUITE
+
+matrix:
+  include:
+    - env: SUITE=check-format
+    - env: SUITE=test
