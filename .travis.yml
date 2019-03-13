@@ -13,3 +13,13 @@ matrix:
   include:
     - env: SUITE=check-format
     - env: SUITE=test
+
+notifications:
+  webhooks:
+    urls:
+      - https://zeus.ci/hooks/ef7e6236-45af-11e9-869d-0a580a281e04/public/provider/travis/webhook
+    on_success: always
+    on_failure: always
+    on_start: always
+    on_cancel: always
+    on_error: always
