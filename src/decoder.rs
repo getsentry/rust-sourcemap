@@ -185,23 +185,28 @@ fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         }
     }
 
-    if let Some(source_root) = rsm.source_root {
-        if !source_root.is_empty() {
-            let source_root = source_root.trim_right_matches('/');
-            sources = sources
+    let sources = match rsm.source_root {
+        Some(ref source_root) if !source_root.is_empty() => {
+            let source_root = source_root.trim_end_matches('/');
+            sources
                 .into_iter()
                 .map(|x| {
-                    if x.len() > 0
-                        && (x.starts_with('/') || x.starts_with("http:") || x.starts_with("https:"))
-                    {
+                    let x = x.unwrap_or_default();
+                    let is_valid = x.len() > 0
+                        && (x.starts_with('/')
+                            || x.starts_with("http:")
+                            || x.starts_with("https:"));
+
+                    if is_valid {
                         x
                     } else {
                         format!("{}/{}", source_root, x)
                     }
                 })
-                .collect();
+                .collect()
         }
-    }
+        _ => sources.into_iter().map(Option::unwrap_or_default).collect(),
+    };
 
     // apparently we can encounter some non string types in real world
     // sourcemaps :(
