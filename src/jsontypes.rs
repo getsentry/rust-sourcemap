@@ -20,7 +20,7 @@ pub struct RawSourceMap {
     pub version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file: Option<Value>,
-    pub sources: Option<Vec<String>>,
+    pub sources: Option<Vec<Option<String>>>,
     #[serde(rename = "sourceRoot", skip_serializing_if = "Option::is_none")]
     pub source_root: Option<String>,
     #[serde(rename = "sourcesContent", skip_serializing_if = "Option::is_none")]

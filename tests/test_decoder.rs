@@ -125,3 +125,19 @@ fn test_sourcemap_data_url() {
         }
     }
 }
+
+#[test]
+fn test_sourcemap_nofiles() {
+    let input: &[_] = b"{
+        \"version\":3,
+        \"sources\":[null],
+        \"names\":[\"x\",\"alert\"],
+        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    }";
+    let sm = SourceMap::from_reader(input).unwrap();
+    let mut iter = sm.tokens().filter(|t| t.has_name());
+    assert_eq!(iter.next().unwrap().to_tuple(), ("", 0, 4, Some("x")));
+    assert_eq!(iter.next().unwrap().to_tuple(), ("", 1, 4, Some("x")));
+    assert_eq!(iter.next().unwrap().to_tuple(), ("", 2, 2, Some("alert")));
+    assert!(iter.next().is_none());
+}
