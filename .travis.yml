@@ -11,7 +11,8 @@ script: make $SUITE
 
 matrix:
   include:
-    - env: SUITE=check-format
+    - env: SUITE=style
+    - env: SUITE=lint
     - env: SUITE=test
 
 notifications:
