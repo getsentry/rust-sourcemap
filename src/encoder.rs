@@ -19,7 +19,7 @@ pub fn encode<M: Encodable, W: Write>(sm: &M, mut w: W) -> Result<()> {
 }
 
 fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
-    encode_vlq(out, (a as i64) - (b as i64))
+    encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
 fn serialize_mappings(sm: &SourceMap) -> String {
@@ -111,7 +111,7 @@ impl Encodable for SourceMapIndex {
                             line: section.get_offset_line(),
                             column: section.get_offset_col(),
                         },
-                        url: section.get_url().map(|x| x.to_string()),
+                        url: section.get_url().map(str::to_owned),
                         map: section
                             .get_sourcemap()
                             .map(|sm| Box::new(sm.as_raw_sourcemap())),

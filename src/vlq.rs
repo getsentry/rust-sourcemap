@@ -1,7 +1,6 @@
 use crate::errors::{Error, Result};
 
-const B64_CHARS: &'static [u8] =
-    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const B64: [i8; 256] = [
     -1,
     -1,
@@ -268,7 +267,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
     let mut shift = 0;
 
     for c in segment.bytes() {
-        let enc = B64[c as usize] as i64;
+        let enc = i64::from(B64[c as usize]);
         let val = enc & 0b11111;
         let cont = enc >> 5;
         cur += val.checked_shl(shift).ok_or(Error::VlqOverflow)?;
@@ -276,7 +275,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
 
         if cont == 0 {
             let sign = cur & 1;
-            cur = cur >> 1;
+            cur >>= 1;
             if sign != 0 {
                 cur = -cur;
             }
@@ -288,7 +287,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
 
     if cur != 0 || shift != 0 {
         Err(Error::VlqLeftover)
-    } else if rv.len() == 0 {
+    } else if rv.is_empty() {
         Err(Error::VlqNoValues)
     } else {
         Ok(rv)

@@ -77,7 +77,7 @@ impl DecodedMap {
     /// regular sourcemap.  This method can only be used if
     /// the contained index actually contains embedded maps
     /// or it will not be able to look up anything.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         match *self {
             DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
             DecodedMap::Index(ref smi) => smi.lookup_token(line, col),
@@ -349,7 +349,7 @@ impl<'a> fmt::Display for Token<'a> {
             self.get_src_col(),
             self.get_name()
                 .map(|x| format!(" name={}", x))
-                .unwrap_or("".into())
+                .unwrap_or_default()
         )?;
         if f.alternate() {
             write!(f, " ({}:{})", self.get_dst_line(), self.get_dst_col())?;
@@ -497,15 +497,15 @@ impl SourceMap {
             .collect();
         index.sort();
         SourceMap {
-            file: file,
-            tokens: tokens,
-            index: index,
-            names: names,
-            sources: sources,
+            file,
+            tokens,
+            index,
+            names,
+            sources,
             sources_content: sources_content
-                .unwrap_or(vec![])
+                .unwrap_or_default()
                 .into_iter()
-                .map(|opt| opt.map(|source| SourceView::from_string(source)))
+                .map(|opt| opt.map(SourceView::from_string))
                 .collect(),
         }
     }
@@ -517,16 +517,14 @@ impl SourceMap {
 
     /// Sets a new value for the file.
     pub fn set_file(&mut self, value: Option<&str>) {
-        self.file = value.map(|x| x.to_string());
+        self.file = value.map(str::to_owned);
     }
 
     /// Looks up a token by its index.
-    pub fn get_token<'a>(&'a self, idx: u32) -> Option<Token<'a>> {
-        self.tokens.get(idx as usize).map(|raw| Token {
-            raw: raw,
-            i: self,
-            idx: idx,
-        })
+    pub fn get_token(&self, idx: u32) -> Option<Token<'_>> {
+        self.tokens
+            .get(idx as usize)
+            .map(|raw| Token { raw, i: self, idx })
     }
 
     /// Returns the number of tokens in the sourcemap.
@@ -535,7 +533,7 @@ impl SourceMap {
     }
 
     /// Returns an iterator over the tokens.
-    pub fn tokens<'a>(&'a self) -> TokenIter<'a> {
+    pub fn tokens(&self) -> TokenIter<'_> {
         TokenIter {
             i: self,
             next_idx: 0,
@@ -543,7 +541,7 @@ impl SourceMap {
     }
 
     /// Looks up the closest token to a given line and column.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         let mut low = 0;
         let mut high = self.index.len();
 
@@ -602,7 +600,7 @@ impl SourceMap {
     }
 
     /// Iterates over all sources
-    pub fn sources<'a>(&'a self) -> SourceIter<'a> {
+    pub fn sources(&self) -> SourceIter<'_> {
         SourceIter {
             i: self,
             next_idx: 0,
@@ -610,18 +608,18 @@ impl SourceMap {
     }
 
     /// Returns the sources content as source view.
-    pub fn get_source_view<'a>(&'a self, idx: u32) -> Option<&'a SourceView<'a>> {
+    pub fn get_source_view(&self, idx: u32) -> Option<&SourceView<'_>> {
         self.sources_content
             .get(idx as usize)
-            .and_then(|x| x.as_ref())
+            .and_then(Option::as_ref)
     }
 
     /// Looks up the content for a source.
     pub fn get_source_contents(&self, idx: u32) -> Option<&str> {
         self.sources_content
             .get(idx as usize)
-            .and_then(|bucket| bucket.as_ref())
-            .map(|x| x.source())
+            .and_then(Option::as_ref)
+            .map(SourceView::source)
     }
 
     /// Sets source contents for a source.
@@ -633,7 +631,7 @@ impl SourceMap {
     }
 
     /// Iterates over all source contents
-    pub fn source_contents<'a>(&'a self) -> SourceContentsIter<'a> {
+    pub fn source_contents(&self) -> SourceContentsIter<'_> {
         SourceContentsIter {
             i: self,
             next_idx: 0,
@@ -641,7 +639,7 @@ impl SourceMap {
     }
 
     /// Returns an iterator over the names.
-    pub fn names<'a>(&'a self) -> NameIter<'a> {
+    pub fn names(&self) -> NameIter<'_> {
         NameIter {
             i: self,
             next_idx: 0,
@@ -674,7 +672,7 @@ impl SourceMap {
     }
 
     /// Returns the number of items in the index
-    pub fn index_iter<'a>(&'a self) -> IndexIter<'a> {
+    pub fn index_iter(&self) -> IndexIter<'_> {
         IndexIter {
             i: self,
             next_idx: 0,
@@ -729,7 +727,7 @@ impl SourceMap {
             }
         }
         if need_common_prefix {
-            if let Some(prefix) = find_common_prefix(self.sources.iter().map(|x| x.as_str())) {
+            if let Some(prefix) = find_common_prefix(self.sources.iter().map(String::as_str)) {
                 prefixes.push(prefix);
             }
         }
@@ -774,10 +772,7 @@ impl SourceMapIndex {
     /// - `file`: an optional filename of the index
     /// - `sections`: a vector of source map index sections
     pub fn new(file: Option<String>, sections: Vec<SourceMapSection>) -> SourceMapIndex {
-        SourceMapIndex {
-            file: file,
-            sections: sections,
-        }
+        SourceMapIndex { file, sections }
     }
 
     /// Returns the embedded filename in case there is one.
@@ -787,7 +782,7 @@ impl SourceMapIndex {
 
     /// Sets a new value for the file.
     pub fn set_file(&mut self, value: Option<&str>) {
-        self.file = value.map(|x| x.to_string());
+        self.file = value.map(str::to_owned);
     }
 
     /// Returns the number of sections in this index
@@ -806,7 +801,7 @@ impl SourceMapIndex {
     }
 
     /// Iterates over all sections
-    pub fn sections<'a>(&'a self) -> SourceMapSectionIter<'a> {
+    pub fn sections(&self) -> SourceMapSectionIter<'_> {
         SourceMapSectionIter {
             i: self,
             next_idx: 0,
@@ -818,7 +813,7 @@ impl SourceMapIndex {
     /// This requires that the referenced sourcemaps are actually loaded.
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
-    pub fn lookup_token<'a>(&'a self, line: u32, col: u32) -> Option<Token<'a>> {
+    pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
             if off_line < line || off_col < col {
@@ -892,9 +887,9 @@ impl SourceMapSection {
         map: Option<SourceMap>,
     ) -> SourceMapSection {
         SourceMapSection {
-            offset: offset,
-            url: url,
-            map: map.map(|x| Box::new(x)),
+            offset,
+            url,
+            map: map.map(Box::new),
         }
     }
 
@@ -920,21 +915,21 @@ impl SourceMapSection {
 
     /// Updates the URL for this section.
     pub fn set_url(&mut self, value: Option<&str>) {
-        self.url = value.map(|x| x.to_string());
+        self.url = value.map(str::to_owned);
     }
 
     /// Returns a reference to the embedded sourcemap if available
     pub fn get_sourcemap(&self) -> Option<&SourceMap> {
-        self.map.as_ref().map(|x| &**x)
+        self.map.as_ref().map(Box::as_ref)
     }
 
     /// Returns a reference to the embedded sourcemap if available
     pub fn get_sourcemap_mut(&mut self) -> Option<&mut SourceMap> {
-        self.map.as_mut().map(|x| &mut **x)
+        self.map.as_mut().map(Box::as_mut)
     }
 
     /// Replaces the embedded sourcemap
     pub fn set_sourcemap(&mut self, sm: Option<SourceMap>) {
-        self.map = sm.map(|x| Box::new(x));
+        self.map = sm.map(Box::new);
     }
 }

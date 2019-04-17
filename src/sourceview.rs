@@ -236,7 +236,7 @@ impl<'a> SourceView<'a> {
             }
 
             let mut off_end = off;
-            while let Some(c) = char_iter.next() {
+            for c in char_iter {
                 if idx >= (col + span) as usize {
                     break;
                 }
@@ -314,6 +314,7 @@ impl<'a> SourceView<'a> {
 }
 
 #[test]
+#[allow(clippy::cyclomatic_complexity)]
 fn test_minified_source_view() {
     let view = SourceView::new("a\nb\nc");
     assert_eq!(view.get_line(0), Some("a"));

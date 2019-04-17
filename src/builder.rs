@@ -45,7 +45,7 @@ impl SourceMapBuilder {
     /// Creates a new source map builder and sets the file.
     pub fn new(file: Option<&str>) -> SourceMapBuilder {
         SourceMapBuilder {
-            file: file.map(|x| x.to_string()),
+            file: file.map(str::to_owned),
             name_map: HashMap::new(),
             names: vec![],
             tokens: vec![],
@@ -57,7 +57,7 @@ impl SourceMapBuilder {
 
     /// Sets the file for the sourcemap (optional)
     pub fn set_file(&mut self, value: Option<&str>) {
-        self.file = value.map(|x| x.to_string());
+        self.file = value.map(str::to_owned);
     }
 
     /// Returns the currently set file.
@@ -92,7 +92,7 @@ impl SourceMapBuilder {
         if self.sources.len() > self.source_contents.len() {
             self.source_contents.resize(self.sources.len(), None);
         }
-        self.source_contents[src_id as usize] = contents.map(|x| x.to_string());
+        self.source_contents[src_id as usize] = contents.map(str::to_owned);
     }
 
     /// Returns the current source contents for a source.
@@ -168,12 +168,12 @@ impl SourceMapBuilder {
             None => !0,
         };
         let raw = RawToken {
-            dst_line: dst_line,
-            dst_col: dst_col,
-            src_line: src_line,
-            src_col: src_col,
-            src_id: src_id,
-            name_id: name_id,
+            dst_line,
+            dst_col,
+            src_line,
+            src_col,
+            src_id,
+            name_id,
         };
         self.tokens.push(raw);
         raw
@@ -211,7 +211,7 @@ impl SourceMapBuilder {
 
     /// Converts the builder into a sourcemap.
     pub fn into_sourcemap(self) -> SourceMap {
-        let contents = if self.source_contents.len() > 0 {
+        let contents = if !self.source_contents.is_empty() {
             Some(self.source_contents)
         } else {
             None

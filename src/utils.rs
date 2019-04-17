@@ -80,7 +80,7 @@ fn find_common_prefix_of_sorted_vec<'a>(items: &'a [Cow<'a, [&'a str]>]) -> Opti
     }
 
     if let Some(max_idx) = max_idx {
-        Some(&shortest[..max_idx + 1])
+        Some(&shortest[..=max_idx])
     } else {
         None
     }
@@ -115,14 +115,14 @@ pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<St
 /// assert_eq!(&make_relative_path(
 ///     "/foo/bar/baz.js", "/foo/baz.map"), "../baz.map");
 /// ```
-pub fn make_relative_path<'a>(base: &str, target: &str) -> String {
+pub fn make_relative_path(base: &str, target: &str) -> String {
     let target_path: Vec<_> = target
         .split(&['/', '\\'][..])
-        .filter(|x| x.len() > 0)
+        .filter(|x| !x.is_empty())
         .collect();
     let mut base_path: Vec<_> = base
         .split(&['/', '\\'][..])
-        .filter(|x| x.len() > 0)
+        .filter(|x| !x.is_empty())
         .collect();
     base_path.pop();
 

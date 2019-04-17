@@ -2,7 +2,7 @@ use std::io;
 use std::io::BufRead;
 
 use sourcemap::internals::StripHeaderReader;
-use sourcemap::{decode_data_url, DecodedMap, SourceMap};
+use sourcemap::{decode_data_url, DecodedMap, SourceMap, Token};
 
 #[test]
 fn test_strip_header() {
@@ -55,7 +55,7 @@ fn test_basic_sourcemap() {
         \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
     }";
     let sm = SourceMap::from_reader(input).unwrap();
-    let mut iter = sm.tokens().filter(|t| t.has_name());
+    let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(
         iter.next().unwrap().to_tuple(),
         ("coolstuff.js", 0, 4, Some("x"))
@@ -81,7 +81,7 @@ fn test_basic_sourcemap_with_root() {
         \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
     }";
     let sm = SourceMap::from_reader(input).unwrap();
-    let mut iter = sm.tokens().filter(|t| t.has_name());
+    let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(
         iter.next().unwrap().to_tuple(),
         ("x/coolstuff.js", 0, 4, Some("x"))
@@ -105,7 +105,7 @@ fn test_sourcemap_data_url() {
                FBSSxFQUNSLElBQUlBLEdBQUssRUFBRyxDQUNWQyxNQUFNIn0=";
     match decode_data_url(url).unwrap() {
         DecodedMap::Regular(sm) => {
-            let mut iter = sm.tokens().filter(|t| t.has_name());
+            let mut iter = sm.tokens().filter(Token::has_name);
             assert_eq!(
                 iter.next().unwrap().to_tuple(),
                 ("x/coolstuff.js", 0, 4, Some("x"))
@@ -135,7 +135,7 @@ fn test_sourcemap_nofiles() {
         \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
     }";
     let sm = SourceMap::from_reader(input).unwrap();
-    let mut iter = sm.tokens().filter(|t| t.has_name());
+    let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(iter.next().unwrap().to_tuple(), ("", 0, 4, Some("x")));
     assert_eq!(iter.next().unwrap().to_tuple(), ("", 1, 4, Some("x")));
     assert_eq!(iter.next().unwrap().to_tuple(), ("", 2, 2, Some("alert")));
