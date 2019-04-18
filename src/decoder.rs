@@ -256,7 +256,12 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         _ => "<invalid>".into(),
     });
 
-    Ok(SourceMapIndex::new(file, sections))
+    Ok(SourceMapIndex::new(
+        file,
+        sections,
+        rsm.x_facebook_offsets,
+        rsm.x_metro_module_paths,
+    ))
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {

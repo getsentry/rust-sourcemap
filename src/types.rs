@@ -386,6 +386,8 @@ impl<'a> Iterator for SourceMapSectionIter<'a> {
 pub struct SourceMapIndex {
     file: Option<String>,
     sections: Vec<SourceMapSection>,
+    x_facebook_offsets: Option<Vec<Option<u32>>>,
+    x_metro_module_paths: Option<Vec<String>>,
 }
 
 /// Represents a sourcemap in memory
@@ -771,8 +773,18 @@ impl SourceMapIndex {
     ///
     /// - `file`: an optional filename of the index
     /// - `sections`: a vector of source map index sections
-    pub fn new(file: Option<String>, sections: Vec<SourceMapSection>) -> SourceMapIndex {
-        SourceMapIndex { file, sections }
+    pub fn new(
+        file: Option<String>,
+        sections: Vec<SourceMapSection>,
+        x_facebook_offsets: Option<Vec<Option<u32>>>,
+        x_metro_module_paths: Option<Vec<String>>,
+    ) -> SourceMapIndex {
+        SourceMapIndex {
+            file,
+            sections,
+            x_facebook_offsets,
+            x_metro_module_paths,
+        }
     }
 
     /// Returns the embedded filename in case there is one.
@@ -808,6 +820,10 @@ impl SourceMapIndex {
         }
     }
 
+    pub fn is_for_react_native(&self) -> bool {
+        self.x_facebook_offsets.is_some() && self.x_metro_module_paths.is_some()
+    }
+
     /// Looks up the closest token to a given line and column.
     ///
     /// This requires that the referenced sourcemaps are actually loaded.
@@ -835,6 +851,7 @@ impl SourceMapIndex {
 
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
+            // println!("section info: line {}, offset {}", off_line, off_col);
             let map = match section.get_sourcemap() {
                 Some(map) => map,
                 None => {
@@ -864,6 +881,7 @@ impl SourceMapIndex {
             }
         }
 
+        // println!("{}", builder.into_sourcemap());
         Ok(builder.into_sourcemap())
     }
 

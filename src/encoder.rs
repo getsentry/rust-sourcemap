@@ -92,6 +92,8 @@ impl Encodable for SourceMap {
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
             mappings: Some(serialize_mappings(self)),
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
         }
     }
 }
@@ -120,6 +122,8 @@ impl Encodable for SourceMapIndex {
             ),
             names: None,
             mappings: None,
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
         }
     }
 }

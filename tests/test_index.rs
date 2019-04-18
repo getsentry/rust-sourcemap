@@ -51,6 +51,8 @@ fn test_basic_indexed_sourcemap() {
     files.insert("file2.js", f2.lines().collect());
 
     let mut ism = SourceMapIndex::from_reader(input).unwrap();
+    assert!(!ism.is_for_react_native());
+
     for section_id in 0..ism.get_section_count() {
         let section = ism.get_section_mut(section_id).unwrap();
         let map = section.get_sourcemap_mut().unwrap();
@@ -90,4 +92,45 @@ fn test_basic_indexed_sourcemap() {
             .unwrap_or_else(|| panic!("no source for {}", filename));
         assert_eq!(&view.lines().collect::<Vec<_>>(), ref_contents);
     }
+}
+
+#[test]
+fn test_indexed_sourcemap_for_react_native() {
+    let input: &[_] = br#"{
+        "version": 3,
+        "file": "bla",
+        "sections": [
+            {
+                "offset": {
+                    "line": 0,
+                    "column": 0
+                },
+                "map": {
+                    "version":3,
+                    "sources":["file1.js"],
+                    "names":["add","a","b"],
+                    "mappings":"AAAA,QAASA,KAAIC,EAAGC,GACf,YACA,OAAOD,GAAIC",
+                    "file":"file1.min.js"
+                }
+            },
+            {
+                "offset": {
+                    "line": 1,
+                    "column": 0
+                },
+                "map": {
+                    "version":3,
+                    "sources":["file2.js"],
+                    "names":["multiply","a","b","divide","add","c","e","Raven","captureException"],
+                    "mappings":"AAAA,QAASA,UAASC,EAAGC,GACpB,YACA,OAAOD,GAAIC,EAEZ,QAASC,QAAOF,EAAGC,GAClB,YACA,KACC,MAAOF,UAASI,IAAIH,EAAGC,GAAID,EAAGC,GAAKG,EAClC,MAAOC,GACRC,MAAMC,iBAAiBF",
+                    "file":"file2.min.js"
+                }
+            }
+        ],
+        "x_facebook_offsets": [],
+        "x_metro_module_paths": []
+    }"#;
+
+    let ism = SourceMapIndex::from_reader(input).unwrap();
+    assert!(ism.is_for_react_native());
 }
