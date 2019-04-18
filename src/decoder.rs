@@ -302,3 +302,5 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     let data = base64::decode(data_b64).map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }
+
+pub fn decode_ram_bundle() {}

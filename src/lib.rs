@@ -59,6 +59,7 @@ mod detector;
 mod encoder;
 mod errors;
 mod jsontypes;
+mod ram_bundle;
 mod sourceview;
 mod types;
 mod utils;
