@@ -31,7 +31,7 @@ pub struct RamBundleModuleIter<'a, 'b> {
 }
 
 impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
-    type Item = Result<RamBundleModule<'a>>;
+    type Item = Result<Option<RamBundleModule<'a>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range.next().map(|id| self.ram_bundle.get_module(id))
@@ -43,6 +43,12 @@ pub struct RamBundle<'a> {
     module_count: usize,
     startup_code_size: usize,
     startup_code_offset: usize,
+}
+
+impl ModuleEntry {
+    pub fn is_empty(&self) -> bool {
+        self.offset == 0 && self.length == 0
+    }
 }
 
 impl<'a> RamBundle<'a> {
@@ -68,13 +74,21 @@ impl<'a> RamBundle<'a> {
         self.module_count
     }
 
+    pub fn startup_code_size(&self) -> usize {
+        self.startup_code_size
+    }
+
+    pub fn startup_code_offset(&self) -> usize {
+        self.startup_code_offset
+    }
+
     pub fn startup_code(&self) -> Result<&'a [u8]> {
         self.bytes
             .pread_with(self.startup_code_offset, self.startup_code_size)
             .map_err(Error::Scroll)
     }
 
-    pub fn get_module(&self, id: usize) -> Result<RamBundleModule<'a>> {
+    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule<'a>>> {
         if id >= self.module_count {
             return Err(Error::InvalidRamBundleIndex);
         }
@@ -86,12 +100,16 @@ impl<'a> RamBundle<'a> {
             .bytes
             .pread_with::<ModuleEntry>(entry_offset, scroll::LE)?;
 
+        if module_entry.is_empty() {
+            return Ok(None);
+        }
+
         let module_global_offset = self.startup_code_offset + module_entry.offset as usize;
         let data = self
             .bytes
             .pread_with(module_global_offset, module_entry.length as usize)?;
 
-        Ok(RamBundleModule { id, data })
+        Ok(Some(RamBundleModule { id, data }))
     }
 
     pub fn iter_modules(&self) -> RamBundleModuleIter {
@@ -99,5 +117,11 @@ impl<'a> RamBundle<'a> {
             range: 0..self.module_count,
             ram_bundle: self,
         }
+    }
+}
+
+impl<'a> RamBundleModule<'a> {
+    pub fn id(&self) -> usize {
+        self.id
     }
 }
