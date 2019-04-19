@@ -46,8 +46,8 @@ pub use crate::detector::{
     SourceMapRef,
 };
 pub use crate::errors::{Error, Result};
+pub use crate::ram_bundle::{RamBundle, RamBundleModule};
 pub use crate::sourceview::SourceView;
-pub use crate::ram_bundle::RamBundle;
 pub use crate::types::{
     DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,
     SourceMapSectionIter, Token, TokenIter,

@@ -31,10 +31,12 @@ pub struct RamBundleModuleIter<'a, 'b> {
 }
 
 impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
-    type Item = Result<Option<RamBundleModule<'a>>>;
+    type Item = Option<RamBundleModule<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.range.next().map(|id| self.ram_bundle.get_module(id))
+        self.range
+            .next()
+            .map(|id| self.ram_bundle.get_module(id).unwrap())
     }
 }
 
@@ -123,5 +125,9 @@ impl<'a> RamBundle<'a> {
 impl<'a> RamBundleModule<'a> {
     pub fn id(&self) -> usize {
         self.id
+    }
+
+    pub fn data(&self) -> &'a [u8] {
+        self.data
     }
 }
