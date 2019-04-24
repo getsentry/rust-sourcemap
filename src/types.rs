@@ -362,7 +362,7 @@ impl<'a> fmt::Display for Token<'a> {
 pub struct SourceMapSection {
     offset: (u32, u32),
     url: Option<String>,
-    map: Option<Box<SourceMap>>,
+    map: Option<Box<DecodedMap>>,
 }
 
 /// Iterates over all sections in a sourcemap index
@@ -828,6 +828,7 @@ impl SourceMapIndex {
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
+            println!("off_line: {}, off_col: {}", off_line, off_col);
             if off_line < line || off_col < col {
                 continue;
             }
@@ -842,14 +843,20 @@ impl SourceMapIndex {
 
     /// Flattens an indexed sourcemap into a regular one.  This requires
     /// that all referenced sourcemaps are attached.
-    pub fn flatten(self) -> Result<SourceMap> {
+    pub fn flatten(&self) -> Result<SourceMap> {
         let mut builder = SourceMapBuilder::new(self.get_file());
 
+        let mut flattened;
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
-            // println!("section info: line {}, offset {}", off_line, off_col);
             let map = match section.get_sourcemap() {
-                Some(map) => map,
+                Some(map) => match map {
+                    DecodedMap::Regular(sm) => sm,
+                    DecodedMap::Index(idx) => {
+                        flattened = idx.flatten()?;
+                        &flattened
+                    }
+                },
                 None => {
                     return Err(Error::CannotFlatten(format!(
                         "Section has an unresolved \
@@ -877,7 +884,6 @@ impl SourceMapIndex {
             }
         }
 
-        // println!("{}", builder.into_sourcemap());
         Ok(builder.into_sourcemap())
     }
 
@@ -910,7 +916,7 @@ impl SourceMapSection {
     pub fn new(
         offset: (u32, u32),
         url: Option<String>,
-        map: Option<SourceMap>,
+        map: Option<DecodedMap>,
     ) -> SourceMapSection {
         SourceMapSection {
             offset,
@@ -945,17 +951,17 @@ impl SourceMapSection {
     }
 
     /// Returns a reference to the embedded sourcemap if available
-    pub fn get_sourcemap(&self) -> Option<&SourceMap> {
+    pub fn get_sourcemap(&self) -> Option<&DecodedMap> {
         self.map.as_ref().map(Box::as_ref)
     }
 
     /// Returns a reference to the embedded sourcemap if available
-    pub fn get_sourcemap_mut(&mut self) -> Option<&mut SourceMap> {
+    pub fn get_sourcemap_mut(&mut self) -> Option<&mut DecodedMap> {
         self.map.as_mut().map(Box::as_mut)
     }
 
     /// Replaces the embedded sourcemap
-    pub fn set_sourcemap(&mut self, sm: Option<SourceMap>) {
+    pub fn set_sourcemap(&mut self, sm: Option<DecodedMap>) {
         self.map = sm.map(Box::new);
     }
 }

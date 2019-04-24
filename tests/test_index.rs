@@ -1,4 +1,4 @@
-use sourcemap::SourceMapIndex;
+use sourcemap::{DecodedMap, SourceMapIndex};
 use std::collections::HashMap;
 
 #[test]
@@ -55,7 +55,10 @@ fn test_basic_indexed_sourcemap() {
 
     for section_id in 0..ism.get_section_count() {
         let section = ism.get_section_mut(section_id).unwrap();
-        let map = section.get_sourcemap_mut().unwrap();
+        let map = match section.get_sourcemap_mut().unwrap() {
+            DecodedMap::Index(_) => panic!("Invalid section type!"),
+            DecodedMap::Regular(sm) => sm,
+        };
         let contents = {
             let filename = map.get_source(0).unwrap();
             raw_files[filename]

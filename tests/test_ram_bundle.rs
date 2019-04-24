@@ -75,13 +75,14 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
         }
     }
 
-    // let sm = ism.flatten().unwrap();
-    // let out_file = out_dir.join("out.js.map");
-    // let mut out = File::create(out_file)?;
-    // sm.to_writer(out).unwrap();
+    println!("Flattening indexed source map...");
+    let sm = ism.flatten().unwrap();
+    let out_file = out_dir.join("out.js.map");
+    let out = File::create(out_file)?;
+    sm.to_writer(out).unwrap();
 
-    // let token = ism.lookup_token(1, 0).unwrap();
-    // println!("token: {}", token);
+    let token = sm.lookup_token(368, 1010).unwrap();
+    println!("token: {}", token);
 
     Ok(())
 }

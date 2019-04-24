@@ -242,7 +242,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
             (raw_section.offset.line, raw_section.offset.column),
             raw_section.url,
             match raw_section.map.take() {
-                Some(map) => Some(decode_regular(*map)?),
+                Some(map) => Some(decode_common(*map)?),
                 None => None,
             },
         ));
