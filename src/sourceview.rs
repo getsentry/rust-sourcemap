@@ -183,14 +183,6 @@ impl<'a> SourceView<'a> {
         }
     }
 
-    pub fn to_static(&self) -> SourceView<'static> {
-        SourceView {
-            source: Cow::Owned(self.source.into_owned()),
-            processed_until: RefCell::new(0),
-            lines: RefCell::new(vec![]),
-        }
-    }
-
     /// Returns a requested minified line.
     pub fn get_line(&self, idx: u32) -> Option<&str> {
         let idx = idx as usize;

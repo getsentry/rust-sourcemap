@@ -257,7 +257,7 @@ impl<'a> TokenIter<'a> {
         let token = self.i.lookup_token(line, col);
         match token {
             Some(token) => {
-                self.next_idx = token.idx;
+                self.next_idx = token.idx + 1;
                 true
             }
             None => false,

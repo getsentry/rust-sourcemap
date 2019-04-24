@@ -4,7 +4,7 @@ use std::ops::Range;
 use crate::builder::SourceMapBuilder;
 use crate::errors::{Error, Result};
 use crate::sourceview::SourceView;
-use crate::types::SourceMapIndex;
+use crate::types::{SourceMap, SourceMapIndex};
 
 const RAM_BUNDLE_MAGIC: u32 = 0xFB0BD1E5;
 
@@ -28,12 +28,30 @@ pub struct RamBundleModule<'a> {
     data: &'a [u8],
 }
 
+impl<'a> RamBundleModule<'a> {
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    pub fn data(&self) -> &'a [u8] {
+        self.data
+    }
+
+    pub fn source_view(&self) -> Result<SourceView<'a>> {
+        match std::str::from_utf8(self.data) {
+            Ok(s) => Ok(SourceView::new(s)),
+            Err(e) => Err(Error::Utf8(e)),
+        }
+    }
+}
+
 pub struct RamBundleModuleIter<'a, 'b> {
     range: Range<usize>,
     ram_bundle: &'b RamBundle<'a>,
 }
 
 impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
+    // TODO Remove that Option
     type Item = Result<Option<RamBundleModule<'a>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -119,7 +137,7 @@ impl<'a> RamBundle<'a> {
         Ok(Some(RamBundleModule { id, data }))
     }
 
-    pub fn iter_modules(&self) -> RamBundleModuleIter {
+    pub fn iter_modules(&self) -> RamBundleModuleIter<'a, '_> {
         RamBundleModuleIter {
             range: 0..self.module_count,
             ram_bundle: self,
@@ -127,14 +145,16 @@ impl<'a> RamBundle<'a> {
     }
 }
 
-pub fn split_ram_bundle(
-    ram_bundle: &RamBundle,
+// TODO rewrite with an iterator
+pub fn split_ram_bundle<'a>(
+    ram_bundle: &RamBundle<'a>,
     smi: &SourceMapIndex,
-) -> Result<Vec<(String, SourceView<'static>, SourceMapIndex)>> {
+) -> Result<Vec<(String, SourceView<'a>, SourceMap)>> {
     let sm = smi.flatten()?;
     let offsets = smi.x_facebook_offsets().ok_or(Error::NotARamBundle)?;
+    let mut result: Vec<(String, SourceView<'a>, SourceMap)> = Vec::new();
     for module in ram_bundle.iter_modules() {
-        let module = match module? {
+        let module: RamBundleModule<'a> = match module? {
             Some(m) => m,
             None => continue,
         };
@@ -150,21 +170,36 @@ pub fn split_ram_bundle(
 
         // FIXME
         if !token_iter.seek(starting_line, 0) {
-            continue;
+            return Err(Error::InvalidRamBundleEntry);
         }
 
-        let source = module.source_view()?;
+        let source: SourceView<'a> = module.source_view()?;
         let line_count = source.line_count() as u32;
+        let ending_line = starting_line + line_count;
         let last_line_len = source
             .get_line(line_count - 1)
-            .map_or(0, |line| line.chars().map(|c| c.len_utf16()).sum());
+            .map_or(0, |line| line.chars().map(|c| c.len_utf16()).sum())
+            as u32;
 
         let filename = format!("{}.js", module.id);
+        println!(
+            "DEBUG filename: {}, line_count: {}, starting_line: {}, ending_line: {}",
+            filename, line_count, starting_line, ending_line
+        );
         let mut builder = SourceMapBuilder::new(Some(&filename));
+
         for token in token_iter {
+            let dst_line = token.get_dst_line();
+            let dst_col = token.get_dst_col();
+            println!("dst_line: {}, dst_col: {}", dst_line, dst_col);
+
+            if dst_line >= ending_line || dst_col >= last_line_len {
+                break;
+            }
+
             let raw = builder.add(
-                token.get_dst_line() - starting_line,
-                token.get_dst_col(),
+                dst_line - starting_line,
+                dst_col,
                 token.get_src_line(),
                 token.get_src_col(),
                 token.get_source(),
@@ -175,23 +210,8 @@ pub fn split_ram_bundle(
             }
         }
         let sourcemap = builder.into_sourcemap();
-    }
-    Ok(Vec::new())
-}
-
-impl<'a> RamBundleModule<'a> {
-    pub fn id(&self) -> usize {
-        self.id
+        result.push((filename, source, sourcemap));
     }
 
-    pub fn data(&self) -> &'a [u8] {
-        self.data
-    }
-
-    pub fn source_view(&self) -> Result<SourceView<'_>> {
-        match std::str::from_utf8(self.data) {
-            Ok(s) => Ok(SourceView::new(s)),
-            Err(e) => Err(Error::Utf8(e)),
-        }
-    }
+    Ok(result)
 }

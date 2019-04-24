@@ -1,4 +1,5 @@
-use sourcemap::{RamBundle, RamBundleModule, SourceMapIndex};
+use sourcemap::{split_ram_bundle, RamBundle, RamBundleModule, SourceMap, SourceMapIndex};
+use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -18,7 +19,7 @@ fn test_basic_ram_bundle() -> Result<(), std::io::Error> {
     // Check first modules
     let mut module_iter = ram_bundle.iter_modules();
 
-    let module_0 = module_iter.next().unwrap().unwrap();
+    let module_0 = module_iter.next().unwrap().unwrap().unwrap();
     let module_0_data = module_0.data();
     assert_eq!(module_0.id(), 0);
     assert_eq!(module_0_data.len(), 0x15b - 1);
@@ -27,7 +28,7 @@ fn test_basic_ram_bundle() -> Result<(), std::io::Error> {
         "__d(function(g,r,i,a,m,e,d){'use strict'".as_bytes()
     );
 
-    let module_1 = module_iter.next().unwrap().unwrap();
+    let module_1 = module_iter.next().unwrap().unwrap().unwrap();
     let module_1_data = module_1.data();
     assert_eq!(module_1.id(), 1);
     assert_eq!(module_1_data.len(), 0xa5 - 1);
@@ -36,7 +37,7 @@ fn test_basic_ram_bundle() -> Result<(), std::io::Error> {
         "__d(function(g,r,i,a,m,e,d){var n=r(d[0]".as_bytes()
     );
 
-    let module_2 = module_iter.next().unwrap();
+    let module_2 = module_iter.next().unwrap().unwrap();
     assert!(module_2.is_none());
 
     Ok(())
@@ -54,8 +55,8 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
 
     assert!(ism.is_for_react_native());
 
-    let x_facebook_offsets = ism.x_facebook_offsets().as_ref().unwrap();
-    let x_metro_module_paths = ism.x_metro_module_paths().as_ref().unwrap();
+    let x_facebook_offsets = ism.x_facebook_offsets().unwrap();
+    let x_metro_module_paths = ism.x_metro_module_paths().unwrap();
 
     assert_eq!(x_facebook_offsets.len(), 367);
 
@@ -84,5 +85,21 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
     let token = sm.lookup_token(367, 1010).unwrap();
     println!("token: {}", token);
 
+    // OUT
+    let out_combined = Path::new("out/combined");
+    let result = split_ram_bundle(&ram_bundle, &ism).unwrap();
+    for (name, sv, sm) in result {
+        println!("name: {}", name);
+        let out_sm = File::create(out_combined.join(format!("{}.map", name)))?;
+        sm.to_writer(out_sm);
+
+        fs::write(out_combined.join(name.clone()), sv.source())?;
+    }
+
+    // TEST
+    let sm_data = File::open("out/combined/28.js.map")?;
+    let sm = SourceMap::from_reader(sm_data).unwrap();
+    let token = sm.lookup_token(0, 2565).unwrap(); // line-number and column
+    println!("token: {}", token);
     Ok(())
 }

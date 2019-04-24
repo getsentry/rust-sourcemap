@@ -136,7 +136,7 @@ impl fmt::Display for Error {
             InvalidRamBundleMagic => write!(f, "invalid magic number for ram bundle"),
             InvalidRamBundleIndex => write!(f, "invalid module index in ram bundle"),
             InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
-            NotARamBundle => write!("not a ram bundle"),
+            NotARamBundle => write!(f, "not a ram bundle"),
         }
     }
 }
