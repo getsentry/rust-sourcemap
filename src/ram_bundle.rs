@@ -107,9 +107,13 @@ impl<'a> RamBundle<'a> {
         }
 
         let module_global_offset = self.startup_code_offset + module_entry.offset as usize;
-        let data = self
-            .bytes
-            .pread_with(module_global_offset, module_entry.length as usize)?;
+
+        if module_entry.length == 0 {
+            return Err(Error::InvalidRamBundleEntry);
+        }
+        // Strip the trailing NULL byte
+        let module_length = (module_entry.length - 1) as usize;
+        let data = self.bytes.pread_with(module_global_offset, module_length)?;
 
         Ok(Some(RamBundleModule { id, data }))
     }

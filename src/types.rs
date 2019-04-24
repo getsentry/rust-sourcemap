@@ -820,10 +820,6 @@ impl SourceMapIndex {
         }
     }
 
-    pub fn is_for_react_native(&self) -> bool {
-        self.x_facebook_offsets.is_some() && self.x_metro_module_paths.is_some()
-    }
-
     /// Looks up the closest token to a given line and column.
     ///
     /// This requires that the referenced sourcemaps are actually loaded.
@@ -890,6 +886,18 @@ impl SourceMapIndex {
     /// cause the sourcemap to be properly deduplicated.
     pub fn flatten_and_rewrite(self, options: &RewriteOptions<'_>) -> Result<SourceMap> {
         self.flatten()?.rewrite(options)
+    }
+
+    pub fn is_for_react_native(&self) -> bool {
+        self.x_facebook_offsets.is_some() && self.x_metro_module_paths.is_some()
+    }
+
+    pub fn x_facebook_offsets(&self) -> &Option<Vec<Option<u32>>> {
+        &self.x_facebook_offsets
+    }
+
+    pub fn x_metro_module_paths(&self) -> &Option<Vec<String>> {
+        &self.x_metro_module_paths
     }
 }
 

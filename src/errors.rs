@@ -43,6 +43,7 @@ pub enum Error {
 
     InvalidRamBundleMagic,
     InvalidRamBundleIndex,
+    InvalidRamBundleEntry,
 }
 
 impl From<io::Error> for Error {
@@ -95,6 +96,7 @@ impl error::Error for Error {
             CannotFlatten(_) => "cannot flatten the given indexed sourcemap",
             InvalidRamBundleMagic => "invalid magic number for ram bundle",
             InvalidRamBundleIndex => "invalid module index in ram bundle",
+            InvalidRamBundleEntry => "invalid ram bundle module entry",
         }
     }
 
@@ -131,6 +133,7 @@ impl fmt::Display for Error {
             CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
             InvalidRamBundleMagic => write!(f, "invalid magic number for ram bundle"),
             InvalidRamBundleIndex => write!(f, "invalid module index in ram bundle"),
+            InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
         }
     }
 }
