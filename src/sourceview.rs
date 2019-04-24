@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::fmt;
 use std::slice;
 use std::str;
 
@@ -150,6 +151,14 @@ impl<'a> Clone for SourceView<'a> {
     }
 }
 
+impl<'a> fmt::Debug for SourceView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SourceView")
+            .field("source", &self.source())
+            .finish()
+    }
+}
+
 unsafe fn make_str<'a>(tup: (*const u8, usize)) -> &'a str {
     let (data, len) = tup;
     str::from_utf8_unchecked(slice::from_raw_parts(data, len))
@@ -169,6 +178,14 @@ impl<'a> SourceView<'a> {
     pub fn from_string(source: String) -> SourceView<'static> {
         SourceView {
             source: Cow::Owned(source),
+            processed_until: RefCell::new(0),
+            lines: RefCell::new(vec![]),
+        }
+    }
+
+    pub fn to_static(&self) -> SourceView<'static> {
+        SourceView {
+            source: Cow::Owned(self.source.into_owned()),
             processed_until: RefCell::new(0),
             lines: RefCell::new(vec![]),
         }

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
@@ -251,6 +252,19 @@ pub struct TokenIter<'a> {
     next_idx: u32,
 }
 
+impl<'a> TokenIter<'a> {
+    pub fn seek(&mut self, line: u32, col: u32) -> bool {
+        let token = self.i.lookup_token(line, col);
+        match token {
+            Some(token) => {
+                self.next_idx = token.idx;
+                true
+            }
+            None => false,
+        }
+    }
+}
+
 impl<'a> Iterator for TokenIter<'a> {
     type Item = Token<'a>;
 
@@ -395,6 +409,7 @@ pub struct SourceMapIndex {
 /// This is always represents a regular "non-indexed" sourcemap.  Particularly
 /// in case the `from_reader` method is used an index sourcemap will be
 /// rejected with an error on reading.
+#[derive(Clone, Debug)]
 pub struct SourceMap {
     file: Option<String>,
     tokens: Vec<RawToken>,
@@ -846,16 +861,12 @@ impl SourceMapIndex {
     pub fn flatten(&self) -> Result<SourceMap> {
         let mut builder = SourceMapBuilder::new(self.get_file());
 
-        let mut flattened;
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
             let map = match section.get_sourcemap() {
                 Some(map) => match map {
-                    DecodedMap::Regular(sm) => sm,
-                    DecodedMap::Index(idx) => {
-                        flattened = idx.flatten()?;
-                        &flattened
-                    }
+                    DecodedMap::Regular(sm) => Cow::Borrowed(sm),
+                    DecodedMap::Index(idx) => Cow::Owned(idx.flatten()?),
                 },
                 None => {
                     return Err(Error::CannotFlatten(format!(
@@ -898,12 +909,12 @@ impl SourceMapIndex {
         self.x_facebook_offsets.is_some() && self.x_metro_module_paths.is_some()
     }
 
-    pub fn x_facebook_offsets(&self) -> &Option<Vec<Option<u32>>> {
-        &self.x_facebook_offsets
+    pub fn x_facebook_offsets(&self) -> Option<&Vec<Option<u32>>> {
+        self.x_facebook_offsets.as_ref()
     }
 
-    pub fn x_metro_module_paths(&self) -> &Option<Vec<String>> {
-        &self.x_metro_module_paths
+    pub fn x_metro_module_paths(&self) -> Option<&Vec<String>> {
+        self.x_metro_module_paths.as_ref()
     }
 }
 

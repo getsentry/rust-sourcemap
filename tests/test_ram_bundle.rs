@@ -62,7 +62,7 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
     let out_dir = Path::new("out");
 
     for module in ram_bundle.iter_modules() {
-        match module {
+        match module.unwrap() {
             Some(rbm) => {
                 let module_id = rbm.id();
                 println!("Checking module with id {}", module_id);
@@ -81,7 +81,7 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
     let out = File::create(out_file)?;
     sm.to_writer(out).unwrap();
 
-    let token = sm.lookup_token(368, 1010).unwrap();
+    let token = sm.lookup_token(367, 1010).unwrap();
     println!("token: {}", token);
 
     Ok(())

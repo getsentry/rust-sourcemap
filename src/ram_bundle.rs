@@ -1,7 +1,10 @@
 use scroll::Pread;
 use std::ops::Range;
 
+use crate::builder::SourceMapBuilder;
 use crate::errors::{Error, Result};
+use crate::sourceview::SourceView;
+use crate::types::SourceMapIndex;
 
 const RAM_BUNDLE_MAGIC: u32 = 0xFB0BD1E5;
 
@@ -31,12 +34,10 @@ pub struct RamBundleModuleIter<'a, 'b> {
 }
 
 impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
-    type Item = Option<RamBundleModule<'a>>;
+    type Item = Result<Option<RamBundleModule<'a>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.range
-            .next()
-            .map(|id| self.ram_bundle.get_module(id).unwrap())
+        self.range.next().map(|id| self.ram_bundle.get_module(id))
     }
 }
 
@@ -126,6 +127,58 @@ impl<'a> RamBundle<'a> {
     }
 }
 
+pub fn split_ram_bundle(
+    ram_bundle: &RamBundle,
+    smi: &SourceMapIndex,
+) -> Result<Vec<(String, SourceView<'static>, SourceMapIndex)>> {
+    let sm = smi.flatten()?;
+    let offsets = smi.x_facebook_offsets().ok_or(Error::NotARamBundle)?;
+    for module in ram_bundle.iter_modules() {
+        let module = match module? {
+            Some(m) => m,
+            None => continue,
+        };
+        let module_offset = offsets
+            .get(module.id())
+            .ok_or(Error::InvalidRamBundleIndex)?;
+        let starting_line = match *module_offset {
+            Some(offset) => offset,
+            None => continue,
+        };
+
+        let mut token_iter = sm.tokens();
+
+        // FIXME
+        if !token_iter.seek(starting_line, 0) {
+            continue;
+        }
+
+        let source = module.source_view()?;
+        let line_count = source.line_count() as u32;
+        let last_line_len = source
+            .get_line(line_count - 1)
+            .map_or(0, |line| line.chars().map(|c| c.len_utf16()).sum());
+
+        let filename = format!("{}.js", module.id);
+        let mut builder = SourceMapBuilder::new(Some(&filename));
+        for token in token_iter {
+            let raw = builder.add(
+                token.get_dst_line() - starting_line,
+                token.get_dst_col(),
+                token.get_src_line(),
+                token.get_src_col(),
+                token.get_source(),
+                token.get_name(),
+            );
+            if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
+                builder.set_source_contents(raw.src_id, sm.get_source_contents(token.get_src_id()));
+            }
+        }
+        let sourcemap = builder.into_sourcemap();
+    }
+    Ok(Vec::new())
+}
+
 impl<'a> RamBundleModule<'a> {
     pub fn id(&self) -> usize {
         self.id
@@ -133,5 +186,12 @@ impl<'a> RamBundleModule<'a> {
 
     pub fn data(&self) -> &'a [u8] {
         self.data
+    }
+
+    pub fn source_view(&self) -> Result<SourceView<'_>> {
+        match std::str::from_utf8(self.data) {
+            Ok(s) => Ok(SourceView::new(s)),
+            Err(e) => Err(Error::Utf8(e)),
+        }
     }
 }

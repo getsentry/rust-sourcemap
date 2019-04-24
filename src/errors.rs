@@ -44,6 +44,7 @@ pub enum Error {
     InvalidRamBundleMagic,
     InvalidRamBundleIndex,
     InvalidRamBundleEntry,
+    NotARamBundle,
 }
 
 impl From<io::Error> for Error {
@@ -97,6 +98,7 @@ impl error::Error for Error {
             InvalidRamBundleMagic => "invalid magic number for ram bundle",
             InvalidRamBundleIndex => "invalid module index in ram bundle",
             InvalidRamBundleEntry => "invalid ram bundle module entry",
+            NotARamBundle => "not a ram bundle",
         }
     }
 
@@ -134,6 +136,7 @@ impl fmt::Display for Error {
             InvalidRamBundleMagic => write!(f, "invalid magic number for ram bundle"),
             InvalidRamBundleIndex => write!(f, "invalid module index in ram bundle"),
             InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
+            NotARamBundle => write!("not a ram bundle"),
         }
     }
 }
