@@ -19,7 +19,7 @@ fn test_basic_ram_bundle() -> Result<(), std::io::Error> {
     // Check first modules
     let mut module_iter = ram_bundle.iter_modules();
 
-    let module_0 = module_iter.next().unwrap().unwrap().unwrap();
+    let module_0 = module_iter.next().unwrap().unwrap();
     let module_0_data = module_0.data();
     assert_eq!(module_0.id(), 0);
     assert_eq!(module_0_data.len(), 0x15b - 1);
@@ -28,7 +28,7 @@ fn test_basic_ram_bundle() -> Result<(), std::io::Error> {
         "__d(function(g,r,i,a,m,e,d){'use strict'".as_bytes()
     );
 
-    let module_1 = module_iter.next().unwrap().unwrap().unwrap();
+    let module_1 = module_iter.next().unwrap().unwrap();
     let module_1_data = module_1.data();
     assert_eq!(module_1.id(), 1);
     assert_eq!(module_1_data.len(), 0xa5 - 1);
@@ -37,7 +37,7 @@ fn test_basic_ram_bundle() -> Result<(), std::io::Error> {
         "__d(function(g,r,i,a,m,e,d){var n=r(d[0]".as_bytes()
     );
 
-    let module_2 = module_iter.next().unwrap().unwrap();
+    let module_2 = ram_bundle.get_module(2).unwrap();
     assert!(module_2.is_none());
 
     Ok(())
@@ -63,17 +63,13 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
     let out_dir = Path::new("out");
 
     for module in ram_bundle.iter_modules() {
-        match module.unwrap() {
-            Some(rbm) => {
-                let module_id = rbm.id();
-                println!("Checking module with id {}", module_id);
-                let out_file = out_dir.join(format!("{}.js", module_id));
-                let mut out = File::create(out_file)?;
-                let module_data = rbm.data();
-                out.write(module_data)?;
-            }
-            None => println!("skipping module"),
-        }
+        let rbm = module.unwrap();
+        let module_id = rbm.id();
+        println!("Checking module with id {}", module_id);
+        let out_file = out_dir.join(format!("{}.js", module_id));
+        let mut out = File::create(out_file)?;
+        let module_data = rbm.data();
+        out.write(module_data)?;
     }
 
     println!("Flattening indexed source map...");

@@ -51,11 +51,17 @@ pub struct RamBundleModuleIter<'a, 'b> {
 }
 
 impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
-    // TODO Remove that Option
-    type Item = Result<Option<RamBundleModule<'a>>>;
+    type Item = Result<RamBundleModule<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.range.next().map(|id| self.ram_bundle.get_module(id))
+        while let Some(next_id) = self.range.next() {
+            match self.ram_bundle.get_module(next_id) {
+                Ok(None) => continue,
+                Ok(Some(module)) => return Some(Ok(module)),
+                Err(e) => return Some(Err(e)),
+            }
+        }
+        None
     }
 }
 
@@ -154,10 +160,7 @@ pub fn split_ram_bundle<'a>(
     let offsets = smi.x_facebook_offsets().ok_or(Error::NotARamBundle)?;
     let mut result: Vec<(String, SourceView<'a>, SourceMap)> = Vec::new();
     for module in ram_bundle.iter_modules() {
-        let module: RamBundleModule<'a> = match module? {
-            Some(m) => m,
-            None => continue,
-        };
+        let module = module?;
         let module_offset = offsets
             .get(module.id())
             .ok_or(Error::InvalidRamBundleIndex)?;
