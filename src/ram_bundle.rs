@@ -136,6 +136,7 @@ impl<'a> RamBundle<'a> {
         if module_entry.length == 0 {
             return Err(Error::InvalidRamBundleEntry);
         }
+
         // Strip the trailing NULL byte
         let module_length = (module_entry.length - 1) as usize;
         let data = self.bytes.pread_with(module_global_offset, module_length)?;
@@ -151,70 +152,97 @@ impl<'a> RamBundle<'a> {
     }
 }
 
-// TODO rewrite with an iterator
-pub fn split_ram_bundle<'a>(
-    ram_bundle: &RamBundle<'a>,
-    smi: &SourceMapIndex,
-) -> Result<Vec<(String, SourceView<'a>, SourceMap)>> {
-    let sm = smi.flatten()?;
-    let offsets = smi.x_facebook_offsets().ok_or(Error::NotARamBundle)?;
-    let mut result: Vec<(String, SourceView<'a>, SourceMap)> = Vec::new();
-    for module in ram_bundle.iter_modules() {
-        let module = module?;
-        let module_offset = offsets
-            .get(module.id())
-            .ok_or(Error::InvalidRamBundleIndex)?;
-        let starting_line = match *module_offset {
-            Some(offset) => offset,
-            None => continue,
-        };
+pub struct SplitRamBundleModuleIter<'a, 'b> {
+    ram_bundle_iter: RamBundleModuleIter<'a, 'b>,
+    sm: SourceMap,
+    offsets: Vec<Option<u32>>,
+}
 
-        let mut token_iter = sm.tokens();
-
-        // FIXME
-        if !token_iter.seek(starting_line, 0) {
-            return Err(Error::InvalidRamBundleEntry);
-        }
-
-        let source: SourceView<'a> = module.source_view()?;
-        let line_count = source.line_count() as u32;
-        let ending_line = starting_line + line_count;
-        let last_line_len = source
-            .get_line(line_count - 1)
-            .map_or(0, |line| line.chars().map(|c| c.len_utf16()).sum())
-            as u32;
-
-        let filename = format!("{}.js", module.id);
-        println!(
-            "DEBUG filename: {}, line_count: {}, starting_line: {}, ending_line: {}",
-            filename, line_count, starting_line, ending_line
-        );
-        let mut builder = SourceMapBuilder::new(Some(&filename));
-
-        for token in token_iter {
-            let dst_line = token.get_dst_line();
-            let dst_col = token.get_dst_col();
-            println!("dst_line: {}, dst_col: {}", dst_line, dst_col);
-
-            if dst_line >= ending_line || dst_col >= last_line_len {
-                break;
-            }
-
-            let raw = builder.add(
-                dst_line - starting_line,
-                dst_col,
-                token.get_src_line(),
-                token.get_src_col(),
-                token.get_source(),
-                token.get_name(),
-            );
-            if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
-                builder.set_source_contents(raw.src_id, sm.get_source_contents(token.get_src_id()));
-            }
-        }
-        let sourcemap = builder.into_sourcemap();
-        result.push((filename, source, sourcemap));
+impl<'a, 'b> SplitRamBundleModuleIter<'a, 'b> {
+    fn new(ram_bundle: &'b RamBundle<'a>, smi: &SourceMapIndex) -> Result<Self> {
+        Ok(SplitRamBundleModuleIter {
+            ram_bundle_iter: ram_bundle.iter_modules(),
+            sm: smi.flatten()?,
+            offsets: smi
+                .x_facebook_offsets()
+                .map(|v| v.to_vec())
+                .ok_or(Error::NotARamBundle)?,
+        })
     }
+}
 
-    Ok(result)
+impl<'a> Iterator for SplitRamBundleModuleIter<'a, '_> {
+    type Item = Result<(String, SourceView<'a>, SourceMap)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(module_result) = self.ram_bundle_iter.next() {
+            let module = module_result.unwrap(); // fixme
+            let module_offset = self
+                .offsets
+                .get(module.id())
+                .ok_or(Error::InvalidRamBundleIndex)
+                .unwrap(); // fixme
+            let starting_line = match *module_offset {
+                Some(offset) => offset,
+                None => continue,
+            };
+
+            let mut token_iter = self.sm.tokens();
+
+            if !token_iter.seek(starting_line, 0) {
+                return Some(Err(Error::InvalidRamBundleEntry)); //fixme
+            }
+
+            let source: SourceView<'a> = module.source_view().unwrap(); // fixme
+            let line_count = source.line_count() as u32;
+            let ending_line = starting_line + line_count;
+            let last_line_len = source
+                .get_line(line_count - 1)
+                .map_or(0, |line| line.chars().map(|c| c.len_utf16()).sum())
+                as u32;
+
+            let filename = format!("{}.js", module.id);
+            println!(
+                "DEBUG filename: {}, line_count: {}, starting_line: {}, ending_line: {}",
+                filename, line_count, starting_line, ending_line
+            );
+
+            let mut builder = SourceMapBuilder::new(Some(&filename));
+            for token in token_iter {
+                let dst_line = token.get_dst_line();
+                let dst_col = token.get_dst_col();
+                println!("dst_line: {}, dst_col: {}", dst_line, dst_col);
+
+                if dst_line >= ending_line || dst_col >= last_line_len {
+                    break;
+                }
+
+                let raw = builder.add(
+                    dst_line - starting_line,
+                    dst_col,
+                    token.get_src_line(),
+                    token.get_src_col(),
+                    token.get_source(),
+                    token.get_name(),
+                );
+                if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
+                    builder.set_source_contents(
+                        raw.src_id,
+                        self.sm.get_source_contents(token.get_src_id()),
+                    );
+                }
+            }
+            let sourcemap = builder.into_sourcemap();
+            return Some(Ok((filename, source, sourcemap)));
+        }
+        None
+    }
+}
+
+// TODO rewrite with an iterator
+pub fn split_ram_bundle<'a, 'b>(
+    ram_bundle: &'b RamBundle<'a>,
+    smi: &SourceMapIndex,
+) -> Result<SplitRamBundleModuleIter<'a, 'b>> {
+    return SplitRamBundleModuleIter::new(ram_bundle, smi);
 }

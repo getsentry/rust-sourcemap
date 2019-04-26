@@ -83,8 +83,9 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), std::io::Error> {
 
     // OUT
     let out_combined = Path::new("out/combined");
-    let result = split_ram_bundle(&ram_bundle, &ism).unwrap();
-    for (name, sv, sm) in result {
+    let ram_bundle_iter = split_ram_bundle(&ram_bundle, &ism).unwrap();
+    for result in ram_bundle_iter {
+        let (name, sv, sm) = result.unwrap();
         println!("name: {}", name);
         let out_sm = File::create(out_combined.join(format!("{}.map", name)))?;
         sm.to_writer(out_sm);
