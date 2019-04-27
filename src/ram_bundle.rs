@@ -158,19 +158,6 @@ pub struct SplitRamBundleModuleIter<'a, 'b> {
     offsets: Vec<Option<u32>>,
 }
 
-impl<'a, 'b> SplitRamBundleModuleIter<'a, 'b> {
-    fn new(ram_bundle: &'b RamBundle<'a>, smi: &SourceMapIndex) -> Result<Self> {
-        Ok(SplitRamBundleModuleIter {
-            ram_bundle_iter: ram_bundle.iter_modules(),
-            sm: smi.flatten()?,
-            offsets: smi
-                .x_facebook_offsets()
-                .map(|v| v.to_vec())
-                .ok_or(Error::NotARamBundle)?,
-        })
-    }
-}
-
 impl<'a> Iterator for SplitRamBundleModuleIter<'a, '_> {
     type Item = Result<(String, SourceView<'a>, SourceMap)>;
 
@@ -239,10 +226,16 @@ impl<'a> Iterator for SplitRamBundleModuleIter<'a, '_> {
     }
 }
 
-// TODO rewrite with an iterator
 pub fn split_ram_bundle<'a, 'b>(
     ram_bundle: &'b RamBundle<'a>,
     smi: &SourceMapIndex,
 ) -> Result<SplitRamBundleModuleIter<'a, 'b>> {
-    return SplitRamBundleModuleIter::new(ram_bundle, smi);
+    Ok(SplitRamBundleModuleIter {
+        ram_bundle_iter: ram_bundle.iter_modules(),
+        sm: smi.flatten()?,
+        offsets: smi
+            .x_facebook_offsets()
+            .map(|v| v.to_vec())
+            .ok_or(Error::NotARamBundle)?,
+    })
 }
