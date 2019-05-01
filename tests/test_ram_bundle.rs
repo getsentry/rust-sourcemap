@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Read;
 
 #[test]
-fn test_basic_ram_bundle() -> Result<(), Box<std::error::Error>> {
+fn test_basic_ram_bundle_parse() -> Result<(), Box<std::error::Error>> {
     let mut bundle_file = File::open("./tests/fixtures/ram_bundle/basic.jsbundle")?;
     let mut bundle_data = Vec::new();
     bundle_file.read_to_end(&mut bundle_data)?;
@@ -42,7 +42,7 @@ fn test_basic_ram_bundle() -> Result<(), Box<std::error::Error>> {
 }
 
 #[test]
-fn test_basic_ram_bundle_with_sourcemap() -> Result<(), Box<std::error::Error>> {
+fn test_basic_ram_bundle_split() -> Result<(), Box<std::error::Error>> {
     let mut bundle_file = File::open("./tests/fixtures/ram_bundle/basic.jsbundle")?;
     let mut bundle_data = Vec::new();
     bundle_file.read_to_end(&mut bundle_data)?;
@@ -54,15 +54,26 @@ fn test_basic_ram_bundle_with_sourcemap() -> Result<(), Box<std::error::Error>> 
     assert!(ism.is_for_react_native());
 
     let x_facebook_offsets = ism.x_facebook_offsets().unwrap();
-    let x_metro_module_paths = ism.x_metro_module_paths().unwrap();
-
     assert_eq!(x_facebook_offsets.len(), 5);
+
+    let x_metro_module_paths = ism.x_metro_module_paths().unwrap();
     assert_eq!(x_metro_module_paths.len(), 7);
 
-    let ram_bundle_iter = split_ram_bundle(&ram_bundle, &ism)?;
-    for module_result in ram_bundle_iter {
-        let (name, sourceview, sourcemap) = module_result?;
-    }
+    // Modules 0, 3, 4
+    assert_eq!(split_ram_bundle(&ram_bundle, &ism)?.count(), 3);
+
+    let mut ram_bundle_iter = split_ram_bundle(&ram_bundle, &ism)?;
+
+    let (name, sourceview, sourcemap) = ram_bundle_iter.next().unwrap()?;
+    assert_eq!(name, "0.js");
+    assert_eq!(
+        &sourceview.source()[0..60],
+        "__d(function(g,r,i,a,m,e,d){\"use strict\";const o=r(d[0]),s=r"
+    );
+    assert_eq!(
+        &sourcemap.get_source_contents(0).unwrap()[0..60],
+        "const f = require(\"./other\");\nconst isWindows = require(\"is-"
+    );
 
     Ok(())
 }

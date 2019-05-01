@@ -4,6 +4,7 @@ use std::str;
 use crate::decoder::{decode_data_url, strip_junk_header, StripHeaderReader};
 use crate::errors::Result;
 use crate::jsontypes::MinimalRawSourceMap;
+use crate::ram_bundle::RamBundle;
 use crate::types::DecodedMap;
 
 use serde_json;
@@ -98,4 +99,9 @@ pub fn is_sourcemap<R: Read>(rdr: R) -> bool {
 /// Checks if the given byte slice contains a sourcemap
 pub fn is_sourcemap_slice(slice: &[u8]) -> bool {
     is_sourcemap_slice_impl(slice).unwrap_or(false)
+}
+
+/// Checks if the given byte slice contains an indexed RAM bundle
+pub fn is_ram_bundle_slice(slice: &[u8]) -> bool {
+    RamBundle::parse(slice).is_ok()
 }

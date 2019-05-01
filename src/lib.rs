@@ -42,11 +42,11 @@ mod macros;
 pub use crate::builder::SourceMapBuilder;
 pub use crate::decoder::{decode, decode_data_url, decode_slice};
 pub use crate::detector::{
-    is_sourcemap, is_sourcemap_slice, locate_sourcemap_reference, locate_sourcemap_reference_slice,
-    SourceMapRef,
+    is_ram_bundle_slice, is_sourcemap, is_sourcemap_slice, locate_sourcemap_reference,
+    locate_sourcemap_reference_slice, SourceMapRef,
 };
 pub use crate::errors::{Error, Result};
-pub use crate::ram_bundle::{RamBundle, RamBundleModule, split_ram_bundle};
+pub use crate::ram_bundle::{split_ram_bundle, RamBundle, RamBundleModule};
 pub use crate::sourceview::SourceView;
 pub use crate::types::{
     DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,

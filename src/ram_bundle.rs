@@ -23,6 +23,7 @@ struct ModuleEntry {
     length: u32,
 }
 
+#[derive(Debug)]
 pub struct RamBundleModule<'a> {
     id: usize,
     data: &'a [u8],
@@ -65,6 +66,7 @@ impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct RamBundle<'a> {
     bytes: &'a [u8],
     module_count: usize,
