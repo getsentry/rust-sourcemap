@@ -6,14 +6,21 @@ use crate::errors::{Error, Result};
 use crate::sourceview::SourceView;
 use crate::types::{SourceMap, SourceMapIndex};
 
-const RAM_BUNDLE_MAGIC: u32 = 0xFB0BD1E5;
+const RAM_BUNDLE_MAGIC: u32 = 0xFB0B_D1E5;
 
 #[derive(Debug, Pread, Clone, Copy)]
 #[repr(C, packed)]
-struct RamBundleHeader {
+pub struct RamBundleHeader {
     magic: u32,
     module_count: u32,
     startup_code_size: u32,
+}
+
+impl RamBundleHeader {
+    /// Checks if the magic matches.
+    pub fn is_valid_magic(&self) -> bool {
+        self.magic == RAM_BUNDLE_MAGIC
+    }
 }
 
 #[derive(Debug, Pread, Clone, Copy)]
@@ -84,7 +91,7 @@ impl<'a> RamBundle<'a> {
     pub fn parse(bytes: &'a [u8]) -> Result<Self> {
         let header = bytes.pread_with::<RamBundleHeader>(0, scroll::LE)?;
 
-        if header.magic != RAM_BUNDLE_MAGIC {
+        if !header.is_valid_magic() {
             return Err(Error::InvalidRamBundleMagic);
         }
 
