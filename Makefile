@@ -33,7 +33,7 @@ format:
 .PHONY: format
 
 docs: build
-	@cargo doc --no-deps
+	@cargo doc --no-deps --all-features
 .PHONY: docs
 
 upload-docs: docs
