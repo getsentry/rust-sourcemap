@@ -1,11 +1,8 @@
-use std;
 use std::error;
 use std::fmt;
 use std::io;
 use std::str;
 use std::string;
-
-use serde_json;
 
 /// Represents results from this library
 pub type Result<T> = std::result::Result<T, Error>;
@@ -15,6 +12,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// a std::io error
     Io(io::Error),
+    #[cfg(feature = "ram_bundle")]
+    /// a scroll error
+    Scroll(scroll::Error),
     /// a std::str::Utf8Error
     Utf8(str::Utf8Error),
     /// a JSON parsing related failure
@@ -41,11 +41,26 @@ pub enum Error {
     InvalidDataUrl,
     /// Flatten failed
     CannotFlatten(String),
+    /// The magic of a RAM bundle did not match
+    InvalidRamBundleMagic,
+    /// The RAM bundle index was malformed
+    InvalidRamBundleIndex,
+    /// A RAM bundle entry was invalid
+    InvalidRamBundleEntry,
+    /// Tried to operate on a non RAM bundle file
+    NotARamBundle,
 }
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
+    }
+}
+
+#[cfg(feature = "ram_bundle")]
+impl From<scroll::Error> for Error {
+    fn from(err: scroll::Error) -> Self {
+        Error::Scroll(err)
     }
 }
 
@@ -74,6 +89,8 @@ impl error::Error for Error {
             Io(ref err) => err.description(),
             Utf8(ref err) => err.description(),
             BadJson(ref err) => err.description(),
+            #[cfg(feature = "ram_bundle")]
+            Scroll(ref err) => err.description(),
             VlqLeftover => "vlq leftover",
             VlqNoValues => "no vlq values",
             VlqOverflow => "overflow in vlq",
@@ -84,6 +101,10 @@ impl error::Error for Error {
             RegularSourcemap => "unexpected sourcemap",
             InvalidDataUrl => "invalid data URL",
             CannotFlatten(_) => "cannot flatten the given indexed sourcemap",
+            InvalidRamBundleMagic => "invalid magic number for ram bundle",
+            InvalidRamBundleIndex => "invalid module index in ram bundle",
+            InvalidRamBundleEntry => "invalid ram bundle module entry",
+            NotARamBundle => "not a ram bundle",
         }
     }
 
@@ -104,6 +125,8 @@ impl fmt::Display for Error {
             Io(ref msg) => write!(f, "{}", msg),
             Utf8(ref msg) => write!(f, "{}", msg),
             BadJson(ref err) => write!(f, "bad json: {}", err),
+            #[cfg(feature = "ram_bundle")]
+            Scroll(ref err) => write!(f, "parse error: {}", err),
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),
             VlqOverflow => write!(f, "vlq decode caused an overflow"),
@@ -117,6 +140,10 @@ impl fmt::Display for Error {
             ),
             InvalidDataUrl => write!(f, "the provided data URL is invalid"),
             CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
+            InvalidRamBundleMagic => write!(f, "invalid magic number for ram bundle"),
+            InvalidRamBundleIndex => write!(f, "invalid module index in ram bundle"),
+            InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
+            NotARamBundle => write!(f, "not a ram bundle"),
         }
     }
 }

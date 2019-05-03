@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::fmt;
 use std::slice;
 use std::str;
 
@@ -147,6 +148,14 @@ impl<'a> Clone for SourceView<'a> {
             processed_until: RefCell::new(0),
             lines: RefCell::new(vec![]),
         }
+    }
+}
+
+impl<'a> fmt::Debug for SourceView<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SourceView")
+            .field("source", &self.source())
+            .finish()
     }
 }
 

@@ -31,6 +31,10 @@ pub struct RawSourceMap {
     pub names: Option<Vec<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mappings: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x_facebook_offsets: Option<Vec<Option<u32>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x_metro_module_paths: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]

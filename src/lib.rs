@@ -1,6 +1,6 @@
 //! This library implements basic processing of JavaScript sourcemaps.
 //!
-//! ## Installation
+//! # Installation
 //!
 //! The crate is called sourcemap and you can depend on it via cargo:
 //!
@@ -13,10 +13,10 @@
 //!
 //! ```toml
 //! [dependencies.sourcemap]
-//! git = "https://github.com/mitsuhiko/rust-sourcemap.git"
+//! git = "https://github.com/getsentry/rust-sourcemap.git"
 //! ```
 //!
-//! ## Basic Operation
+//! # Basic Operation
 //!
 //! This crate can load JavaScript sourcemaps from JSON files.  It uses
 //! `serde` for parsing of the JSON data.  Due to the nature of sourcemaps
@@ -37,6 +37,14 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
+//!
+//! # Features
+//!
+//! Functionality of the crate can be turned on and off by feature flags.  This is the
+//! current list of feature flags:
+//!
+//! * `ram_bundle`: turns on RAM bundle support
+//!
 #[warn(missing_docs)]
 mod macros;
 
@@ -63,4 +71,7 @@ mod jsontypes;
 mod sourceview;
 mod types;
 mod utils;
+
+#[cfg(feature = "ram_bundle")]
+pub mod ram_bundle;
 pub mod vlq;

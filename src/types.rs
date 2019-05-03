@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
@@ -251,6 +252,19 @@ pub struct TokenIter<'a> {
     next_idx: u32,
 }
 
+impl<'a> TokenIter<'a> {
+    pub fn seek(&mut self, line: u32, col: u32) -> bool {
+        let token = self.i.lookup_token(line, col);
+        match token {
+            Some(token) => {
+                self.next_idx = token.idx + 1;
+                true
+            }
+            None => false,
+        }
+    }
+}
+
 impl<'a> Iterator for TokenIter<'a> {
     type Item = Token<'a>;
 
@@ -362,7 +376,7 @@ impl<'a> fmt::Display for Token<'a> {
 pub struct SourceMapSection {
     offset: (u32, u32),
     url: Option<String>,
-    map: Option<Box<SourceMap>>,
+    map: Option<Box<DecodedMap>>,
 }
 
 /// Iterates over all sections in a sourcemap index
@@ -386,6 +400,8 @@ impl<'a> Iterator for SourceMapSectionIter<'a> {
 pub struct SourceMapIndex {
     file: Option<String>,
     sections: Vec<SourceMapSection>,
+    x_facebook_offsets: Option<Vec<Option<u32>>>,
+    x_metro_module_paths: Option<Vec<String>>,
 }
 
 /// Represents a sourcemap in memory
@@ -393,6 +409,7 @@ pub struct SourceMapIndex {
 /// This is always represents a regular "non-indexed" sourcemap.  Particularly
 /// in case the `from_reader` method is used an index sourcemap will be
 /// rejected with an error on reading.
+#[derive(Clone, Debug)]
 pub struct SourceMap {
     file: Option<String>,
     tokens: Vec<RawToken>,
@@ -771,8 +788,18 @@ impl SourceMapIndex {
     ///
     /// - `file`: an optional filename of the index
     /// - `sections`: a vector of source map index sections
-    pub fn new(file: Option<String>, sections: Vec<SourceMapSection>) -> SourceMapIndex {
-        SourceMapIndex { file, sections }
+    pub fn new(
+        file: Option<String>,
+        sections: Vec<SourceMapSection>,
+        x_facebook_offsets: Option<Vec<Option<u32>>>,
+        x_metro_module_paths: Option<Vec<String>>,
+    ) -> SourceMapIndex {
+        SourceMapIndex {
+            file,
+            sections,
+            x_facebook_offsets,
+            x_metro_module_paths,
+        }
     }
 
     /// Returns the embedded filename in case there is one.
@@ -816,6 +843,7 @@ impl SourceMapIndex {
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
+            println!("off_line: {}, off_col: {}", off_line, off_col);
             if off_line < line || off_col < col {
                 continue;
             }
@@ -830,13 +858,16 @@ impl SourceMapIndex {
 
     /// Flattens an indexed sourcemap into a regular one.  This requires
     /// that all referenced sourcemaps are attached.
-    pub fn flatten(self) -> Result<SourceMap> {
+    pub fn flatten(&self) -> Result<SourceMap> {
         let mut builder = SourceMapBuilder::new(self.get_file());
 
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
             let map = match section.get_sourcemap() {
-                Some(map) => map,
+                Some(map) => match map {
+                    DecodedMap::Regular(sm) => Cow::Borrowed(sm),
+                    DecodedMap::Index(idx) => Cow::Owned(idx.flatten()?),
+                },
                 None => {
                     return Err(Error::CannotFlatten(format!(
                         "Section has an unresolved \
@@ -873,6 +904,18 @@ impl SourceMapIndex {
     pub fn flatten_and_rewrite(self, options: &RewriteOptions<'_>) -> Result<SourceMap> {
         self.flatten()?.rewrite(options)
     }
+
+    pub fn is_for_react_native(&self) -> bool {
+        self.x_facebook_offsets.is_some() && self.x_metro_module_paths.is_some()
+    }
+
+    pub fn x_facebook_offsets(&self) -> Option<&Vec<Option<u32>>> {
+        self.x_facebook_offsets.as_ref()
+    }
+
+    pub fn x_metro_module_paths(&self) -> Option<&Vec<String>> {
+        self.x_metro_module_paths.as_ref()
+    }
 }
 
 impl SourceMapSection {
@@ -884,7 +927,7 @@ impl SourceMapSection {
     pub fn new(
         offset: (u32, u32),
         url: Option<String>,
-        map: Option<SourceMap>,
+        map: Option<DecodedMap>,
     ) -> SourceMapSection {
         SourceMapSection {
             offset,
@@ -919,17 +962,17 @@ impl SourceMapSection {
     }
 
     /// Returns a reference to the embedded sourcemap if available
-    pub fn get_sourcemap(&self) -> Option<&SourceMap> {
+    pub fn get_sourcemap(&self) -> Option<&DecodedMap> {
         self.map.as_ref().map(Box::as_ref)
     }
 
     /// Returns a reference to the embedded sourcemap if available
-    pub fn get_sourcemap_mut(&mut self) -> Option<&mut SourceMap> {
+    pub fn get_sourcemap_mut(&mut self) -> Option<&mut DecodedMap> {
         self.map.as_mut().map(Box::as_mut)
     }
 
     /// Replaces the embedded sourcemap
-    pub fn set_sourcemap(&mut self, sm: Option<SourceMap>) {
+    pub fn set_sourcemap(&mut self, sm: Option<DecodedMap>) {
         self.map = sm.map(Box::new);
     }
 }

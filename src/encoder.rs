@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::errors::Result;
 use crate::jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
-use crate::types::{SourceMap, SourceMapIndex};
+use crate::types::{DecodedMap, SourceMap, SourceMapIndex};
 use crate::vlq::encode_vlq;
 
 pub trait Encodable {
@@ -92,6 +92,8 @@ impl Encodable for SourceMap {
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
             mappings: Some(serialize_mappings(self)),
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
         }
     }
 }
@@ -120,6 +122,17 @@ impl Encodable for SourceMapIndex {
             ),
             names: None,
             mappings: None,
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
+        }
+    }
+}
+
+impl Encodable for DecodedMap {
+    fn as_raw_sourcemap(&self) -> RawSourceMap {
+        match *self {
+            DecodedMap::Regular(ref sm) => sm.as_raw_sourcemap(),
+            DecodedMap::Index(ref smi) => smi.as_raw_sourcemap(),
         }
     }
 }
