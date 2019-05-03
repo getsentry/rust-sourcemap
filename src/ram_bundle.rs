@@ -1,3 +1,4 @@
+//! RAM bundle operations
 use scroll::Pread;
 use std::ops::Range;
 
@@ -272,6 +273,14 @@ pub fn split_ram_bundle<'a, 'b>(
     })
 }
 
+/// Checks if the given byte slice contains an indexed RAM bundle
+pub fn is_ram_bundle_slice(slice: &[u8]) -> bool {
+    slice
+        .pread_with::<RamBundleHeader>(0, scroll::LE)
+        .ok()
+        .map_or(false, |x| x.is_valid_magic())
+}
+
 #[cfg(test)]
 use {std::fs::File, std::io::Read};
 
@@ -280,6 +289,7 @@ fn test_basic_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Erro
     let mut bundle_file = File::open("./tests/fixtures/ram_bundle/basic.jsbundle")?;
     let mut bundle_data = Vec::new();
     bundle_file.read_to_end(&mut bundle_data)?;
+    assert!(is_ram_bundle_slice(&bundle_data));
     let ram_bundle = RamBundle::parse(&bundle_data)?;
 
     // Header checks

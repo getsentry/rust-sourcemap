@@ -43,8 +43,8 @@ mod macros;
 pub use crate::builder::SourceMapBuilder;
 pub use crate::decoder::{decode, decode_data_url, decode_slice};
 pub use crate::detector::{
-    is_ram_bundle_slice, is_sourcemap, is_sourcemap_slice, locate_sourcemap_reference,
-    locate_sourcemap_reference_slice, SourceMapRef,
+    is_sourcemap, is_sourcemap_slice, locate_sourcemap_reference, locate_sourcemap_reference_slice,
+    SourceMapRef,
 };
 pub use crate::errors::{Error, Result};
 pub use crate::sourceview::SourceView;
@@ -64,8 +64,5 @@ mod sourceview;
 mod types;
 mod utils;
 
-/// RAM bundle operations
 pub mod ram_bundle;
-
-/// VLQ (Variable Length Quantity) operations
 pub mod vlq;
