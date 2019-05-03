@@ -30,6 +30,7 @@ struct ModuleEntry {
     length: u32,
 }
 
+/// Represents a react-native RAM Bundle module
 #[derive(Debug)]
 pub struct RamBundleModule<'a> {
     id: usize,
@@ -37,14 +38,19 @@ pub struct RamBundleModule<'a> {
 }
 
 impl<'a> RamBundleModule<'a> {
+    /// Returns the integer ID of the module.
     pub fn id(&self) -> usize {
         self.id
     }
 
+    /// Returns a slice to the data in the module.
     pub fn data(&self) -> &'a [u8] {
         self.data
     }
 
+    /// Returns a source view of the data.
+    ///
+    /// This operation fails if the source code is not valid UTF-8.
     pub fn source_view(&self) -> Result<SourceView<'a>> {
         match std::str::from_utf8(self.data) {
             Ok(s) => Ok(SourceView::new(s)),
@@ -53,6 +59,7 @@ impl<'a> RamBundleModule<'a> {
     }
 }
 
+/// An iterator over modules in a RAM bundle
 pub struct RamBundleModuleIter<'a, 'b> {
     range: Range<usize>,
     ram_bundle: &'b RamBundle<'a>,
@@ -73,6 +80,10 @@ impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
     }
 }
 
+/// Represents a react-native RAM bundle.
+///
+/// Provides access to a react-native metro
+/// [RAM bundle](https://facebook.github.io/metro/docs/en/bundling).
 #[derive(Debug, Clone, Copy)]
 pub struct RamBundle<'a> {
     bytes: &'a [u8],
@@ -88,6 +99,7 @@ impl ModuleEntry {
 }
 
 impl<'a> RamBundle<'a> {
+    /// Parses a RAM bundle from a given slice of bytes.
     pub fn parse(bytes: &'a [u8]) -> Result<Self> {
         let header = bytes.pread_with::<RamBundleHeader>(0, scroll::LE)?;
 
@@ -106,6 +118,7 @@ impl<'a> RamBundle<'a> {
         })
     }
 
+    /// Returns the number of modules in the bundle
     pub fn module_count(&self) -> usize {
         self.module_count
     }
@@ -118,12 +131,14 @@ impl<'a> RamBundle<'a> {
         self.startup_code_offset
     }
 
+    /// Returns the startup code
     pub fn startup_code(&self) -> Result<&'a [u8]> {
         self.bytes
             .pread_with(self.startup_code_offset, self.startup_code_size)
             .map_err(Error::Scroll)
     }
 
+    /// Looks up a module by ID in the bundle
     pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule<'a>>> {
         if id >= self.module_count {
             return Err(Error::InvalidRamBundleIndex);
@@ -153,6 +168,7 @@ impl<'a> RamBundle<'a> {
         Ok(Some(RamBundleModule { id, data }))
     }
 
+    /// Returns an iterator over all modules in the bundle
     pub fn iter_modules(&self) -> RamBundleModuleIter<'a, '_> {
         RamBundleModuleIter {
             range: 0..self.module_count,

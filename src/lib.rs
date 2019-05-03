@@ -37,6 +37,8 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
+#![warn(missing_docs)]
+
 mod macros;
 
 pub use crate::builder::SourceMapBuilder;
@@ -46,7 +48,9 @@ pub use crate::detector::{
     locate_sourcemap_reference_slice, SourceMapRef,
 };
 pub use crate::errors::{Error, Result};
-pub use crate::ram_bundle::{split_ram_bundle, RamBundle, RamBundleModule};
+pub use crate::ram_bundle::{
+    split_ram_bundle, RamBundle, RamBundleModule, RamBundleModuleIter, SplitRamBundleModuleIter,
+};
 pub use crate::sourceview::SourceView;
 pub use crate::types::{
     DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,
@@ -66,7 +70,6 @@ mod types;
 mod utils;
 mod vlq;
 
-#[doc(hidden)]
 pub mod internals {
     pub use super::decoder::StripHeaderReader;
     pub use crate::vlq::{generate_vlq_segment, parse_vlq_segment};

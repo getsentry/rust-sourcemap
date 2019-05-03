@@ -40,10 +40,13 @@ pub enum Error {
     InvalidDataUrl,
     /// Flatten failed
     CannotFlatten(String),
-
+    /// The magic of a RAM bundle did not match
     InvalidRamBundleMagic,
+    /// The RAM bundle index was malformed
     InvalidRamBundleIndex,
+    /// A RAM bundle entry was invalid
     InvalidRamBundleEntry,
+    /// Tried to operate on a non RAM bundle file
     NotARamBundle,
 }
 
