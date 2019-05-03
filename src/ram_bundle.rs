@@ -30,6 +30,12 @@ struct ModuleEntry {
     length: u32,
 }
 
+impl ModuleEntry {
+    pub fn is_empty(self) -> bool {
+        self.offset == 0 && self.length == 0
+    }
+}
+
 /// Represents a react-native RAM Bundle module
 #[derive(Debug)]
 pub struct RamBundleModule<'a> {
@@ -90,12 +96,6 @@ pub struct RamBundle<'a> {
     module_count: usize,
     startup_code_size: usize,
     startup_code_offset: usize,
-}
-
-impl ModuleEntry {
-    pub fn is_empty(&self) -> bool {
-        self.offset == 0 && self.length == 0
-    }
 }
 
 impl<'a> RamBundle<'a> {
