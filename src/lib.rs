@@ -60,8 +60,12 @@ mod detector;
 mod encoder;
 mod errors;
 mod jsontypes;
-pub mod ram_bundle;
 mod sourceview;
 mod types;
 mod utils;
+
+/// RAM bundle operations
+pub mod ram_bundle;
+
+/// VLQ (Variable Length Quantity) operations
 pub mod vlq;

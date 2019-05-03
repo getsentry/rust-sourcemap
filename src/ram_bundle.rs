@@ -8,6 +8,7 @@ use crate::types::{SourceMap, SourceMapIndex};
 
 const RAM_BUNDLE_MAGIC: u32 = 0xFB0B_D1E5;
 
+/// Represents a RAM bundle header
 #[derive(Debug, Pread, Clone, Copy)]
 #[repr(C, packed)]
 pub struct RamBundleHeader {
@@ -36,7 +37,7 @@ impl ModuleEntry {
     }
 }
 
-/// Represents a react-native RAM Bundle module
+/// Represents a react-native RAM bundle module
 #[derive(Debug)]
 pub struct RamBundleModule<'a> {
     id: usize,
@@ -169,6 +170,7 @@ impl<'a> RamBundle<'a> {
     }
 }
 
+/// An iterator over deconstructed RAM bundle sources and sourcemaps
 pub struct SplitRamBundleModuleIter<'a, 'b> {
     ram_bundle_iter: RamBundleModuleIter<'a, 'b>,
     sm: SourceMap,
@@ -251,6 +253,11 @@ impl<'a> Iterator for SplitRamBundleModuleIter<'a, '_> {
     }
 }
 
+/// Decontstructs a RAM bundle into a sequence of sources and their sourcemaps
+///
+/// With the help of the RAM bundle's indexed sourcemap, the bundle is split into modules,
+/// where each module is represented by its minified source and the corresponding sourcemap that
+/// we recover from the initial indexed sourcemap.
 pub fn split_ram_bundle<'a, 'b>(
     ram_bundle: &'b RamBundle<'a>,
     smi: &SourceMapIndex,
