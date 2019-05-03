@@ -4,7 +4,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use sourcemap::{split_ram_bundle, RamBundle, SourceMapIndex};
+use sourcemap::ram_bundle::{split_ram_bundle, RamBundle};
+use sourcemap::SourceMapIndex;
 
 fn main() -> Result<(), Box<std::error::Error>> {
     let args: Vec<_> = env::args().collect();
