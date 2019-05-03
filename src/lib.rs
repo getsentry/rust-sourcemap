@@ -37,6 +37,7 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
+#[warn(missing_docs)]
 mod macros;
 
 pub use crate::builder::SourceMapBuilder;
