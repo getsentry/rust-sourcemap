@@ -15,7 +15,7 @@ If you want to use the git version:
 
 ```toml
 [dependencies.sourcemap]
-git = "https://github.com/mitsuhiko/rust-sourcemap.git"
+git = "https://github.com/getsentry/rust-sourcemap.git"
 ```
 
 ## Basic Operation
@@ -44,8 +44,6 @@ println!("token: {}", token);
 
 Functionality of the crate can be turned on and off by feature flags.  This is the
 current list of feature flags:
-
-additional features:
 
 * `ram_bundle`: turns on RAM bundle support
 

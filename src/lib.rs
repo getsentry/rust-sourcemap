@@ -13,7 +13,7 @@
 //!
 //! ```toml
 //! [dependencies.sourcemap]
-//! git = "https://github.com/mitsuhiko/rust-sourcemap.git"
+//! git = "https://github.com/getsentry/rust-sourcemap.git"
 //! ```
 //!
 //! # Basic Operation
