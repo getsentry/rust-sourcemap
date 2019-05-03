@@ -1,22 +1,12 @@
 use std::io;
 use std::io::BufRead;
 
-use sourcemap::internals::StripHeaderReader;
 use sourcemap::{decode_data_url, DecodedMap, SourceMap, Token};
-
-#[test]
-fn test_strip_header() {
-    let input: &[_] = b")]}garbage\r\n[1, 2, 3]";
-    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
-    let mut text = String::new();
-    reader.read_line(&mut text).ok();
-    assert_eq!(text, "[1, 2, 3]");
-}
 
 #[test]
 fn test_no_header() {
     let input: &[_] = b"[1, 2, 3]";
-    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
+    let mut reader = io::BufReader::new(input);
     let mut text = String::new();
     reader.read_line(&mut text).ok();
     assert_eq!(text, "[1, 2, 3]");
@@ -25,25 +15,10 @@ fn test_no_header() {
 #[test]
 fn test_no_header_object() {
     let input: &[_] = b"{\"x\":[1, 2, 3]}";
-    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
+    let mut reader = io::BufReader::new(input);
     let mut text = String::new();
     reader.read_line(&mut text).ok();
     assert_eq!(text, "{\"x\":[1, 2, 3]}");
-}
-
-#[test]
-fn test_bad_newline() {
-    let input: &[_] = b")]}'\r[1, 2, 3]";
-    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
-    let mut text = String::new();
-    match reader.read_line(&mut text) {
-        Err(err) => {
-            assert_eq!(err.kind(), io::ErrorKind::InvalidData);
-        }
-        Ok(_) => {
-            panic!("Expected failure");
-        }
-    }
 }
 
 #[test]

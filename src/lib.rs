@@ -37,8 +37,7 @@
 //! let token = sm.lookup_token(0, 0).unwrap(); // line-number and column
 //! println!("token: {}", token);
 //! ```
-#![warn(missing_docs)]
-
+#[warn(missing_docs)]
 mod macros;
 
 pub use crate::builder::SourceMapBuilder;
@@ -68,9 +67,4 @@ mod ram_bundle;
 mod sourceview;
 mod types;
 mod utils;
-mod vlq;
-
-pub mod internals {
-    pub use super::decoder::StripHeaderReader;
-    pub use crate::vlq::{generate_vlq_segment, parse_vlq_segment};
-}
+pub mod vlq;
