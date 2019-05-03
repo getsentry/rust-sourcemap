@@ -334,7 +334,7 @@ fn test_basic_ram_bundle_split() -> std::result::Result<(), Box<std::error::Erro
     let sourcemap_file = File::open("./tests/fixtures/ram_bundle/basic.jsbundle.map")?;
     let ism = SourceMapIndex::from_reader(sourcemap_file)?;
 
-    assert!(ism.is_for_react_native());
+    assert!(ism.is_for_ram_bundle());
 
     let x_facebook_offsets = ism.x_facebook_offsets().unwrap();
     assert_eq!(x_facebook_offsets.len(), 5);

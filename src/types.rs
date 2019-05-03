@@ -791,6 +791,25 @@ impl SourceMapIndex {
     pub fn new(
         file: Option<String>,
         sections: Vec<SourceMapSection>,
+    ) -> SourceMapIndex {
+        SourceMapIndex {
+            file,
+            sections,
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
+        }
+    }
+
+    /// Constructs a new sourcemap index from raw components including the
+    /// facebook RAM bundle extensions.
+    ///
+    /// - `file`: an optional filename of the index
+    /// - `sections`: a vector of source map index sections
+    /// - `x_facebook_offsets`: a vector of facebook offsets
+    /// - `x_metro_module_paths`: a vector of metro module paths
+    pub fn new_ram_bundle_compatible(
+        file: Option<String>,
+        sections: Vec<SourceMapSection>,
         x_facebook_offsets: Option<Vec<Option<u32>>>,
         x_metro_module_paths: Option<Vec<String>>,
     ) -> SourceMapIndex {
@@ -905,16 +924,19 @@ impl SourceMapIndex {
         self.flatten()?.rewrite(options)
     }
 
-    pub fn is_for_react_native(&self) -> bool {
+    /// Returns `true` if this sourcemap is for a RAM bundle.
+    pub fn is_for_ram_bundle(&self) -> bool {
         self.x_facebook_offsets.is_some() && self.x_metro_module_paths.is_some()
     }
 
-    pub fn x_facebook_offsets(&self) -> Option<&Vec<Option<u32>>> {
-        self.x_facebook_offsets.as_ref()
+    /// Returns embeded x-facebook-offset values.
+    pub fn x_facebook_offsets(&self) -> Option<&[Option<u32>]> {
+        self.x_facebook_offsets.as_ref().map(|x| &x[..])
     }
 
-    pub fn x_metro_module_paths(&self) -> Option<&Vec<String>> {
-        self.x_metro_module_paths.as_ref()
+    /// Returns embedded metro module paths.
+    pub fn x_metro_module_paths(&self) -> Option<&[String]> {
+        self.x_metro_module_paths.as_ref().map(|x| &x[..])
     }
 }
 
