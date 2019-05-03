@@ -12,6 +12,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// a std::io error
     Io(io::Error),
+    #[cfg(feature = "ram_bundle")]
     /// a scroll error
     Scroll(scroll::Error),
     /// a std::str::Utf8Error
@@ -56,6 +57,7 @@ impl From<io::Error> for Error {
     }
 }
 
+#[cfg(feature = "ram_bundle")]
 impl From<scroll::Error> for Error {
     fn from(err: scroll::Error) -> Self {
         Error::Scroll(err)
@@ -87,6 +89,7 @@ impl error::Error for Error {
             Io(ref err) => err.description(),
             Utf8(ref err) => err.description(),
             BadJson(ref err) => err.description(),
+            #[cfg(feature = "ram_bundle")]
             Scroll(ref err) => err.description(),
             VlqLeftover => "vlq leftover",
             VlqNoValues => "no vlq values",
@@ -122,6 +125,7 @@ impl fmt::Display for Error {
             Io(ref msg) => write!(f, "{}", msg),
             Utf8(ref msg) => write!(f, "{}", msg),
             BadJson(ref err) => write!(f, "bad json: {}", err),
+            #[cfg(feature = "ram_bundle")]
             Scroll(ref err) => write!(f, "parse error: {}", err),
             VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             VlqNoValues => write!(f, "vlq decode did not produce any values"),

@@ -1,15 +1,26 @@
 [package]
 name = "sourcemap"
 version = "3.0.1"
-authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
+authors = ["Sentry <hello@sentry.io>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
-homepage = "https://github.com/mitsuhiko/rust-sourcemap"
-documentation = "http://mitsuhiko.github.io/rust-sourcemap/"
+homepage = "https://github.com/getsentry/rust-sourcemap"
+documentation = "http://getsentry.github.io/rust-sourcemap/"
 license = "BSD-3-Clause"
 readme = "README.md"
-build = "build.rs"
 edition = "2018"
+autoexamples = true
+
+include = [
+    "/src/**/*.rs",
+    "/examples/*.rs",
+    "/*.toml",
+    "/LICENSE",
+    "/README.md",
+]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [dependencies]
 url = "1.7.2"
@@ -19,7 +30,14 @@ base64 = "0.10.1"
 regex = "1.1.0"
 lazy_static = "1.2.0"
 if_chain = "0.1.3"
-scroll = { version = "0.9.2", features = ["derive"] }
+scroll = { version = "0.9.2", features = ["derive"], optional = true }
 
 [build-dependencies]
 rustc_version = "0.2.3"
+
+[features]
+ram_bundle = ["scroll"]
+
+[[example]]
+name = "split_ram_bundle"
+required-features = ["ram_bundle"]
