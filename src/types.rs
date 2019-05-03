@@ -788,10 +788,7 @@ impl SourceMapIndex {
     ///
     /// - `file`: an optional filename of the index
     /// - `sections`: a vector of source map index sections
-    pub fn new(
-        file: Option<String>,
-        sections: Vec<SourceMapSection>,
-    ) -> SourceMapIndex {
+    pub fn new(file: Option<String>, sections: Vec<SourceMapSection>) -> SourceMapIndex {
         SourceMapIndex {
             file,
             sections,
