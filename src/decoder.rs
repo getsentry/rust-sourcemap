@@ -256,7 +256,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         _ => "<invalid>".into(),
     });
 
-    Ok(SourceMapIndex::new(
+    Ok(SourceMapIndex::new_ram_bundle_compatible(
         file,
         sections,
         rsm.x_facebook_offsets,

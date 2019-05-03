@@ -51,7 +51,7 @@ fn test_basic_indexed_sourcemap() {
     files.insert("file2.js", f2.lines().collect());
 
     let mut ism = SourceMapIndex::from_reader(input).unwrap();
-    assert!(!ism.is_for_react_native());
+    assert!(!ism.is_for_ram_bundle());
 
     for section_id in 0..ism.get_section_count() {
         let section = ism.get_section_mut(section_id).unwrap();
@@ -135,5 +135,5 @@ fn test_indexed_sourcemap_for_react_native() {
     }"#;
 
     let ism = SourceMapIndex::from_reader(input).unwrap();
-    assert!(ism.is_for_react_native());
+    assert!(ism.is_for_ram_bundle());
 }
