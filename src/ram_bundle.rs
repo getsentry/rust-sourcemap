@@ -200,7 +200,7 @@ impl<'a> SplitRamBundleModuleIter<'a, '_> {
         let ending_line = starting_line + line_count;
         let last_line_len = source
             .get_line(line_count - 1)
-            .map_or(0, |line| line.chars().map(|c| c.len_utf16()).sum())
+            .map_or(0, |line| line.chars().map(char::len_utf16).sum())
             as u32;
 
         let filename = format!("{}.js", module.id);
@@ -229,7 +229,7 @@ impl<'a> SplitRamBundleModuleIter<'a, '_> {
             }
         }
         let sourcemap = builder.into_sourcemap();
-        return Ok(Some((filename, source, sourcemap)));
+        Ok(Some((filename, source, sourcemap)))
     }
 }
 
@@ -267,7 +267,6 @@ pub fn split_ram_bundle<'a, 'b>(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use std::fs::File;
     use std::io::Read;
@@ -292,7 +291,7 @@ mod tests {
         assert_eq!(module_0.id(), 0);
         assert_eq!(module_0_data.len(), 0xa8 - 1);
         assert_eq!(
-            module_0_data.get(0..60).unwrap(),
+            &module_0_data[0..60],
             "__d(function(g,r,i,a,m,e,d){\"use strict\";const o=r(d[0]),s=r".as_bytes()
         );
 
@@ -301,7 +300,7 @@ mod tests {
         assert_eq!(module_3.id(), 3);
         assert_eq!(module_3_data.len(), 0x6b - 1);
         assert_eq!(
-            module_3_data.get(0..60).unwrap(),
+            &module_3_data[0..60],
             "__d(function(g,r,i,a,m,e,d){\"use strict\";console.log('inside".as_bytes()
         );
 
