@@ -297,3 +297,29 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     let data = base64::decode(data_b64).map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }
+
+#[test]
+fn test_strip_header() {
+    use std::io::BufRead;
+    let input: &[_] = b")]}garbage\r\n[1, 2, 3]";
+    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
+    let mut text = String::new();
+    reader.read_line(&mut text).ok();
+    assert_eq!(text, "[1, 2, 3]");
+}
+
+#[test]
+fn test_bad_newline() {
+    use std::io::BufRead;
+    let input: &[_] = b")]}'\r[1, 2, 3]";
+    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
+    let mut text = String::new();
+    match reader.read_line(&mut text) {
+        Err(err) => {
+            assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        }
+        Ok(_) => {
+            panic!("Expected failure");
+        }
+    }
+}

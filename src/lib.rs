@@ -62,10 +62,4 @@ mod jsontypes;
 mod sourceview;
 mod types;
 mod utils;
-mod vlq;
-
-#[doc(hidden)]
-pub mod internals {
-    pub use super::decoder::StripHeaderReader;
-    pub use crate::vlq::{generate_vlq_segment, parse_vlq_segment};
-}
+pub mod vlq;
