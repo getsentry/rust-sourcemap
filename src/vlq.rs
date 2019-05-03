@@ -1,3 +1,4 @@
+//! Implements utilities for dealing with the sourcemap vlq encoding.
 use crate::errors::{Error, Result};
 
 const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -260,6 +261,7 @@ const B64: [i8; 256] = [
     -1,
 ];
 
+/// Parses a VLQ segment into a vector.
 pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
     let mut rv = vec![];
 
@@ -294,6 +296,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
     }
 }
 
+/// Encodes a VLQ segment from a slice.
 pub fn generate_vlq_segment(nums: &[i64]) -> Result<String> {
     let mut rv = String::new();
     for &num in nums {
@@ -302,7 +305,7 @@ pub fn generate_vlq_segment(nums: &[i64]) -> Result<String> {
     Ok(rv)
 }
 
-pub fn encode_vlq(out: &mut String, num: i64) {
+pub(crate) fn encode_vlq(out: &mut String, num: i64) {
     let mut num = if num < 0 { ((-num) << 1) + 1 } else { num << 1 };
 
     loop {
