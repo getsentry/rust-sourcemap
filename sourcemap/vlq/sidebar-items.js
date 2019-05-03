@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["generate_vlq_segment","Encodes a VLQ segment from a slice."],["parse_vlq_segment","Parses a VLQ segment into a vector."]]});

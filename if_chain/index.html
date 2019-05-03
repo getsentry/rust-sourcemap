@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `if_chain` crate."><meta name="keywords" content="rust, rustlang, rust-lang, if_chain"><title>if_chain - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../if_chain/index.html'><img src='../rust-logo.png' alt='logo' width='100'></a><p class='location'>Crate if_chain</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all if_chain's items</p></a><div class="block items"><ul><li><a href="#macros">Macros</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'if_chain', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/if_chain/lib.rs.html#1-239' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>if_chain</a></span></h1><div class='docblock'><p>This crate provides a single macro called <code>if_chain!</code>.</p>
+<p><code>if_chain!</code> lets you write long chains of nested <code>if</code> and <code>if let</code>
+statements without the associated rightward drift. It also supports multiple
+patterns (e.g. <code>if let Foo(a) | Bar(a) = b</code>) in places where Rust would
+normally not allow them.</p>
+<p>See the associated <a href="https://lambda.xyz/blog/if-chain">blog post</a> for the background behind this crate.</p>
+<h1 id="note-about-recursion-limits" class="section-header"><a href="#note-about-recursion-limits">Note about recursion limits</a></h1>
+<p>If you run into &quot;recursion limit reached&quot; errors while using this macro, try
+adding</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;1000&quot;</span>]</span></pre></div>
+<p>to the top of your crate.</p>
+<h1 id="examples" class="section-header"><a href="#examples">Examples</a></h1><h2 id="quick-start" class="section-header"><a href="#quick-start">Quick start</a></h2>
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="macro">if_chain</span><span class="macro">!</span> {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span>;
+    <span class="kw">if</span> <span class="ident">y</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">2</span>;
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">z</span>) <span class="op">=</span> <span class="ident">y</span>;
+    <span class="ident">then</span> {
+        <span class="ident">do_stuff_with</span>(<span class="ident">z</span>);
+    }
+}</pre></div>
+<p>becomes</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span> {
+    <span class="kw">if</span> <span class="ident">y</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">2</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">z</span>) <span class="op">=</span> <span class="ident">y</span> {
+            <span class="ident">do_stuff_with</span>(<span class="ident">z</span>);
+        }
+    }
+}</pre></div>
+<h2 id="fallback-values-with-else" class="section-header"><a href="#fallback-values-with-else">Fallback values with <code>else</code></a></h2>
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="macro">if_chain</span><span class="macro">!</span> {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span>;
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">z</span>) <span class="op">=</span> <span class="ident">y</span>;
+    <span class="ident">then</span> {
+        <span class="ident">do_stuff_with</span>(<span class="ident">z</span>)
+    } <span class="kw">else</span> {
+        <span class="ident">do_something_else</span>()
+    }
+}</pre></div>
+<p>becomes</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span> {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">z</span>) <span class="op">=</span> <span class="ident">y</span> {
+        <span class="ident">do_stuff_with</span>(<span class="ident">z</span>)
+    } <span class="kw">else</span> {
+        <span class="ident">do_something_else</span>()
+    }
+} <span class="kw">else</span> {
+    <span class="ident">do_something_else</span>()
+}</pre></div>
+<h2 id="intermediate-variables-with-let" class="section-header"><a href="#intermediate-variables-with-let">Intermediate variables with <code>let</code></a></h2>
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="macro">if_chain</span><span class="macro">!</span> {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span>;
+    <span class="kw">let</span> <span class="ident">z</span> <span class="op">=</span> <span class="ident">y</span>.<span class="ident">some</span>().<span class="ident">complicated</span>().<span class="ident">expression</span>();
+    <span class="kw">if</span> <span class="ident">z</span> <span class="op">==</span> <span class="number">42</span>;
+    <span class="ident">then</span> {
+       <span class="ident">do_stuff_with</span>(<span class="ident">y</span>);
+    }
+}</pre></div>
+<p>becomes</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span> {
+    <span class="kw">let</span> <span class="ident">z</span> <span class="op">=</span> <span class="ident">y</span>.<span class="ident">some</span>().<span class="ident">complicated</span>().<span class="ident">expression</span>();
+    <span class="kw">if</span> <span class="ident">z</span> <span class="op">==</span> <span class="number">42</span> {
+        <span class="ident">do_stuff_with</span>(<span class="ident">y</span>);
+    }
+}</pre></div>
+<h2 id="multiple-patterns" class="section-header"><a href="#multiple-patterns">Multiple patterns</a></h2>
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="macro">if_chain</span><span class="macro">!</span> {
+    <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Foo</span>(<span class="ident">y</span>) <span class="op">|</span> <span class="ident">Bar</span>(<span class="ident">y</span>) <span class="op">|</span> <span class="ident">Baz</span>(<span class="ident">y</span>) <span class="op">=</span> <span class="ident">x</span>;
+    <span class="kw">let</span> <span class="ident">Bubbles</span>(<span class="ident">z</span>) <span class="op">|</span> <span class="ident">Buttercup</span>(<span class="ident">z</span>) <span class="op">|</span> <span class="ident">Blossom</span>(<span class="ident">z</span>) <span class="op">=</span> <span class="ident">y</span>;
+    <span class="ident">then</span> { <span class="ident">do_stuff_with</span>(<span class="ident">z</span>) }
+}</pre></div>
+<p>becomes</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">match</span> <span class="ident">x</span> {
+    <span class="ident">Foo</span>(<span class="ident">y</span>) <span class="op">|</span> <span class="ident">Bar</span>(<span class="ident">y</span>) <span class="op">|</span> <span class="ident">Baz</span>(<span class="ident">y</span>) <span class="op">=&gt;</span> <span class="kw">match</span> <span class="ident">y</span> {
+        <span class="ident">Bubbles</span>(<span class="ident">z</span>) <span class="op">|</span> <span class="ident">Buttercup</span>(<span class="ident">z</span>) <span class="op">|</span> <span class="ident">Blossom</span>(<span class="ident">z</span>) <span class="op">=&gt;</span> <span class="ident">do_stuff_with</span>(<span class="ident">z</span>)
+    },
+    <span class="kw">_</span> <span class="op">=&gt;</span> {}
+}</pre></div>
+<p>Note that if you use a plain <code>let</code>, then <code>if_chain!</code> assumes that the
+pattern is <em>irrefutable</em> (always matches) and doesn't add a fallback branch.</p>
+</div><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table><tr class='module-item'><td><a class="macro" href="macro.if_chain.html" title='if_chain::if_chain macro'>if_chain</a></td><td class='docblock-short'><p>Macro for writing nested <code>if let</code> expressions.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../";window.currentCrate = "if_chain";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>
