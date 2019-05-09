@@ -1,7 +1,6 @@
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::Read;
 use std::path::Path;
 
 use sourcemap::ram_bundle::{split_ram_bundle, RamBundle};
@@ -13,10 +12,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         panic!("Usage: ./split_ram_bundle RAM_BUNDLE SOURCEMAP OUT_DIRECTORY");
     }
 
-    let mut bundle_file = File::open(&args[1])?;
-    let mut bundle_data = Vec::new();
-    bundle_file.read_to_end(&mut bundle_data)?;
-    let ram_bundle = RamBundle::parse(&bundle_data).unwrap();
+    let ram_bundle = RamBundle::parse_indexed_from_path(Path::new(&args[1]))?;
 
     let sourcemap_file = File::open(&args[2])?;
     let ism = SourceMapIndex::from_reader(sourcemap_file).unwrap();
