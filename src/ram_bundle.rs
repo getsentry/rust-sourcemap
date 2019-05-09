@@ -1,6 +1,11 @@
 //! RAM bundle operations
+use regex::Regex;
 use scroll::Pread;
+use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::Read;
 use std::ops::Range;
+use std::path::Path;
 
 use crate::builder::SourceMapBuilder;
 use crate::errors::{Error, Result};
@@ -68,12 +73,12 @@ impl<'a> RamBundleModule<'a> {
 }
 
 /// An iterator over modules in a RAM bundle
-pub struct RamBundleModuleIter<'a, 'b> {
+pub struct RamBundleModuleIter<'a> {
     range: Range<usize>,
-    ram_bundle: &'b RamBundle<'a>,
+    ram_bundle: &'a RamBundle,
 }
 
-impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
+impl<'a> Iterator for RamBundleModuleIter<'a> {
     type Item = Result<RamBundleModule<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -88,21 +93,106 @@ impl<'a> Iterator for RamBundleModuleIter<'a, '_> {
     }
 }
 
+pub enum RamBundleAll {
+    Indexed(RamBundle), // FIXME
+    File(FileRamBundle),
+}
+
+impl RamBundleAll {
+    pub fn parse_bytes(bytes: &[u8]) -> Result<Self> {
+        Ok(RamBundleAll::Indexed(RamBundle::parse(bytes)?))
+    }
+
+    pub fn parse_from_directory(path: &Path) -> Result<Self> {
+        Ok(RamBundleAll::File(FileRamBundle {
+            module_count: 0,
+            modules: Default::default(),
+            startup_code: Default::default(),
+        }))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FileRamBundle {
+    startup_code: Vec<u8>,
+    module_count: usize,
+    modules: BTreeMap<usize, Vec<u8>>,
+}
+
+impl FileRamBundle {
+    fn is_file_bundle_directory(dir: &Path) -> Result<bool> {
+        if !dir.is_dir() {
+            return Ok(false);
+        }
+        let unbundle_file_path = dir.join("js-modules").join("UNBUNDLE");
+        if !unbundle_file_path.is_file() {
+            return Ok(false);
+        }
+
+        let mut unbundle_file = File::open(unbundle_file_path)?;
+
+        let mut bundle_magic = [0; 4];
+        unbundle_file.read_exact(&mut bundle_magic)?;
+
+        Ok(bundle_magic == RAM_BUNDLE_MAGIC.to_le_bytes())
+    }
+
+    pub fn parse(bundle_path: &Path) -> Result<Self> {
+        let bundle_dir = match bundle_path.parent() {
+            Some(dir) => dir,
+            None => return Err(Error::NotARamBundle),
+        };
+
+        if FileRamBundle::is_file_bundle_directory(bundle_dir)? {
+            return Err(Error::NotARamBundle);
+        }
+
+        let startup_code = std::fs::read(bundle_path)?;
+        let mut module_count = 0;
+
+        let module_regex = Regex::new(r"^(\d+)\.js$").unwrap();
+        let modules: BTreeMap<usize, Vec<u8>> = Default::default();
+        let js_modules_dir = bundle_dir.join("js_modules");
+        for entry in js_modules_dir.read_dir()? {
+            let entry = entry?;
+            if !entry.file_type()?.is_file() {
+                continue;
+            }
+            let path = entry.path();
+            let filename_os = path.file_name().unwrap();
+            let filename: &str = &filename_os.to_string_lossy();
+            let module_id = match module_regex.captures(filename) {
+                Some(captures) => {
+                    let module_string = captures.get(1).unwrap().as_str();
+                    module_string.parse::<usize>()?
+                }
+                None => continue,
+            };
+        }
+
+        Ok(FileRamBundle {
+            startup_code,
+            modules,
+            module_count,
+        })
+    }
+}
+
 /// Represents a react-native RAM bundle.
 ///
 /// Provides access to a react-native metro
 /// [RAM bundle](https://facebook.github.io/metro/docs/en/bundling).
-#[derive(Debug, Clone, Copy)]
-pub struct RamBundle<'a> {
-    bytes: &'a [u8],
+#[derive(Debug, Clone)]
+pub struct RamBundle {
+    bytes: Vec<u8>,
     module_count: usize,
     startup_code_size: usize,
     startup_code_offset: usize,
 }
 
-impl<'a> RamBundle<'a> {
+impl RamBundle {
     /// Parses a RAM bundle from a given slice of bytes.
-    pub fn parse(bytes: &'a [u8]) -> Result<Self> {
+    pub fn parse(bytes: &[u8]) -> Result<Self> {
         let header = bytes.pread_with::<RamBundleHeader>(0, scroll::LE)?;
 
         if !header.is_valid_magic() {
@@ -113,7 +203,7 @@ impl<'a> RamBundle<'a> {
         let startup_code_offset = std::mem::size_of::<RamBundleHeader>()
             + module_count * std::mem::size_of::<ModuleEntry>();
         Ok(RamBundle {
-            bytes,
+            bytes: bytes.to_vec(),
             module_count,
             startup_code_size: header.startup_code_size as usize,
             startup_code_offset,
@@ -126,14 +216,14 @@ impl<'a> RamBundle<'a> {
     }
 
     /// Returns the startup code
-    pub fn startup_code(&self) -> Result<&'a [u8]> {
+    pub fn startup_code(&self) -> Result<&[u8]> {
         self.bytes
             .pread_with(self.startup_code_offset, self.startup_code_size)
             .map_err(Error::Scroll)
     }
 
     /// Looks up a module by ID in the bundle
-    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule<'a>>> {
+    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule>> {
         if id >= self.module_count {
             return Err(Error::InvalidRamBundleIndex);
         }
@@ -163,7 +253,7 @@ impl<'a> RamBundle<'a> {
     }
 
     /// Returns an iterator over all modules in the bundle
-    pub fn iter_modules(&self) -> RamBundleModuleIter<'a, '_> {
+    pub fn iter_modules(&self) -> RamBundleModuleIter {
         RamBundleModuleIter {
             range: 0..self.module_count,
             ram_bundle: self,
@@ -172,13 +262,13 @@ impl<'a> RamBundle<'a> {
 }
 
 /// An iterator over deconstructed RAM bundle sources and sourcemaps
-pub struct SplitRamBundleModuleIter<'a, 'b> {
-    ram_bundle_iter: RamBundleModuleIter<'a, 'b>,
+pub struct SplitRamBundleModuleIter<'a> {
+    ram_bundle_iter: RamBundleModuleIter<'a>,
     sm: SourceMap,
     offsets: Vec<Option<u32>>,
 }
 
-impl<'a> SplitRamBundleModuleIter<'a, '_> {
+impl<'a> SplitRamBundleModuleIter<'a> {
     fn split_module(
         &self,
         module: RamBundleModule<'a>,
@@ -236,7 +326,7 @@ impl<'a> SplitRamBundleModuleIter<'a, '_> {
     }
 }
 
-impl<'a> Iterator for SplitRamBundleModuleIter<'a, '_> {
+impl<'a> Iterator for SplitRamBundleModuleIter<'a> {
     type Item = Result<(String, SourceView<'a>, SourceMap)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -259,10 +349,10 @@ impl<'a> Iterator for SplitRamBundleModuleIter<'a, '_> {
 /// With the help of the RAM bundle's indexed sourcemap, the bundle is split into modules,
 /// where each module is represented by its minified source and the corresponding sourcemap that
 /// we recover from the initial indexed sourcemap.
-pub fn split_ram_bundle<'a, 'b>(
-    ram_bundle: &'b RamBundle<'a>,
+pub fn split_ram_bundle<'a>(
+    ram_bundle: &'a RamBundle,
     smi: &SourceMapIndex,
-) -> Result<SplitRamBundleModuleIter<'a, 'b>> {
+) -> Result<SplitRamBundleModuleIter<'a>> {
     Ok(SplitRamBundleModuleIter {
         ram_bundle_iter: ram_bundle.iter_modules(),
         sm: smi.flatten()?,
@@ -280,9 +370,6 @@ pub fn is_ram_bundle_slice(slice: &[u8]) -> bool {
         .ok()
         .map_or(false, |x| x.is_valid_magic())
 }
-
-#[cfg(test)]
-use {std::fs::File, std::io::Read};
 
 #[test]
 fn test_basic_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Error>> {
