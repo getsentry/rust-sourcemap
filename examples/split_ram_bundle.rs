@@ -6,13 +6,31 @@ use std::path::Path;
 use sourcemap::ram_bundle::{split_ram_bundle, RamBundle};
 use sourcemap::SourceMapIndex;
 
+const USAGE: &str = "
+Usage:
+    ./split_ram_bundle RAM_BUNDLE SOURCEMAP OUT_DIRECTORY
+
+This example app splits the given RAM bundle and the sourcemap into a set of
+source files and their sourcemaps.
+
+Both indexed and file RAM bundles are supported.
+";
+
 fn main() -> Result<(), Box<std::error::Error>> {
     let args: Vec<_> = env::args().collect();
     if args.len() < 4 {
-        panic!("Usage: ./split_ram_bundle RAM_BUNDLE SOURCEMAP OUT_DIRECTORY");
+        println!("{}", USAGE);
+        std::process::exit(1);
     }
 
-    let ram_bundle = RamBundle::parse_indexed_from_path(Path::new(&args[1]))?;
+    let bundle_path = Path::new(&args[1]);
+    let ram_bundle = RamBundle::parse_indexed_from_path(bundle_path)
+        .or(RamBundle::parse_file_bundle(bundle_path))?;
+
+    match ram_bundle {
+        RamBundle::Indexed(_) => println!("Indexed RAM Bundle detected"),
+        RamBundle::File(_) => println!("File RAM Bundle detected"),
+    }
 
     let sourcemap_file = File::open(&args[2])?;
     let ism = SourceMapIndex::from_reader(sourcemap_file).unwrap();
@@ -37,6 +55,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         let out_sm = File::create(output_directory.join(sourcemap_name))?;
         sm.to_writer(out_sm)?;
     }
+    println!("Done.");
 
     Ok(())
 }

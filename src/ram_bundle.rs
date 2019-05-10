@@ -13,7 +13,7 @@ use crate::errors::{Error, Result};
 use crate::sourceview::SourceView;
 use crate::types::{SourceMap, SourceMapIndex};
 
-const RAM_BUNDLE_MAGIC: u32 = 0xFB0B_D1E5;
+pub const RAM_BUNDLE_MAGIC: u32 = 0xFB0B_D1E5;
 
 const JS_MODULES_DIR_NAME: &str = "js-modules";
 
@@ -161,7 +161,6 @@ impl RamBundle {
         if !unbundle_file_path.is_file() {
             return false;
         }
-        println!("unbundle_file_path: {}", unbundle_file_path.display());
         let mut unbundle_file = match File::open(unbundle_file_path) {
             Ok(file) => file,
             Err(_) => return false,
@@ -200,18 +199,14 @@ impl FileRamBundle {
 
         let module_regex = Regex::new(r"^(\d+)\.js$").unwrap();
         let js_modules_dir = bundle_dir.join(JS_MODULES_DIR_NAME);
-        println!("js_modules_dir: {}", js_modules_dir.display());
 
-        println!("yo1");
         for entry in js_modules_dir.read_dir()? {
-            println!("yo");
             let entry = entry?;
             if !entry.file_type()?.is_file() {
                 continue;
             }
 
             let path = entry.path();
-            println!("path: {}", path.display());
             let filename_os = path.file_name().unwrap();
             let filename: &str = &filename_os.to_string_lossy();
             let module_id = match module_regex.captures(filename) {
