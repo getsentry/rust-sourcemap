@@ -102,7 +102,9 @@ impl<'a> Iterator for RamBundleModuleIter<'a> {
 /// A common RAM bundle type
 #[derive(Debug, Clone)]
 pub enum RamBundle {
+    /// Indexed RAM bundle
     Indexed(IndexedRamBundle),
+    /// File RAM bundle
     File(FileRamBundle),
 }
 
