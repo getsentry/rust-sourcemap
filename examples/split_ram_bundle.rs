@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     let bundle_path = Path::new(&args[1]);
     let ram_bundle = RamBundle::parse_indexed_from_path(bundle_path)
-        .or(RamBundle::parse_file_bundle(bundle_path))?;
+        .or_else(|_| RamBundle::parse_file_bundle(bundle_path))?;
 
     match ram_bundle {
         RamBundle::Indexed(_) => println!("Indexed RAM Bundle detected"),

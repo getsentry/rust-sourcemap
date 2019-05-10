@@ -13,6 +13,7 @@ use crate::errors::{Error, Result};
 use crate::sourceview::SourceView;
 use crate::types::{SourceMap, SourceMapIndex};
 
+/// Magic number for RAM bundles
 pub const RAM_BUNDLE_MAGIC: u32 = 0xFB0B_D1E5;
 
 const JS_MODULES_DIR_NAME: &str = "js-modules";
@@ -46,7 +47,9 @@ impl ModuleEntry {
     }
 }
 
-/// Represents a react-native RAM bundle module
+/// Represents an indexed RAM bundle module
+///
+/// This type is used on iOS by default.
 #[derive(Debug)]
 pub struct RamBundleModule<'a> {
     id: usize,
@@ -96,6 +99,7 @@ impl<'a> Iterator for RamBundleModuleIter<'a> {
     }
 }
 
+/// A common RAM bundle type
 #[derive(Debug, Clone)]
 pub enum RamBundle {
     Indexed(IndexedRamBundle),
@@ -103,15 +107,22 @@ pub enum RamBundle {
 }
 
 impl RamBundle {
+    /// Parses an indexed RAM bundle from the given slice
     pub fn parse_indexed_from_slice(bytes: &[u8]) -> Result<Self> {
         Ok(RamBundle::Indexed(IndexedRamBundle::parse(bytes)?))
     }
 
+    /// Creates a new indexed RAM bundle from the file path
     pub fn parse_indexed_from_path(path: &Path) -> Result<Self> {
         let bytes = fs::read(path)?;
         Ok(RamBundle::Indexed(IndexedRamBundle::parse(&bytes)?))
     }
 
+    /// Creates a file RAM bundle from the path
+    ///
+    /// The provided path should point to a javascript file, that serves
+    /// as an entry point (startup code) for the app. The modules are stored in js-modules/
+    /// directory, next to the entry point.
     pub fn parse_file_bundle(bundle_path: &Path) -> Result<Self> {
         Ok(RamBundle::File(FileRamBundle::parse(bundle_path)?))
     }
@@ -147,6 +158,9 @@ impl RamBundle {
         }
     }
 
+    /// Returns "true" if the given path points to the startup file of a file RAM bundle
+    ///
+    /// The method checks the directory structure and the magic number in UNBUNDLE file.
     pub fn is_file_bundle_path(bundle_path: &Path) -> bool {
         if !bundle_path.is_file() {
             return false;
@@ -175,6 +189,9 @@ impl RamBundle {
     }
 }
 
+/// Represents a file RAM bundle
+///
+/// This RAM bundle type is mostly used on Android.
 #[derive(Debug, Clone)]
 pub struct FileRamBundle {
     startup_code: Vec<u8>,
@@ -251,7 +268,7 @@ impl FileRamBundle {
     }
 }
 
-/// Represents a react-native RAM bundle.
+/// Represents an indexed RAM bundle
 ///
 /// Provides access to a react-native metro
 /// [RAM bundle](https://facebook.github.io/metro/docs/en/bundling).
