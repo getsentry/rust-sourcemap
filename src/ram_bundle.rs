@@ -159,36 +159,6 @@ impl RamBundle {
             ram_bundle: self,
         }
     }
-
-    /// Returns "true" if the given path points to the startup file of a file RAM bundle
-    ///
-    /// The method checks the directory structure and the magic number in UNBUNDLE file.
-    pub fn is_unbundle_path(bundle_path: &Path) -> bool {
-        if !bundle_path.is_file() {
-            return false;
-        }
-
-        let bundle_dir = match bundle_path.parent() {
-            Some(dir) => dir,
-            None => return false,
-        };
-
-        let unbundle_file_path = bundle_dir.join(JS_MODULES_DIR_NAME).join("UNBUNDLE");
-        if !unbundle_file_path.is_file() {
-            return false;
-        }
-        let mut unbundle_file = match File::open(unbundle_file_path) {
-            Ok(file) => file,
-            Err(_) => return false,
-        };
-
-        let mut bundle_magic = [0; 4];
-        if unbundle_file.read_exact(&mut bundle_magic).is_err() {
-            return false;
-        }
-
-        bundle_magic == RAM_BUNDLE_MAGIC.to_le_bytes()
-    }
 }
 
 /// Represents a file RAM bundle
@@ -203,7 +173,7 @@ pub struct UnbundleRamBundle {
 
 impl UnbundleRamBundle {
     pub fn parse(bundle_path: &Path) -> Result<Self> {
-        if !RamBundle::is_unbundle_path(bundle_path) {
+        if !is_unbundle_path(bundle_path) {
             return Err(Error::NotARamBundle);
         }
 
@@ -455,6 +425,36 @@ pub fn is_ram_bundle_slice(slice: &[u8]) -> bool {
         .map_or(false, |x| x.is_valid_magic())
 }
 
+/// Returns "true" if the given path points to the startup file of a file RAM bundle
+///
+/// The method checks the directory structure and the magic number in UNBUNDLE file.
+pub fn is_unbundle_path(bundle_path: &Path) -> bool {
+    if !bundle_path.is_file() {
+        return false;
+    }
+
+    let bundle_dir = match bundle_path.parent() {
+        Some(dir) => dir,
+        None => return false,
+    };
+
+    let unbundle_file_path = bundle_dir.join(JS_MODULES_DIR_NAME).join("UNBUNDLE");
+    if !unbundle_file_path.is_file() {
+        return false;
+    }
+    let mut unbundle_file = match File::open(unbundle_file_path) {
+        Ok(file) => file,
+        Err(_) => return false,
+    };
+
+    let mut bundle_magic = [0; 4];
+    if unbundle_file.read_exact(&mut bundle_magic).is_err() {
+        return false;
+    }
+
+    bundle_magic == RAM_BUNDLE_MAGIC.to_le_bytes()
+}
+
 #[test]
 fn test_indexed_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Error>> {
     let mut bundle_file =
@@ -544,11 +544,9 @@ fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<std::error::Er
 #[test]
 fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Error>> {
     let valid_bundle_path = Path::new("./tests/fixtures/ram_bundle/file_bundle_1/basic.bundle");
-    assert!(RamBundle::is_unbundle_path(&valid_bundle_path));
+    assert!(is_unbundle_path(&valid_bundle_path));
 
-    assert!(!RamBundle::is_unbundle_path(&Path::new(
-        "./tmp/invalid/bundle/path"
-    )));
+    assert!(!is_unbundle_path(&Path::new("./tmp/invalid/bundle/path")));
 
     let ram_bundle = RamBundle::parse_unbundle_from_path(valid_bundle_path)?;
 
