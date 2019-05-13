@@ -104,8 +104,8 @@ impl<'a> Iterator for RamBundleModuleIter<'a> {
 pub enum RamBundle {
     /// Indexed RAM bundle
     Indexed(IndexedRamBundle),
-    /// File RAM bundle
-    File(FileRamBundle),
+    /// File (unbundle) RAM bundle
+    Unbundle(UnbundleRamBundle),
 }
 
 impl RamBundle {
@@ -120,20 +120,20 @@ impl RamBundle {
         Ok(RamBundle::Indexed(IndexedRamBundle::parse(&bytes)?))
     }
 
-    /// Creates a file RAM bundle from the path
+    /// Creates a file (unbundle) RAM bundle from the path
     ///
     /// The provided path should point to a javascript file, that serves
     /// as an entry point (startup code) for the app. The modules are stored in js-modules/
     /// directory, next to the entry point.
-    pub fn parse_file_bundle(bundle_path: &Path) -> Result<Self> {
-        Ok(RamBundle::File(FileRamBundle::parse(bundle_path)?))
+    pub fn parse_unbundle_from_path(bundle_path: &Path) -> Result<Self> {
+        Ok(RamBundle::Unbundle(UnbundleRamBundle::parse(bundle_path)?))
     }
 
     /// Looks up a module by ID in the bundle
     pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule>> {
         match *self {
             RamBundle::Indexed(ref indexed) => indexed.get_module(id),
-            RamBundle::File(ref file) => file.get_module(id),
+            RamBundle::Unbundle(ref file) => file.get_module(id),
         }
     }
 
@@ -141,7 +141,7 @@ impl RamBundle {
     pub fn module_count(&self) -> usize {
         match *self {
             RamBundle::Indexed(ref indexed) => indexed.module_count(),
-            RamBundle::File(ref file) => file.module_count(),
+            RamBundle::Unbundle(ref file) => file.module_count(),
         }
     }
 
@@ -149,7 +149,7 @@ impl RamBundle {
     pub fn startup_code(&self) -> Result<&[u8]> {
         match *self {
             RamBundle::Indexed(ref indexed) => indexed.startup_code(),
-            RamBundle::File(ref file) => file.startup_code(),
+            RamBundle::Unbundle(ref file) => file.startup_code(),
         }
     }
     /// Returns an iterator over all modules in the bundle
@@ -163,7 +163,7 @@ impl RamBundle {
     /// Returns "true" if the given path points to the startup file of a file RAM bundle
     ///
     /// The method checks the directory structure and the magic number in UNBUNDLE file.
-    pub fn is_file_bundle_path(bundle_path: &Path) -> bool {
+    pub fn is_unbundle_path(bundle_path: &Path) -> bool {
         if !bundle_path.is_file() {
             return false;
         }
@@ -195,15 +195,15 @@ impl RamBundle {
 ///
 /// This RAM bundle type is mostly used on Android.
 #[derive(Debug, Clone)]
-pub struct FileRamBundle {
+pub struct UnbundleRamBundle {
     startup_code: Vec<u8>,
     module_count: usize,
     modules: BTreeMap<usize, Vec<u8>>,
 }
 
-impl FileRamBundle {
+impl UnbundleRamBundle {
     pub fn parse(bundle_path: &Path) -> Result<Self> {
-        if !RamBundle::is_file_bundle_path(bundle_path) {
+        if !RamBundle::is_unbundle_path(bundle_path) {
             return Err(Error::NotARamBundle);
         }
 
@@ -244,7 +244,7 @@ impl FileRamBundle {
             modules.insert(module_id, fs::read(path)?);
         }
 
-        Ok(FileRamBundle {
+        Ok(UnbundleRamBundle {
             startup_code,
             modules,
             module_count: max_module_id + 1,
@@ -544,16 +544,16 @@ fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<std::error::Er
 #[test]
 fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Error>> {
     let valid_bundle_path = Path::new("./tests/fixtures/ram_bundle/file_bundle_1/basic.bundle");
-    assert!(RamBundle::is_file_bundle_path(&valid_bundle_path));
+    assert!(RamBundle::is_unbundle_path(&valid_bundle_path));
 
-    assert!(!RamBundle::is_file_bundle_path(&Path::new(
+    assert!(!RamBundle::is_unbundle_path(&Path::new(
         "./tmp/invalid/bundle/path"
     )));
 
-    let ram_bundle = RamBundle::parse_file_bundle(valid_bundle_path)?;
+    let ram_bundle = RamBundle::parse_unbundle_from_path(valid_bundle_path)?;
 
     match ram_bundle {
-        RamBundle::File(_) => (),
+        RamBundle::Unbundle(_) => (),
         _ => {
             panic!("Invalid RamBundle type");
         }
