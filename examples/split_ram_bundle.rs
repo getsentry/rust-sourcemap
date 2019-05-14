@@ -3,7 +3,7 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 
-use sourcemap::ram_bundle::{split_ram_bundle, RamBundle};
+use sourcemap::ram_bundle::{split_ram_bundle, RamBundle, RamBundleType};
 use sourcemap::SourceMapIndex;
 
 const USAGE: &str = "
@@ -27,9 +27,9 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let ram_bundle = RamBundle::parse_indexed_from_path(bundle_path)
         .or_else(|_| RamBundle::parse_unbundle_from_path(bundle_path))?;
 
-    match ram_bundle {
-        RamBundle::Indexed(_) => println!("Indexed RAM Bundle detected"),
-        RamBundle::Unbundle(_) => println!("File RAM Bundle detected"),
+    match ram_bundle.bundle_type() {
+        RamBundleType::Indexed => println!("Indexed RAM Bundle detected"),
+        RamBundleType::Unbundle => println!("File RAM Bundle detected"),
     }
 
     let sourcemap_file = File::open(&args[2])?;
