@@ -115,7 +115,7 @@ enum RamBundleImpl<'a> {
     Unbundle(UnbundleRamBundle),
 }
 
-/// A common RAM bundle type
+/// The main RAM bundle interface
 #[derive(Debug, Clone)]
 pub struct RamBundle<'a> {
     repr: RamBundleImpl<'a>,
@@ -138,7 +138,7 @@ impl<'a> RamBundle<'a> {
 
     /// Creates a new indexed RAM bundle from the file path
     pub fn parse_indexed_from_path(path: &Path) -> Result<Self> {
-        RamBUndle::parse_indexed_from_vec(fs::read(path)?)
+        RamBundle::parse_indexed_from_vec(fs::read(path)?)
     }
 
     /// Creates a file (unbundle) RAM bundle from the path
@@ -296,7 +296,7 @@ impl<'a> IndexedRamBundle<'a> {
         let startup_code_offset = std::mem::size_of::<RamBundleHeader>()
             + module_count * std::mem::size_of::<ModuleEntry>();
         Ok(IndexedRamBundle {
-            bytes: bytes,
+            bytes,
             module_count,
             startup_code_size: header.startup_code_size as usize,
             startup_code_offset,
