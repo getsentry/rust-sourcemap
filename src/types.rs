@@ -25,6 +25,7 @@ pub struct RewriteOptions<'a> {
     pub with_source_contents: bool,
     /// If enabled local source contents that are not in the
     /// file are automatically inlined.
+    #[cfg(any(unix, windows, target_os = "redox"))]
     pub load_local_source_contents: bool,
     /// The base path to the used for source reference resolving
     /// when loading local source contents is used.
@@ -40,6 +41,7 @@ impl<'a> Default for RewriteOptions<'a> {
         RewriteOptions {
             with_names: true,
             with_source_contents: true,
+            #[cfg(any(unix, windows, target_os = "redox"))]
             load_local_source_contents: false,
             base_path: None,
             strip_prefixes: &[][..],
@@ -730,8 +732,12 @@ impl SourceMap {
                     .set_source_contents(raw.src_id, self.get_source_contents(token.get_src_id()));
             }
         }
-        if options.load_local_source_contents {
-            builder.load_local_source_contents(options.base_path)?;
+
+        #[cfg(any(unix, windows, target_os = "redox"))]
+        {
+            if options.load_local_source_contents {
+                builder.load_local_source_contents(options.base_path)?;
+            }
         }
 
         let mut prefixes = vec![];

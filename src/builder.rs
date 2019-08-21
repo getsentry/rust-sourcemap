@@ -1,3 +1,5 @@
+#![cfg_attr(not(any(unix, windows, target_os = "redox")), allow(unused_imports))]
+
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::env;
@@ -25,6 +27,7 @@ pub struct SourceMapBuilder {
     source_contents: Vec<Option<String>>,
 }
 
+#[cfg(any(unix, windows, target_os = "redox"))]
 fn resolve_local_reference(base: &Url, reference: &str) -> Option<PathBuf> {
     let url = match base.join(reference) {
         Ok(url) => {
@@ -109,6 +112,7 @@ impl SourceMapBuilder {
 
     /// Loads source contents from locally accessible files if referenced
     /// accordingly.  Returns the number of loaded source contents
+    #[cfg(any(unix, windows, target_os = "redox"))]
     pub fn load_local_source_contents(&mut self, base_path: Option<&Path>) -> Result<usize> {
         let mut abs_path = env::current_dir()?;
         if let Some(path) = base_path {
