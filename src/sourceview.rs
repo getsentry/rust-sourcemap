@@ -323,7 +323,7 @@ impl<'a> SourceView<'a> {
 }
 
 #[test]
-#[allow(clippy::cyclomatic_complexity)]
+#[allow(clippy::cognitive_complexity)]
 fn test_minified_source_view() {
     let view = SourceView::new("a\nb\nc");
     assert_eq!(view.get_line(0), Some("a"));
