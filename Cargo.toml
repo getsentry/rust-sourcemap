@@ -1,6 +1,6 @@
 [package]
 name = "sourcemap"
-version = "4.1.0"
+version = "4.1.1"
 authors = ["Sentry <hello@sentry.io>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
