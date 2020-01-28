@@ -94,6 +94,7 @@ impl Encodable for SourceMap {
             mappings: Some(serialize_mappings(self)),
             x_facebook_offsets: None,
             x_metro_module_paths: None,
+            x_facebook_sources: None,
         }
     }
 }
@@ -124,6 +125,7 @@ impl Encodable for SourceMapIndex {
             mappings: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
+            x_facebook_sources: None,
         }
     }
 }

@@ -133,7 +133,7 @@ impl<'a> Iterator for Lines<'a> {
 
 /// Provides efficient access to minified sources.
 ///
-/// This type is used to implement farily efficient source mapping
+/// This type is used to implement fairly efficient source mapping
 /// operations.
 pub struct SourceView<'a> {
     source: Cow<'a, str>,

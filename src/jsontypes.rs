@@ -16,6 +16,14 @@ pub struct RawSection {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct FacebookSources {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub names: Option<Vec<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mappings: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct RawSourceMap {
     pub version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -35,6 +43,8 @@ pub struct RawSourceMap {
     pub x_facebook_offsets: Option<Vec<Option<u32>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x_metro_module_paths: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x_facebook_sources: Option<Vec<Vec<FacebookSources>>>,
 }
 
 #[derive(Deserialize)]

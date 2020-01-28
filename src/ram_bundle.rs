@@ -429,7 +429,7 @@ impl<'a> Iterator for SplitRamBundleModuleIter<'a> {
     }
 }
 
-/// Decontstructs a RAM bundle into a sequence of sources and their sourcemaps
+/// Deconstructs a RAM bundle into a sequence of sources and their sourcemaps
 ///
 /// With the help of the RAM bundle's indexed sourcemap, the bundle is split into modules,
 /// where each module is represented by its minified source and the corresponding sourcemap that
