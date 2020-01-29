@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::errors::Result;
 use crate::jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
-use crate::types::{DecodedMap, SourceMap, SourceMapIndex};
+use crate::types::{DecodedMap, SourceMap, SourceMapHermes, SourceMapIndex};
 use crate::vlq::encode_vlq;
 
 pub trait Encodable {
@@ -99,6 +99,13 @@ impl Encodable for SourceMap {
     }
 }
 
+impl Encodable for SourceMapHermes {
+    fn as_raw_sourcemap(&self) -> RawSourceMap {
+        let rsm = self.sm.as_raw_sourcemap();
+        rsm
+    }
+}
+
 impl Encodable for SourceMapIndex {
     fn as_raw_sourcemap(&self) -> RawSourceMap {
         RawSourceMap {
@@ -135,6 +142,7 @@ impl Encodable for DecodedMap {
         match *self {
             DecodedMap::Regular(ref sm) => sm.as_raw_sourcemap(),
             DecodedMap::Index(ref smi) => smi.as_raw_sourcemap(),
+            DecodedMap::Hermes(ref smh) => smh.as_raw_sourcemap(),
         }
     }
 }

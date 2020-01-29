@@ -57,8 +57,8 @@ pub use crate::detector::{
 pub use crate::errors::{Error, Result};
 pub use crate::sourceview::SourceView;
 pub use crate::types::{
-    DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,
-    SourceMapSectionIter, Token, TokenIter,
+    DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapHermes, SourceMapIndex,
+    SourceMapSection, SourceMapSectionIter, Token, TokenIter,
 };
 pub use crate::utils::make_relative_path;
 
