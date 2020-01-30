@@ -55,10 +55,11 @@ pub use crate::detector::{
     SourceMapRef,
 };
 pub use crate::errors::{Error, Result};
+pub use crate::hermes::SourceMapHermes;
 pub use crate::sourceview::SourceView;
 pub use crate::types::{
-    DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapHermes, SourceMapIndex,
-    SourceMapSection, SourceMapSectionIter, Token, TokenIter,
+    DecodedMap, RawToken, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection,
+    SourceMapSectionIter, Token, TokenIter,
 };
 pub use crate::utils::make_relative_path;
 
@@ -67,6 +68,7 @@ mod decoder;
 mod detector;
 mod encoder;
 mod errors;
+mod hermes;
 mod jsontypes;
 mod sourceview;
 mod types;

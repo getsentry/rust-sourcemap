@@ -2,13 +2,13 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
-use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
 use crate::builder::SourceMapBuilder;
 use crate::decoder::{decode, decode_slice};
 use crate::encoder::encode;
 use crate::errors::{Error, Result};
+use crate::hermes::SourceMapHermes;
 use crate::sourceview::SourceView;
 use crate::utils::find_common_prefix;
 
@@ -412,25 +412,6 @@ pub struct SourceMapIndex {
     x_metro_module_paths: Option<Vec<String>>,
 }
 
-pub struct SourceMapHermes {
-    pub(crate) sm: SourceMap,
-    pub(crate) x_facebook_sources: (),
-}
-
-impl Deref for SourceMapHermes {
-    type Target = SourceMap;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sm
-    }
-}
-
-impl DerefMut for SourceMapHermes {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sm
-    }
-}
-
 /// Represents a sourcemap in memory
 ///
 /// This is always represents a regular "non-indexed" sourcemap.  Particularly
@@ -784,22 +765,6 @@ impl SourceMap {
         }
 
         Ok(builder.into_sourcemap())
-    }
-}
-
-impl SourceMapHermes {
-    pub fn from_reader<R: Read>(rdr: R) -> Result<Self> {
-        match decode(rdr)? {
-            DecodedMap::Hermes(sm) => Ok(sm),
-            _ => Err(Error::IndexedSourcemap),
-        }
-    }
-
-    pub fn from_slice(slice: &[u8]) -> Result<Self> {
-        match decode_slice(slice)? {
-            DecodedMap::Hermes(sm) => Ok(sm),
-            _ => Err(Error::IndexedSourcemap),
-        }
     }
 }
 

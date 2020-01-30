@@ -6,10 +6,9 @@ use serde_json;
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
+use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
-use crate::types::{
-    DecodedMap, RawToken, SourceMap, SourceMapHermes, SourceMapIndex, SourceMapSection,
-};
+use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
 use crate::vlq::parse_vlq_segment;
 
 const DATA_PREABLE: &str = "data:application/json;base64,";
@@ -123,7 +122,7 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     Ok(&slice[slice.len()..])
 }
 
-fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
+pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut dst_col;
     let mut src_id = 0;
     let mut src_line = 0;
@@ -264,15 +263,6 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         rsm.x_facebook_offsets,
         rsm.x_metro_module_paths,
     ))
-}
-
-fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
-    let _x_facebook_sources = rsm.x_facebook_sources.take();
-    let sm = decode_regular(rsm)?;
-    Ok(SourceMapHermes {
-        sm,
-        x_facebook_sources: (),
-    })
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
