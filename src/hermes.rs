@@ -45,9 +45,8 @@ impl DerefMut for SourceMapHermes {
 
 impl Encodable for SourceMapHermes {
     fn as_raw_sourcemap(&self) -> RawSourceMap {
-        let rsm = self.sm.as_raw_sourcemap();
         // TODO: need to serialize the `HermesFunctionMap` mappings
-        rsm
+        self.sm.as_raw_sourcemap()
     }
 }
 
