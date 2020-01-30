@@ -6,7 +6,7 @@ https://github.com/facebook/react-native/blob/4185a45be40e014d5e6315c70de00fe5f7
 ```sh
     $ npx react-native bundle --platform android --entry-file input.js --bundle-output intermediate.js --sourcemap-output intermediate.js.map
     $ hermes -O -emit-binary -output-source-map -out=intermediate2 intermediate.js
-    $ node react-native/scripts/compose-source-maps.js intermediate.js.map intermediate2.js.map -o output.map
+    $ node react-native/scripts/compose-source-maps.js intermediate.js.map intermediate2.map -o output.map
 ```
 
 When running the bytecode, we will get the following stacktrace

@@ -24,7 +24,7 @@ pub struct HermesFunctionMap {
 }
 
 pub struct SourceMapHermes {
-    sm: SourceMap,
+    pub(crate) sm: SourceMap,
     // There should be one `HermesFunctionMap` per each `sources` entry in the main SourceMap.
     function_maps: Vec<Option<HermesFunctionMap>>,
 }
@@ -80,12 +80,16 @@ impl SourceMapHermes {
                     Ordering::Equal => o.column.cmp(&token.get_src_col()),
                     x => x,
                 });
-        let name_index = match mapping {
+        let name_index = function_map.mappings[match mapping {
             Ok(a) => a,
             Err(a) => a.saturating_sub(1),
-        };
+        }]
+        .name_index;
 
-        function_map.names.get(name_index).map(|n| n.as_str())
+        function_map
+            .names
+            .get(name_index as usize)
+            .map(|n| n.as_str())
     }
 }
 
