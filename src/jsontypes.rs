@@ -15,7 +15,7 @@ pub struct RawSection {
     pub map: Option<Box<RawSourceMap>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FacebookScopeMapping {
     pub names: Vec<String>,
     pub mappings: String,
@@ -25,7 +25,7 @@ pub struct FacebookScopeMapping {
 // It has a list of metadata, the first one of which is a *function map*,
 // containing scope information as a nested source map.
 // See the decoder in `hermes.rs` for details.
-type FacebookSources = Option<Vec<Vec<FacebookScopeMapping>>>;
+pub type FacebookSources = Option<Vec<Option<Vec<FacebookScopeMapping>>>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct RawSourceMap {

@@ -1,12 +1,11 @@
 use crate::decoder::{decode, decode_regular, decode_slice};
-use crate::encoder::Encodable;
+use crate::encoder::{encode, Encodable};
 use crate::errors::{Error, Result};
-use crate::jsontypes::FacebookScopeMapping;
-use crate::jsontypes::RawSourceMap;
-use crate::types::{DecodedMap, SourceMap};
+use crate::jsontypes::{FacebookScopeMapping, FacebookSources, RawSourceMap};
+use crate::types::{DecodedMap, RewriteOptions, SourceMap};
 use crate::vlq::parse_vlq_segment;
 use std::cmp::Ordering;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
 
 /// These are starting locations of scopes.
@@ -27,6 +26,7 @@ pub struct SourceMapHermes {
     pub(crate) sm: SourceMap,
     // There should be one `HermesFunctionMap` per each `sources` entry in the main SourceMap.
     function_maps: Vec<Option<HermesFunctionMap>>,
+    raw_facebook_sources: FacebookSources,
 }
 
 impl Deref for SourceMapHermes {
@@ -46,7 +46,9 @@ impl DerefMut for SourceMapHermes {
 impl Encodable for SourceMapHermes {
     fn as_raw_sourcemap(&self) -> RawSourceMap {
         // TODO: need to serialize the `HermesFunctionMap` mappings
-        self.sm.as_raw_sourcemap()
+        let mut rsm = self.sm.as_raw_sourcemap();
+        rsm.x_facebook_sources = self.raw_facebook_sources.clone();
+        rsm
     }
 }
 
@@ -63,6 +65,10 @@ impl SourceMapHermes {
             DecodedMap::Hermes(sm) => Ok(sm),
             _ => Err(Error::IndexedSourcemap),
         }
+    }
+
+    pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
+        encode(self, w)
     }
 
     pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&str> {
@@ -90,6 +96,20 @@ impl SourceMapHermes {
             .get(name_index as usize)
             .map(|n| n.as_str())
     }
+
+    pub fn rewrite(self, options: &RewriteOptions<'_>) -> Result<Self> {
+        let Self {
+            sm,
+            function_maps,
+            raw_facebook_sources,
+        } = self;
+        let sm = sm.rewrite(options)?;
+        Ok(Self {
+            sm,
+            function_maps,
+            raw_facebook_sources,
+        })
+    }
 }
 
 pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
@@ -102,12 +122,12 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
     // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L182-L202
 
     let function_maps = x_facebook_sources
-        .into_iter()
+        .iter()
         .map(|v| {
             let FacebookScopeMapping {
                 names,
                 mappings: raw_mappings,
-            } = v.into_iter().next()?;
+            } = v.as_ref()?.iter().next()?;
 
             let mut mappings = vec![];
             let mut line = 1;
@@ -137,10 +157,17 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
                     });
                 }
             }
-            Some(HermesFunctionMap { names, mappings })
+            Some(HermesFunctionMap {
+                names: names.clone(),
+                mappings,
+            })
         })
         .collect();
 
     let sm = decode_regular(rsm)?;
-    Ok(SourceMapHermes { sm, function_maps })
+    Ok(SourceMapHermes {
+        sm,
+        function_maps,
+        raw_facebook_sources: Some(x_facebook_sources),
+    })
 }

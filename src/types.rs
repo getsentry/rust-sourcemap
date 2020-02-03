@@ -704,7 +704,7 @@ impl SourceMap {
         }
     }
 
-    /// This rewrites the sourcemap accoridng to the provided rewrite
+    /// This rewrites the sourcemap according to the provided rewrite
     /// options.
     ///
     /// The default behavior is to just deduplicate the sourcemap, something
