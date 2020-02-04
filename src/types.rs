@@ -56,7 +56,6 @@ impl<'a> Default for RewriteOptions<'a> {
 /// Usually the two things are too distinct to provide a common
 /// interface however for token lookup and writing back into a writer
 /// general methods are provided.
-#[non_exhaustive]
 pub enum DecodedMap {
     /// Indicates a regular sourcemap
     Regular(SourceMap),

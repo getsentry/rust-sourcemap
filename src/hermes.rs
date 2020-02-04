@@ -22,10 +22,14 @@ pub struct HermesFunctionMap {
     mappings: Vec<HermesScopeOffset>,
 }
 
+/// Represents a `react-native`-style SourceMap, which has additional scope
+/// information embedded.
 pub struct SourceMapHermes {
     pub(crate) sm: SourceMap,
     // There should be one `HermesFunctionMap` per each `sources` entry in the main SourceMap.
     function_maps: Vec<Option<HermesFunctionMap>>,
+    // XXX: right now, I am too lazy to actually serialize the above `funciton_maps`
+    // back into json types, so just keep the original json. Might be a bit inefficient, but meh.
     raw_facebook_sources: FacebookSources,
 }
 
@@ -53,6 +57,10 @@ impl Encodable for SourceMapHermes {
 }
 
 impl SourceMapHermes {
+    /// Creates a sourcemap from a reader over a JSON stream in UTF-8
+    /// format.
+    ///
+    /// See [`SourceMap::from_reader`](struct.SourceMap.html#method.from_reader)
     pub fn from_reader<R: Read>(rdr: R) -> Result<Self> {
         match decode(rdr)? {
             DecodedMap::Hermes(sm) => Ok(sm),
@@ -60,6 +68,10 @@ impl SourceMapHermes {
         }
     }
 
+    /// Creates a sourcemap from a reader over a JSON byte slice in UTF-8
+    /// format.
+    ///
+    /// See [`SourceMap::from_slice`](struct.SourceMap.html#method.from_slice)
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         match decode_slice(slice)? {
             DecodedMap::Hermes(sm) => Ok(sm),
@@ -67,10 +79,15 @@ impl SourceMapHermes {
         }
     }
 
+    /// Writes a sourcemap into a writer.
+    ///
+    /// See [`SourceMap::to_writer`](struct.SourceMap.html#method.to_writer)
     pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
         encode(self, w)
     }
 
+    /// Given a bytecode offset, this will find the enclosing scopes function
+    /// name.
     pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&str> {
         let token = self.sm.lookup_token(0, bytecode_offset)?;
 
@@ -99,6 +116,10 @@ impl SourceMapHermes {
             .map(|n| n.as_str())
     }
 
+    /// This rewrites the sourcemap according to the provided rewrite
+    /// options.
+    ///
+    /// See [`SourceMap::rewrite`](struct.SourceMap.html#method.rewrite)
     pub fn rewrite(self, options: &RewriteOptions<'_>) -> Result<Self> {
         let Self {
             sm,
@@ -118,7 +139,7 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
     let x_facebook_sources = rsm
         .x_facebook_sources
         .take()
-        .expect("expected x_facebook_sources");
+        .ok_or(Error::IncompatibleSourceMap)?;
 
     // This is basically the logic from here:
     // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L182-L202
