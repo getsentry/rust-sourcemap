@@ -451,7 +451,7 @@ impl SourceMap {
     pub fn from_reader<R: Read>(rdr: R) -> Result<SourceMap> {
         match decode(rdr)? {
             DecodedMap::Regular(sm) => Ok(sm),
-            _ => Err(Error::IndexedSourcemap),
+            _ => Err(Error::IncompatibleSourceMap),
         }
     }
 
@@ -497,7 +497,7 @@ impl SourceMap {
     pub fn from_slice(slice: &[u8]) -> Result<SourceMap> {
         match decode_slice(slice)? {
             DecodedMap::Regular(sm) => Ok(sm),
-            _ => Err(Error::IndexedSourcemap),
+            _ => Err(Error::IncompatibleSourceMap),
         }
     }
 
@@ -776,7 +776,7 @@ impl SourceMapIndex {
     pub fn from_reader<R: Read>(rdr: R) -> Result<SourceMapIndex> {
         match decode(rdr)? {
             DecodedMap::Index(smi) => Ok(smi),
-            _ => Err(Error::RegularSourcemap),
+            _ => Err(Error::IncompatibleSourceMap),
         }
     }
 
@@ -792,7 +792,7 @@ impl SourceMapIndex {
     pub fn from_slice(slice: &[u8]) -> Result<SourceMapIndex> {
         match decode_slice(slice)? {
             DecodedMap::Index(smi) => Ok(smi),
-            _ => Err(Error::RegularSourcemap),
+            _ => Err(Error::IncompatibleSourceMap),
         }
     }
 

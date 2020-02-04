@@ -487,7 +487,7 @@ pub fn is_unbundle_path(bundle_path: &Path) -> bool {
 }
 
 #[test]
-fn test_indexed_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Error>> {
+fn test_indexed_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let mut bundle_file =
         File::open("./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle")?;
     let mut bundle_data = Vec::new();
@@ -536,7 +536,7 @@ fn test_indexed_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Er
 }
 
 #[test]
-fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<std::error::Error>> {
+fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let ram_bundle = RamBundle::parse_indexed_from_path(Path::new(
         "./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle",
     ))?;
@@ -573,7 +573,7 @@ fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<std::error::Er
 }
 
 #[test]
-fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<std::error::Error>> {
+fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let valid_bundle_path = Path::new("./tests/fixtures/ram_bundle/file_bundle_1/basic.bundle");
     assert!(is_unbundle_path(&valid_bundle_path));
 

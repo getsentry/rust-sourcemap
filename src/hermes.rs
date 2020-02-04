@@ -56,14 +56,14 @@ impl SourceMapHermes {
     pub fn from_reader<R: Read>(rdr: R) -> Result<Self> {
         match decode(rdr)? {
             DecodedMap::Hermes(sm) => Ok(sm),
-            _ => Err(Error::IndexedSourcemap),
+            _ => Err(Error::IncompatibleSourceMap),
         }
     }
 
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         match decode_slice(slice)? {
             DecodedMap::Hermes(sm) => Ok(sm),
-            _ => Err(Error::IndexedSourcemap),
+            _ => Err(Error::IncompatibleSourceMap),
         }
     }
 
@@ -85,11 +85,13 @@ impl SourceMapHermes {
                     Ordering::Equal => o.column.cmp(&token.get_src_col()),
                     x => x,
                 });
-        let name_index = function_map.mappings[match mapping {
-            Ok(a) => a,
-            Err(a) => a.saturating_sub(1),
-        }]
-        .name_index;
+        let name_index = function_map
+            .mappings
+            .get(match mapping {
+                Ok(a) => a,
+                Err(a) => a.saturating_sub(1),
+            })?
+            .name_index;
 
         function_map
             .names

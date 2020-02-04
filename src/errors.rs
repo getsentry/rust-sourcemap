@@ -31,12 +31,8 @@ pub enum Error {
     BadSourceReference(u32),
     /// a reference to a non existing name was encountered
     BadNameReference(u32),
-    /// Indicates that an indexed sourcemap was encountered when
-    /// a regular sourcemap was expected
-    IndexedSourcemap,
-    /// Indicates that an regular (non-indexed) sourcemap was when
-    /// a sourcemap index was expected
-    RegularSourcemap,
+    /// Indicates that an incompatible sourcemap format was encountered
+    IncompatibleSourceMap,
     /// Indicates an invalid data URL
     InvalidDataUrl,
     /// Flatten failed
@@ -97,8 +93,7 @@ impl error::Error for Error {
             BadSegmentSize(_) => "bad segment size",
             BadSourceReference(_) => "bad source reference",
             BadNameReference(_) => "bad name reference",
-            IndexedSourcemap => "unexpected indexed sourcemap",
-            RegularSourcemap => "unexpected sourcemap",
+            IncompatibleSourceMap => "incompatible sourcemap",
             InvalidDataUrl => "invalid data URL",
             CannotFlatten(_) => "cannot flatten the given indexed sourcemap",
             InvalidRamBundleMagic => "invalid magic number for ram bundle",
@@ -133,11 +128,7 @@ impl fmt::Display for Error {
             BadSegmentSize(size) => write!(f, "got {} segments, expected 4 or 5", size),
             BadSourceReference(id) => write!(f, "bad reference to source #{}", id),
             BadNameReference(id) => write!(f, "bad reference to name #{}", id),
-            IndexedSourcemap => write!(f, "encountered unexpected indexed sourcemap"),
-            RegularSourcemap => write!(
-                f,
-                "encountered unexpected sourcemap where index was expected"
-            ),
+            IncompatibleSourceMap => write!(f, "encountered incompatible sourcemap format"),
             InvalidDataUrl => write!(f, "the provided data URL is invalid"),
             CannotFlatten(ref msg) => write!(f, "cannot flatten the indexed sourcemap: {}", msg),
             InvalidRamBundleMagic => write!(f, "invalid magic number for ram bundle"),
