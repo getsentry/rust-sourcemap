@@ -28,7 +28,7 @@ pub struct SourceMapHermes {
     pub(crate) sm: SourceMap,
     // There should be one `HermesFunctionMap` per each `sources` entry in the main SourceMap.
     function_maps: Vec<Option<HermesFunctionMap>>,
-    // XXX: right now, I am too lazy to actually serialize the above `funciton_maps`
+    // XXX: right now, I am too lazy to actually serialize the above `function_maps`
     // back into json types, so just keep the original json. Might be a bit inefficient, but meh.
     raw_facebook_sources: FacebookSources,
 }
@@ -91,7 +91,7 @@ impl SourceMapHermes {
     pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&str> {
         let token = self.sm.lookup_token(0, bytecode_offset)?;
 
-        let function_map = &self.function_maps[token.get_src_id() as usize].as_ref()?;
+        let function_map = (self.function_maps.get(token.get_src_id() as usize))?.as_ref()?;
 
         // Find the closest mapping, just like here:
         // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L204-L231
