@@ -1,8 +1,13 @@
 ---
+minVersion: "0.9.0"
 github:
   owner: getsentry
   repo: rust-sourcemap
+changelogPolicy: none
+statusProvider:
+  name: github
 preReleaseCommand: bash scripts/bump-version
 targets:
   - name: crates
   - name: github
+    includeNames: /none/ # HACK to avoid Zeus
