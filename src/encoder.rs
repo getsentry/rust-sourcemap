@@ -94,6 +94,7 @@ impl Encodable for SourceMap {
             mappings: Some(serialize_mappings(self)),
             x_facebook_offsets: None,
             x_metro_module_paths: None,
+            x_facebook_sources: None,
         }
     }
 }
@@ -124,6 +125,7 @@ impl Encodable for SourceMapIndex {
             mappings: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
+            x_facebook_sources: None,
         }
     }
 }
@@ -133,6 +135,7 @@ impl Encodable for DecodedMap {
         match *self {
             DecodedMap::Regular(ref sm) => sm.as_raw_sourcemap(),
             DecodedMap::Index(ref smi) => smi.as_raw_sourcemap(),
+            DecodedMap::Hermes(ref smh) => smh.as_raw_sourcemap(),
         }
     }
 }

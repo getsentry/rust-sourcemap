@@ -16,7 +16,7 @@ source files and their sourcemaps.
 Both indexed and file RAM bundles are supported.
 ";
 
-fn main() -> Result<(), Box<std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().collect();
     if args.len() < 4 {
         println!("{}", USAGE);

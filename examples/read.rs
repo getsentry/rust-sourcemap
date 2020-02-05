@@ -13,6 +13,7 @@ fn load_from_reader<R: Read>(mut rdr: R) -> SourceMap {
                 ..Default::default()
             })
             .unwrap(),
+        _ => panic!("unexpected sourcemap format"),
     }
 }
 

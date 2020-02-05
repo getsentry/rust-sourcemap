@@ -1,0 +1,196 @@
+use crate::decoder::{decode, decode_regular, decode_slice};
+use crate::encoder::{encode, Encodable};
+use crate::errors::{Error, Result};
+use crate::jsontypes::{FacebookScopeMapping, FacebookSources, RawSourceMap};
+use crate::types::{DecodedMap, RewriteOptions, SourceMap};
+use crate::vlq::parse_vlq_segment;
+use std::cmp::Ordering;
+use std::io::{Read, Write};
+use std::ops::{Deref, DerefMut};
+
+/// These are starting locations of scopes.
+/// The `name_index` represents the index into the `HermesFunctionMap.names` vec,
+/// which represents the function names/scopes.
+pub struct HermesScopeOffset {
+    line: u32,
+    column: u32,
+    name_index: u32,
+}
+
+pub struct HermesFunctionMap {
+    names: Vec<String>,
+    mappings: Vec<HermesScopeOffset>,
+}
+
+/// Represents a `react-native`-style SourceMap, which has additional scope
+/// information embedded.
+pub struct SourceMapHermes {
+    pub(crate) sm: SourceMap,
+    // There should be one `HermesFunctionMap` per each `sources` entry in the main SourceMap.
+    function_maps: Vec<Option<HermesFunctionMap>>,
+    // XXX: right now, I am too lazy to actually serialize the above `function_maps`
+    // back into json types, so just keep the original json. Might be a bit inefficient, but meh.
+    raw_facebook_sources: FacebookSources,
+}
+
+impl Deref for SourceMapHermes {
+    type Target = SourceMap;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sm
+    }
+}
+
+impl DerefMut for SourceMapHermes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sm
+    }
+}
+
+impl Encodable for SourceMapHermes {
+    fn as_raw_sourcemap(&self) -> RawSourceMap {
+        // TODO: need to serialize the `HermesFunctionMap` mappings
+        let mut rsm = self.sm.as_raw_sourcemap();
+        rsm.x_facebook_sources = self.raw_facebook_sources.clone();
+        rsm
+    }
+}
+
+impl SourceMapHermes {
+    /// Creates a sourcemap from a reader over a JSON stream in UTF-8
+    /// format.
+    ///
+    /// See [`SourceMap::from_reader`](struct.SourceMap.html#method.from_reader)
+    pub fn from_reader<R: Read>(rdr: R) -> Result<Self> {
+        match decode(rdr)? {
+            DecodedMap::Hermes(sm) => Ok(sm),
+            _ => Err(Error::IncompatibleSourceMap),
+        }
+    }
+
+    /// Creates a sourcemap from a reader over a JSON byte slice in UTF-8
+    /// format.
+    ///
+    /// See [`SourceMap::from_slice`](struct.SourceMap.html#method.from_slice)
+    pub fn from_slice(slice: &[u8]) -> Result<Self> {
+        match decode_slice(slice)? {
+            DecodedMap::Hermes(sm) => Ok(sm),
+            _ => Err(Error::IncompatibleSourceMap),
+        }
+    }
+
+    /// Writes a sourcemap into a writer.
+    ///
+    /// See [`SourceMap::to_writer`](struct.SourceMap.html#method.to_writer)
+    pub fn to_writer<W: Write>(&self, w: W) -> Result<()> {
+        encode(self, w)
+    }
+
+    /// Given a bytecode offset, this will find the enclosing scopes function
+    /// name.
+    pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&str> {
+        let token = self.sm.lookup_token(0, bytecode_offset)?;
+
+        let function_map = (self.function_maps.get(token.get_src_id() as usize))?.as_ref()?;
+
+        // Find the closest mapping, just like here:
+        // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L204-L231
+        let mapping =
+            function_map
+                .mappings
+                .binary_search_by(|o| match o.line.cmp(&token.get_src_line()) {
+                    Ordering::Equal => o.column.cmp(&token.get_src_col()),
+                    x => x,
+                });
+        let name_index = function_map
+            .mappings
+            .get(match mapping {
+                Ok(a) => a,
+                Err(a) => a.saturating_sub(1),
+            })?
+            .name_index;
+
+        function_map
+            .names
+            .get(name_index as usize)
+            .map(|n| n.as_str())
+    }
+
+    /// This rewrites the sourcemap according to the provided rewrite
+    /// options.
+    ///
+    /// See [`SourceMap::rewrite`](struct.SourceMap.html#method.rewrite)
+    pub fn rewrite(self, options: &RewriteOptions<'_>) -> Result<Self> {
+        let Self {
+            sm,
+            function_maps,
+            raw_facebook_sources,
+        } = self;
+        let sm = sm.rewrite(options)?;
+        Ok(Self {
+            sm,
+            function_maps,
+            raw_facebook_sources,
+        })
+    }
+}
+
+pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
+    let x_facebook_sources = rsm
+        .x_facebook_sources
+        .take()
+        .ok_or(Error::IncompatibleSourceMap)?;
+
+    // This is basically the logic from here:
+    // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L182-L202
+
+    let function_maps = x_facebook_sources
+        .iter()
+        .map(|v| {
+            let FacebookScopeMapping {
+                names,
+                mappings: raw_mappings,
+            } = v.as_ref()?.iter().next()?;
+
+            let mut mappings = vec![];
+            let mut line = 1;
+            let mut name_index = 0;
+
+            for line_mapping in raw_mappings.split(';') {
+                if line_mapping.is_empty() {
+                    continue;
+                }
+
+                let mut column = 0;
+
+                for mapping in line_mapping.split(',') {
+                    if mapping.is_empty() {
+                        continue;
+                    }
+
+                    let mut nums = parse_vlq_segment(mapping).ok()?.into_iter();
+
+                    column = (i64::from(column) + nums.next()?) as u32;
+                    name_index = (i64::from(name_index) + nums.next().unwrap_or(0)) as u32;
+                    line = (i64::from(line) + nums.next().unwrap_or(0)) as u32;
+                    mappings.push(HermesScopeOffset {
+                        column,
+                        line,
+                        name_index,
+                    });
+                }
+            }
+            Some(HermesFunctionMap {
+                names: names.clone(),
+                mappings,
+            })
+        })
+        .collect();
+
+    let sm = decode_regular(rsm)?;
+    Ok(SourceMapHermes {
+        sm,
+        function_maps,
+        raw_facebook_sources: Some(x_facebook_sources),
+    })
+}
