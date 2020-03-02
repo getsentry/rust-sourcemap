@@ -1,12 +1,12 @@
 #![cfg_attr(not(any(unix, windows, target_os = "redox")), allow(unused_imports))]
 
-use std::collections::HashMap;
 use std::convert::AsRef;
 use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use fxhash::FxHashMap;
 use url::Url;
 
 use crate::errors::Result;
@@ -19,10 +19,10 @@ use crate::types::{RawToken, SourceMap, Token};
 /// type can help.
 pub struct SourceMapBuilder {
     file: Option<String>,
-    name_map: HashMap<String, u32>,
+    name_map: FxHashMap<String, u32>,
     names: Vec<String>,
     tokens: Vec<RawToken>,
-    source_map: HashMap<String, u32>,
+    source_map: FxHashMap<String, u32>,
     sources: Vec<String>,
     source_contents: Vec<Option<String>>,
 }
@@ -49,10 +49,10 @@ impl SourceMapBuilder {
     pub fn new(file: Option<&str>) -> SourceMapBuilder {
         SourceMapBuilder {
             file: file.map(str::to_owned),
-            name_map: HashMap::new(),
+            name_map: FxHashMap::default(),
             names: vec![],
             tokens: vec![],
-            source_map: HashMap::new(),
+            source_map: FxHashMap::default(),
             sources: vec![],
             source_contents: vec![],
         }
@@ -169,6 +169,36 @@ impl SourceMapBuilder {
         };
         let name_id = match name {
             Some(name) => self.add_name(name),
+            None => !0,
+        };
+        let raw = RawToken {
+            dst_line,
+            dst_col,
+            src_line,
+            src_col,
+            src_id,
+            name_id,
+        };
+        self.tokens.push(raw);
+        raw
+    }
+
+    /// Adds a new mapping to the builder.
+    pub fn add_raw(
+        &mut self,
+        dst_line: u32,
+        dst_col: u32,
+        src_line: u32,
+        src_col: u32,
+        source: Option<u32>,
+        name: Option<u32>,
+    ) -> RawToken {
+        let src_id = match source {
+            Some(source) => source,
+            None => !0,
+        };
+        let name_id = match name {
+            Some(name) => name,
             None => !0,
         };
         let raw = RawToken {

@@ -1,6 +1,6 @@
 [package]
 name = "sourcemap"
-version = "5.0.0"
+version = "5.0.1"
 authors = ["Sentry <hello@sentry.io>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
@@ -23,6 +23,7 @@ include = [
 all-features = true
 
 [dependencies]
+fxhash = "0.2.1"
 url = "1.7.2"
 serde = { version = "1.0.88", features = ["derive"] }
 serde_json = "1.0.38"
