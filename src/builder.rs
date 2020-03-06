@@ -183,6 +183,36 @@ impl SourceMapBuilder {
         raw
     }
 
+    /// Adds a new mapping to the builder.
+    pub fn add_raw(
+        &mut self,
+        dst_line: u32,
+        dst_col: u32,
+        src_line: u32,
+        src_col: u32,
+        source: Option<u32>,
+        name: Option<u32>,
+    ) -> RawToken {
+        let src_id = match source {
+            Some(source) => source,
+            None => !0,
+        };
+        let name_id = match name {
+            Some(name) => name,
+            None => !0,
+        };
+        let raw = RawToken {
+            dst_line,
+            dst_col,
+            src_line,
+            src_col,
+            src_id,
+            name_id,
+        };
+        self.tokens.push(raw);
+        raw
+    }
+
     /// Shortcut for adding a new mapping based of an already existing token,
     /// optionally removing the name.
     pub fn add_token(&mut self, token: &Token<'_>, with_name: bool) -> RawToken {
