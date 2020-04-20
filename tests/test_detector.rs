@@ -5,11 +5,14 @@ fn test_basic_locate() {
     let input: &[_] = b"foo();\nbar();\n//# sourceMappingURL=foo.js";
     assert_eq!(
         locate_sourcemap_reference(input).unwrap(),
-        SourceMapRef::Ref("foo.js".into())
+        Some(SourceMapRef::Ref("foo.js".into()))
     );
     assert_eq!(
-        locate_sourcemap_reference(input).unwrap().get_url(),
-        Some("foo.js")
+        locate_sourcemap_reference(input)
+            .unwrap()
+            .unwrap()
+            .get_url(),
+        "foo.js"
     );
 }
 
@@ -18,21 +21,21 @@ fn test_legacy_locate() {
     let input: &[_] = b"foo();\nbar();\n//@ sourceMappingURL=foo.js";
     assert_eq!(
         locate_sourcemap_reference(input).unwrap(),
-        SourceMapRef::LegacyRef("foo.js".into())
+        Some(SourceMapRef::LegacyRef("foo.js".into()))
     );
     assert_eq!(
-        locate_sourcemap_reference(input).unwrap().get_url(),
-        Some("foo.js")
+        locate_sourcemap_reference(input)
+            .unwrap()
+            .unwrap()
+            .get_url(),
+        "foo.js"
     );
 }
 
 #[test]
 fn test_no_ref() {
     let input: &[_] = b"foo();\nbar();\n// whatever";
-    assert_eq!(
-        locate_sourcemap_reference(input).unwrap(),
-        SourceMapRef::Missing
-    );
+    assert_eq!(locate_sourcemap_reference(input).unwrap(), None);
 }
 
 #[test]

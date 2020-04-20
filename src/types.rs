@@ -56,6 +56,7 @@ impl<'a> Default for RewriteOptions<'a> {
 /// Usually the two things are too distinct to provide a common
 /// interface however for token lookup and writing back into a writer
 /// general methods are provided.
+#[derive(Debug, Clone)]
 pub enum DecodedMap {
     /// Indicates a regular sourcemap
     Regular(SourceMap),
@@ -89,6 +90,34 @@ impl DecodedMap {
             DecodedMap::Regular(ref sm) => sm.lookup_token(line, col),
             DecodedMap::Index(ref smi) => smi.lookup_token(line, col),
             DecodedMap::Hermes(ref smh) => smh.lookup_token(line, col),
+        }
+    }
+
+    /// Returns the original function name.
+    ///
+    /// `minified_name` and `source_view` are not always necessary.  For
+    /// instance hermes source maps can provide this information without
+    /// access to the original sources.
+    pub fn get_original_function_name(
+        &self,
+        line: u32,
+        col: u32,
+        minified_name: Option<&str>,
+        source_view: Option<&SourceView>,
+    ) -> Option<&str> {
+        match *self {
+            DecodedMap::Regular(ref sm) => {
+                sm.get_original_function_name(line, col, minified_name?, source_view?)
+            }
+            DecodedMap::Index(ref smi) => {
+                smi.get_original_function_name(line, col, minified_name?, source_view?)
+            }
+            DecodedMap::Hermes(ref smh) => {
+                if line != 0 {
+                    return None;
+                }
+                smh.get_original_function_name(col)
+            }
         }
     }
 }
@@ -380,6 +409,7 @@ impl<'a> fmt::Display for Token<'a> {
 }
 
 /// Represents a section in a sourcemap index
+#[derive(Debug, Clone)]
 pub struct SourceMapSection {
     offset: (u32, u32),
     url: Option<String>,
@@ -404,6 +434,7 @@ impl<'a> Iterator for SourceMapSectionIter<'a> {
 }
 
 /// Represents a sourcemap index in memory
+#[derive(Debug, Clone)]
 pub struct SourceMapIndex {
     file: Option<String>,
     sections: Vec<SourceMapSection>,
@@ -860,6 +891,25 @@ impl SourceMapIndex {
             i: self,
             next_idx: 0,
         }
+    }
+
+    /// Given a location, name and minified source file resolve a minified
+    /// name to an original function name.
+    ///
+    /// This invokes some guesswork and requires access to the original minified
+    /// source.  This will not yield proper results for anonymous functions or
+    /// functions that do not have clear function names.  (For instance it's
+    /// recommended that dotted function names are not passed to this
+    /// function).
+    pub fn get_original_function_name<'a>(
+        &self,
+        line: u32,
+        col: u32,
+        minified_name: &str,
+        sv: &'a SourceView<'a>,
+    ) -> Option<&str> {
+        self.lookup_token(line, col)
+            .and_then(|token| sv.get_original_function_name(token, minified_name))
     }
 
     /// Looks up the closest token to a given line and column.

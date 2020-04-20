@@ -11,12 +11,14 @@ use std::ops::{Deref, DerefMut};
 /// These are starting locations of scopes.
 /// The `name_index` represents the index into the `HermesFunctionMap.names` vec,
 /// which represents the function names/scopes.
+#[derive(Debug, Clone)]
 pub struct HermesScopeOffset {
     line: u32,
     column: u32,
     name_index: u32,
 }
 
+#[derive(Debug, Clone)]
 pub struct HermesFunctionMap {
     names: Vec<String>,
     mappings: Vec<HermesScopeOffset>,
@@ -24,6 +26,7 @@ pub struct HermesFunctionMap {
 
 /// Represents a `react-native`-style SourceMap, which has additional scope
 /// information embedded.
+#[derive(Debug, Clone)]
 pub struct SourceMapHermes {
     pub(crate) sm: SourceMap,
     // There should be one `HermesFunctionMap` per each `sources` entry in the main SourceMap.
