@@ -1,8 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
+use std::process;
 
 use argh::FromArgs;
-use sourcemap::{DecodedMap, SourceView};
+use sourcemap::{DecodedMap, SourceView, Token};
 
 /// Utility for working with source maps.
 #[derive(FromArgs, Debug)]
@@ -28,6 +29,9 @@ pub struct Cli {
     /// the function name that should be mapped
     #[argh(option, short = 'f')]
     function: Option<String>,
+    /// dumps all tokens
+    #[argh(switch)]
+    dump: bool,
 }
 
 impl Cli {
@@ -41,10 +45,57 @@ impl Cli {
 }
 
 fn bail(msg: &str) -> ! {
-    panic!("error: {}", msg);
+    eprintln!("error: {}", msg);
+    process::exit(1);
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn print_token(
+    sm: &DecodedMap,
+    token: &Token<'_>,
+    line: u32,
+    column: u32,
+    func: Option<&str>,
+    sv: Option<&SourceView>,
+) {
+    if let Some(name) = token.get_name() {
+        println!("  name: {:?}", name);
+    } else {
+        println!("  name: not found");
+    }
+    if let Some(source) = token.get_source() {
+        println!("  source file: {:?}", source);
+    } else {
+        println!("  source file: not found");
+    }
+    println!("  source line: {}", token.get_src_line());
+    println!("  source column: {}", token.get_src_col());
+    println!("  minified line: {}", token.get_dst_line());
+    println!("  minified column: {}", token.get_dst_col());
+    if let Some(name) = sm.get_original_function_name(line, column, func, sv) {
+        println!("  original function: {:?}", name);
+    } else {
+        println!("  original function: not found");
+    }
+    if let Some(line) = token
+        .get_source_view()
+        .and_then(|sv| sv.get_line(token.get_src_line()))
+    {
+        println!("  source line:");
+        println!("    {}", line.trim());
+    } else if token.get_source_view().is_none() {
+        println!("  cannot find source");
+    } else {
+        println!("  cannot find source line");
+    }
+}
+
+fn main() {
+    if let Err(err) = execute() {
+        eprintln!("error: {}", err);
+    }
+}
+
+fn execute() -> Result<(), Box<dyn std::error::Error>> {
     let args: Cli = argh::from_env();
 
     let sv = if let Some(ref path) = args.minified_file {
@@ -94,40 +145,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((line, column)) = args.lookup_pos() {
         println!("lookup line: {}, column: {}:", line, column);
         if let Some(token) = sm.lookup_token(line, column) {
-            if let Some(name) = token.get_name() {
-                println!("  name: {:?}", name);
-            } else {
-                println!("  name: not found");
-            }
-            if let Some(source) = token.get_source() {
-                println!("  source file: {:?}", source);
-            } else {
-                println!("  source file: not found");
-            }
-            println!("  source line: {}", token.get_src_line());
-            println!("  source column: {}", token.get_src_col());
-            println!("  minified line: {}", token.get_dst_line());
-            println!("  minified column: {}", token.get_dst_col());
-            if let Some(name) =
-                sm.get_original_function_name(line, column, args.function.as_deref(), sv.as_ref())
-            {
-                println!("  original function: {:?}", name);
-            } else {
-                println!("  original function: not found");
-            }
-            if let Some(line) = token
-                .get_source_view()
-                .and_then(|sv| sv.get_line(token.get_src_line()))
-            {
-                println!("  source line:");
-                println!("    {}", line.trim());
-            } else if token.get_source_view().is_none() {
-                println!("  cannot find source");
-            } else {
-                println!("  cannot find source line");
-            }
+            print_token(
+                &sm,
+                &token,
+                line,
+                column,
+                args.function.as_deref(),
+                sv.as_ref(),
+            );
         } else {
             println!("  - no match");
+        }
+    }
+
+    // dump all tokens
+    if args.dump {
+        println!("tokens:");
+        let converted_map;
+        let token_iter = match sm {
+            DecodedMap::Regular(ref sm) => sm.tokens(),
+            DecodedMap::Index(ref sm) => {
+                converted_map = sm.flatten()?;
+                converted_map.tokens()
+            }
+            DecodedMap::Hermes(ref sm) => sm.tokens(),
+        };
+        for token in token_iter {
+            println!(
+                "  {}:{} -> {}:{}:{}{}",
+                token.get_dst_line(),
+                token.get_dst_col(),
+                token.get_source().unwrap_or(""),
+                token.get_src_line(),
+                token.get_src_col(),
+                if let Some(name) = token.get_name() {
+                    format!(" [{}]", name)
+                } else {
+                    "".to_string()
+                },
+            );
         }
     }
 
