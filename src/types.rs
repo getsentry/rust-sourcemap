@@ -272,6 +272,11 @@ impl<'a> Token<'a> {
     pub fn get_raw_token(&self) -> RawToken {
         *self.raw
     }
+
+    /// Returns the referenced source view.
+    pub fn source_view(&self) -> Option<&SourceView<'_>> {
+        self.i.get_source_view(self.get_src_id())
+    }
 }
 
 pub fn idx_from_token(token: &Token<'_>) -> u32 {
@@ -920,7 +925,6 @@ impl SourceMapIndex {
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         for section in self.sections() {
             let (off_line, off_col) = section.get_offset();
-            println!("off_line: {}, off_col: {}", off_line, off_col);
             if off_line < line || off_col < col {
                 continue;
             }
