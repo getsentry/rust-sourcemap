@@ -274,7 +274,7 @@ impl<'a> Token<'a> {
     }
 
     /// Returns the referenced source view.
-    pub fn source_view(&self) -> Option<&SourceView<'_>> {
+    pub fn get_source_view(&self) -> Option<&SourceView<'_>> {
         self.i.get_source_view(self.get_src_id())
     }
 }
