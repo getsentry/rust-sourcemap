@@ -6,6 +6,8 @@ use std::str;
 
 use if_chain::if_chain;
 
+use crate::detector::{locate_sourcemap_reference_slice, SourceMapRef};
+use crate::errors::Result;
 use crate::types::{idx_from_token, sourcemap_from_token, Token};
 use crate::utils::{get_javascript_token, is_valid_javascript_identifier};
 
@@ -319,6 +321,11 @@ impl<'a> SourceView<'a> {
     pub fn line_count(&self) -> usize {
         self.get_line(!0);
         self.lines.borrow().len()
+    }
+
+    /// Returns the source map reference in the source view.
+    pub fn sourcemap_reference(&self) -> Result<Option<SourceMapRef>> {
+        locate_sourcemap_reference_slice(self.source.as_bytes())
     }
 }
 

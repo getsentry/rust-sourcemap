@@ -15,7 +15,7 @@ pub struct RawSection {
     pub map: Option<Box<RawSourceMap>>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FacebookScopeMapping {
     pub names: Vec<String>,
     pub mappings: String,

@@ -1,4 +1,5 @@
 use std::io::{BufRead, BufReader, Read};
+use std::path::{Path, PathBuf};
 use std::str;
 
 use crate::decoder::{decode_data_url, strip_junk_header, StripHeaderReader};
@@ -7,6 +8,7 @@ use crate::jsontypes::MinimalRawSourceMap;
 use crate::types::DecodedMap;
 
 use serde_json;
+use url::Url;
 
 /// Represents a reference to a sourcemap
 #[derive(PartialEq, Debug)]
@@ -15,28 +17,53 @@ pub enum SourceMapRef {
     Ref(String),
     /// A legacy URL reference
     LegacyRef(String),
-    /// Indicates a missing reference
-    Missing,
+}
+
+fn resolve_url(ref_url: &str, minified_url: &Url) -> Option<Url> {
+    minified_url.join(ref_url).ok()
 }
 
 impl SourceMapRef {
     /// Return the URL of the reference
-    pub fn get_url(&self) -> Option<&str> {
+    pub fn get_url(&self) -> &str {
         match *self {
-            SourceMapRef::Ref(ref u) => Some(u.as_str()),
-            SourceMapRef::LegacyRef(ref u) => Some(u.as_str()),
-            SourceMapRef::Missing => None,
+            SourceMapRef::Ref(ref u) => u.as_str(),
+            SourceMapRef::LegacyRef(ref u) => u.as_str(),
         }
+    }
+
+    /// Resolves the reference.
+    ///
+    /// The given minified URL needs to be the URL of the minified file.  The
+    /// result is the fully resolved URL of where the source map can be located.
+    pub fn resolve(&self, minified_url: &str) -> Option<String> {
+        let url = self.get_url();
+        if url.starts_with("data:") {
+            return None;
+        }
+        resolve_url(url, &Url::parse(&minified_url).ok()?).map(|x| x.to_string())
+    }
+
+    /// Resolves the reference against a local file path
+    ///
+    /// This is similar to `resolve` but operates on file paths.
+    pub fn resolve_path(&self, minified_path: &Path) -> Option<PathBuf> {
+        let url = self.get_url();
+        if url.starts_with("data:") {
+            return None;
+        }
+        resolve_url(url, &Url::from_file_path(&minified_path).ok()?)
+            .and_then(|x| x.to_file_path().ok())
     }
 
     /// Load an embedded sourcemap if there is a data URL.
     pub fn get_embedded_sourcemap(&self) -> Result<Option<DecodedMap>> {
-        if let Some(url) = self.get_url() {
-            if url.starts_with("data:") {
-                return Ok(Some(decode_data_url(url)?));
-            }
+        let url = self.get_url();
+        if url.starts_with("data:") {
+            Ok(Some(decode_data_url(url)?))
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 }
 
@@ -44,26 +71,26 @@ impl SourceMapRef {
 ///
 /// Given a reader to a JavaScript file this tries to find the correct
 /// sourcemap reference comment and return it.
-pub fn locate_sourcemap_reference<R: Read>(rdr: R) -> Result<SourceMapRef> {
+pub fn locate_sourcemap_reference<R: Read>(rdr: R) -> Result<Option<SourceMapRef>> {
     for line in BufReader::new(rdr).lines() {
         let line = line?;
         if line.starts_with("//# sourceMappingURL=") || line.starts_with("//@ sourceMappingURL=") {
             let url = str::from_utf8(&line.as_bytes()[21..])?.trim().to_owned();
             if line.starts_with("//@") {
-                return Ok(SourceMapRef::LegacyRef(url));
+                return Ok(Some(SourceMapRef::LegacyRef(url)));
             } else {
-                return Ok(SourceMapRef::Ref(url));
+                return Ok(Some(SourceMapRef::Ref(url)));
             }
         }
     }
-    Ok(SourceMapRef::Missing)
+    Ok(None)
 }
 
 /// Locates a sourcemap reference in a slice
 ///
 /// This is an alternative to `locate_sourcemap_reference` that operates
 /// on slices.
-pub fn locate_sourcemap_reference_slice(slice: &[u8]) -> Result<SourceMapRef> {
+pub fn locate_sourcemap_reference_slice(slice: &[u8]) -> Result<Option<SourceMapRef>> {
     locate_sourcemap_reference(slice)
 }
 
