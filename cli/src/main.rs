@@ -34,8 +34,8 @@ impl Cli {
     /// Retrurns the zero indexed line
     fn lookup_pos(&self) -> Option<(u32, u32)> {
         Some((
-            self.line0.unwrap_or_else(|| self.line.map_or(0, |x| x + 1)),
-            self.column0.or_else(|| self.column.map(|x| x + 1))?,
+            self.line0.unwrap_or_else(|| self.line.map_or(0, |x| x - 1)),
+            self.column0.or_else(|| self.column.map(|x| x - 1))?,
         ))
     }
 }
