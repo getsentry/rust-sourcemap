@@ -1,6 +1,5 @@
 use std::io::Write;
 
-use serde_json;
 use serde_json::Value;
 
 use crate::errors::Result;

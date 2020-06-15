@@ -1,8 +1,6 @@
 use std::io;
 use std::io::{BufReader, Read};
 
-use base64;
-use serde_json;
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
@@ -130,7 +128,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut name_id = 0;
 
     let names = rsm.names.unwrap_or_default();
-    let sources = rsm.sources.unwrap_or_else(|| vec![]);
+    let sources = rsm.sources.unwrap_or_else(Vec::new);
     let mappings = rsm.mappings.unwrap_or_else(|| "".into());
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
