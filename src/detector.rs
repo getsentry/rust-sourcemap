@@ -7,7 +7,6 @@ use crate::errors::Result;
 use crate::jsontypes::MinimalRawSourceMap;
 use crate::types::DecodedMap;
 
-use serde_json;
 use url::Url;
 
 /// Represents a reference to a sourcemap

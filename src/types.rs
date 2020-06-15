@@ -1038,7 +1038,7 @@ impl SourceMapSection {
 
     /// Returns the URL of the referenced map if available
     pub fn get_url(&self) -> Option<&str> {
-        self.url.as_ref().map(|x| &**x)
+        self.url.as_deref()
     }
 
     /// Updates the URL for this section.
