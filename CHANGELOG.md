@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 6.0.0
 
 **Breaking Changes**:
 
@@ -12,3 +12,4 @@
 
 - Added missing `Clone` and `Debug` impls to a lot of types.
 - A lot of new convenience API, including a `DecodedMap::get_original_function_name` method that works across all supported SourceMap types.
+
