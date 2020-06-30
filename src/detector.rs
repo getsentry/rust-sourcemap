@@ -46,6 +46,7 @@ impl SourceMapRef {
     /// Resolves the reference against a local file path
     ///
     /// This is similar to `resolve` but operates on file paths.
+    #[cfg(any(unix, windows, target_os = "redox"))]
     pub fn resolve_path(&self, minified_path: &Path) -> Option<PathBuf> {
         let url = self.get_url();
         if url.starts_with("data:") {
