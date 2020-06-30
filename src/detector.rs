@@ -1,5 +1,4 @@
 use std::io::{BufRead, BufReader, Read};
-use std::path::{Path, PathBuf};
 use std::str;
 
 use crate::decoder::{decode_data_url, strip_junk_header, StripHeaderReader};
@@ -47,7 +46,7 @@ impl SourceMapRef {
     ///
     /// This is similar to `resolve` but operates on file paths.
     #[cfg(any(unix, windows, target_os = "redox"))]
-    pub fn resolve_path(&self, minified_path: &Path) -> Option<PathBuf> {
+    pub fn resolve_path(&self, minified_path: &std::path::Path) -> Option<std::path::PathBuf> {
         let url = self.get_url();
         if url.starts_with("data:") {
             return None;
