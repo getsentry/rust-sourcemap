@@ -1,6 +1,6 @@
 [package]
 name = "cli"
-version = "6.0.0"
+version = "6.0.1"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 edition = "2018"
 
