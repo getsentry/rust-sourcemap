@@ -130,13 +130,13 @@ impl DecodedMap {
 /// to you as a user.
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct RawToken {
-    /// the destination (minified) line number
+    /// the destination (minified) line number (0-indexed)
     pub dst_line: u32,
-    /// the destination (minified) column number
+    /// the destination (minified) column number (0-indexed)
     pub dst_col: u32,
-    /// the source line number
+    /// the source line number (0-indexed)
     pub src_line: u32,
-    /// the source line column
+    /// the source line column (0-indexed)
     pub src_col: u32,
     /// source identifier
     pub src_id: u32,
@@ -600,7 +600,7 @@ impl SourceMap {
         }
     }
 
-    /// Looks up the closest token to a given line and column.
+    /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         let mut low = 0;
         let mut high = self.index.len();
