@@ -109,7 +109,7 @@ where
                 token,
                 source_line
                     .get(byte_offset..)
-                    .and_then(|s| get_javascript_token(s)),
+                    .and_then(get_javascript_token),
             ))
         }
     }
