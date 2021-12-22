@@ -63,7 +63,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --locked
+          args: --workspace
 
   unit-test-all-features:
     name: "Unit Tests - all features"
@@ -86,7 +86,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features --locked
+          args: --workspace --all-features
 
   doc-comments:
     name: Rust doc comments

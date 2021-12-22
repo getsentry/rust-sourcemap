@@ -34,4 +34,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features --locked
+          args: --workspace --all-features
