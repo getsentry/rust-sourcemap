@@ -39,7 +39,7 @@ impl SourceMapRef {
         if url.starts_with("data:") {
             return None;
         }
-        resolve_url(url, &Url::parse(&minified_url).ok()?).map(|x| x.to_string())
+        resolve_url(url, &Url::parse(minified_url).ok()?).map(|x| x.to_string())
     }
 
     /// Resolves the reference against a local file path

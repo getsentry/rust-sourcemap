@@ -146,11 +146,11 @@ pub fn make_relative_path(base: &str, target: &str) -> String {
 
 #[test]
 fn test_is_abs_path() {
-    assert_eq!(is_abs_path("C:\\foo.txt"), true);
-    assert_eq!(is_abs_path("d:/foo.txt"), true);
-    assert_eq!(is_abs_path("foo.txt"), false);
-    assert_eq!(is_abs_path("/foo.txt"), true);
-    assert_eq!(is_abs_path("/"), true);
+    assert!(is_abs_path("C:\\foo.txt"));
+    assert!(is_abs_path("d:/foo.txt"));
+    assert!(!is_abs_path("foo.txt"));
+    assert!(is_abs_path("/foo.txt"));
+    assert!(is_abs_path("/"));
 }
 
 #[test]

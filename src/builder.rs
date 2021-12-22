@@ -125,7 +125,7 @@ impl SourceMapBuilder {
             if self.has_source_contents(src_id) {
                 continue;
             }
-            if let Some(path) = resolve_local_reference(&base_url, &source) {
+            if let Some(path) = resolve_local_reference(&base_url, source) {
                 to_read.push((src_id, path));
             }
         }
@@ -193,14 +193,8 @@ impl SourceMapBuilder {
         source: Option<u32>,
         name: Option<u32>,
     ) -> RawToken {
-        let src_id = match source {
-            Some(source) => source,
-            None => !0,
-        };
-        let name_id = match name {
-            Some(name) => name,
-            None => !0,
-        };
+        let src_id = source.unwrap_or(!0);
+        let name_id = name.unwrap_or(!0);
         let raw = RawToken {
             dst_line,
             dst_col,

@@ -555,7 +555,7 @@ impl SourceMap {
             .enumerate()
             .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32))
             .collect();
-        index.sort();
+        index.sort_unstable();
         SourceMap {
             file,
             tokens,

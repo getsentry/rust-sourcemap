@@ -89,7 +89,7 @@ impl<'a> Iterator for RamBundleModuleIter<'a> {
     type Item = Result<RamBundleModule<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(next_id) = self.range.next() {
+        for next_id in self.range.by_ref() {
             match self.ram_bundle.get_module(next_id) {
                 Ok(None) => continue,
                 Ok(Some(module)) => return Some(Ok(module)),
@@ -575,9 +575,9 @@ fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<dyn std::error
 #[test]
 fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let valid_bundle_path = Path::new("./tests/fixtures/ram_bundle/file_bundle_1/basic.bundle");
-    assert!(is_unbundle_path(&valid_bundle_path));
+    assert!(is_unbundle_path(valid_bundle_path));
 
-    assert!(!is_unbundle_path(&Path::new("./tmp/invalid/bundle/path")));
+    assert!(!is_unbundle_path(Path::new("./tmp/invalid/bundle/path")));
 
     let ram_bundle = RamBundle::parse_unbundle_from_path(valid_bundle_path)?;
 
