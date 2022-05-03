@@ -7,9 +7,9 @@ use crate::errors::{Error, Result};
 use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
-use crate::vlq::parse_vlq_segment;
+use crate::vlq::parse_vlq_segment_into;
 
-const DATA_PREABLE: &str = "data:application/json;base64,";
+const DATA_PREAMBLE: &str = "data:application/json;base64,";
 
 #[derive(PartialEq)]
 enum HeaderState {
@@ -129,9 +129,11 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
-    let mappings = rsm.mappings.unwrap_or_else(|| "".into());
+    let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
+
+    let mut nums = Vec::with_capacity(6);
 
     for (dst_line, line) in mappings.split(';').enumerate() {
         if line.is_empty() {
@@ -145,7 +147,8 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 continue;
             }
 
-            let nums = parse_vlq_segment(segment)?;
+            nums.clear();
+            parse_vlq_segment_into(segment, &mut nums)?;
             dst_col = (i64::from(dst_col) + nums[0]) as u32;
 
             let mut src = !0;
@@ -296,10 +299,10 @@ pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
 
 /// Loads a sourcemap from a data URL
 pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
-    if !url.starts_with(DATA_PREABLE) {
+    if !url.starts_with(DATA_PREAMBLE) {
         fail!(Error::InvalidDataUrl);
     }
-    let data_b64 = &url[DATA_PREABLE.len()..];
+    let data_b64 = &url[DATA_PREAMBLE.len()..];
     let data = base64::decode(data_b64).map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }

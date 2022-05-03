@@ -3,7 +3,7 @@ use crate::encoder::{encode, Encodable};
 use crate::errors::{Error, Result};
 use crate::jsontypes::{FacebookScopeMapping, FacebookSources, RawSourceMap};
 use crate::types::{DecodedMap, RewriteOptions, SourceMap};
-use crate::vlq::parse_vlq_segment;
+use crate::vlq::parse_vlq_segment_into;
 use std::cmp::Ordering;
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
@@ -147,6 +147,8 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
     // This is basically the logic from here:
     // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L182-L202
 
+    let mut nums = Vec::with_capacity(4);
+
     let function_maps = x_facebook_sources
         .iter()
         .map(|v| {
@@ -171,7 +173,9 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
                         continue;
                     }
 
-                    let mut nums = parse_vlq_segment(mapping).ok()?.into_iter();
+                    nums.clear();
+                    parse_vlq_segment_into(mapping, &mut nums).ok()?;
+                    let mut nums = nums.iter().copied();
 
                     column = (i64::from(column) + nums.next()?) as u32;
                     name_index = (i64::from(name_index) + nums.next().unwrap_or(0)) as u32;

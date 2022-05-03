@@ -265,6 +265,13 @@ const B64: [i8; 256] = [
 pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
     let mut rv = vec![];
 
+    parse_vlq_segment_into(segment, &mut rv)?;
+
+    Ok(rv)
+}
+
+/// Parses a VLQ segment into a pre-allocated `Vec` instead of returning a new allocation.
+pub(crate) fn parse_vlq_segment_into(segment: &str, rv: &mut Vec<i64>) -> Result<()> {
     let mut cur = 0;
     let mut shift = 0;
 
@@ -292,7 +299,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
     } else if rv.is_empty() {
         Err(Error::VlqNoValues)
     } else {
-        Ok(rv)
+        Ok(())
     }
 }
 
