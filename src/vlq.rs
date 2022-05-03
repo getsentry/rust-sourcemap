@@ -270,6 +270,7 @@ pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
     Ok(rv)
 }
 
+/// Parses a VLQ segment into a pre-allocated `Vec` instead of returning a new allocation.
 pub(crate) fn parse_vlq_segment_into(segment: &str, rv: &mut Vec<i64>) -> Result<()> {
     let mut cur = 0;
     let mut shift = 0;

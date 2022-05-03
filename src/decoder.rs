@@ -9,7 +9,7 @@ use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
 use crate::vlq::parse_vlq_segment_into;
 
-const DATA_PREABLE: &str = "data:application/json;base64,";
+const DATA_PREAMBLE: &str = "data:application/json;base64,";
 
 #[derive(PartialEq)]
 enum HeaderState {
@@ -299,10 +299,10 @@ pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
 
 /// Loads a sourcemap from a data URL
 pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
-    if !url.starts_with(DATA_PREABLE) {
+    if !url.starts_with(DATA_PREAMBLE) {
         fail!(Error::InvalidDataUrl);
     }
-    let data_b64 = &url[DATA_PREABLE.len()..];
+    let data_b64 = &url[DATA_PREAMBLE.len()..];
     let data = base64::decode(data_b64).map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }
