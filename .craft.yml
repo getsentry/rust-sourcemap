@@ -1,8 +1,5 @@
 ---
-minVersion: "0.10.0"
-github:
-  owner: getsentry
-  repo: rust-sourcemap
+minVersion: "0.21.0"
 changelogPolicy: auto
 statusProvider:
   name: github
@@ -10,4 +7,3 @@ preReleaseCommand: bash scripts/bump-version
 targets:
   - name: crates
   - name: github
-    includeNames: /none/ # HACK to avoid Zeus
