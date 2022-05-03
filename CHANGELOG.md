@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Fixes**:
+
+- Improve parsing performance by reusing a temporary allocation. [#40](https://github.com/getsentry/rust-sourcemap/pull/40)
+
 ## 6.0.1
 
 **Fixes**:
