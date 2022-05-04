@@ -1,8 +1,8 @@
 ---
 minVersion: "0.21.0"
 changelogPolicy: auto
-statusProvider:
-  name: github
+artifactProvider:
+  name: none
 preReleaseCommand: bash scripts/bump-version
 targets:
   - name: crates
