@@ -9,7 +9,7 @@ use crate::types::DecodedMap;
 use url::Url;
 
 /// Represents a reference to a sourcemap
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SourceMapRef {
     /// A regular URL reference
     Ref(String),
