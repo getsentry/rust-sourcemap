@@ -11,7 +11,7 @@ use crate::vlq::parse_vlq_segment_into;
 
 const DATA_PREAMBLE: &str = "data:application/json;base64,";
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 enum HeaderState {
     Undecided,
     Junk,

@@ -128,7 +128,7 @@ impl DecodedMap {
 /// in a memory efficient way.  If you construct sourcemaps yourself
 /// then you need to create these objects, otherwise they are invisible
 /// to you as a user.
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub struct RawToken {
     /// the destination (minified) line number (0-indexed)
     pub dst_line: u32,
