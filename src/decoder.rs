@@ -50,7 +50,7 @@ impl<R: Read> Read for StripHeaderReader<R> {
 impl<R: Read> StripHeaderReader<R> {
     fn strip_head_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut backing = vec![0; buf.len()];
-        let local_buf: &mut [u8] = &mut *backing;
+        let local_buf: &mut [u8] = &mut backing;
 
         loop {
             let read = self.r.read(local_buf)?;
@@ -63,7 +63,7 @@ impl<R: Read> StripHeaderReader<R> {
                         if is_junk_json(byte) {
                             HeaderState::Junk
                         } else {
-                            (&mut buf[..read]).copy_from_slice(&local_buf[..read]);
+                            buf[..read].copy_from_slice(&local_buf[..read]);
                             self.header_state = HeaderState::PastHeader;
                             return Ok(read);
                         }
@@ -89,7 +89,7 @@ impl<R: Read> StripHeaderReader<R> {
                     }
                     HeaderState::PastHeader => {
                         let rem = read - offset;
-                        (&mut buf[..rem]).copy_from_slice(&local_buf[offset..read]);
+                        buf[..rem].copy_from_slice(&local_buf[offset..read]);
                         return Ok(rem);
                     }
                 };
