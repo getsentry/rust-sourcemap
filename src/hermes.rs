@@ -4,6 +4,7 @@ use crate::errors::{Error, Result};
 use crate::jsontypes::{FacebookScopeMapping, FacebookSources, RawSourceMap};
 use crate::types::{DecodedMap, RewriteOptions, SourceMap};
 use crate::vlq::parse_vlq_segment_into;
+use crate::Token;
 use std::cmp::Ordering;
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
@@ -94,6 +95,11 @@ impl SourceMapHermes {
     pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&str> {
         let token = self.sm.lookup_token(0, bytecode_offset)?;
 
+        self.get_scope_for_token(token)
+    }
+
+    /// Resolves the name of the enclosing function for the given [`Token`].
+    pub fn get_scope_for_token(&self, token: Token) -> Option<&str> {
         let function_map = (self.function_maps.get(token.get_src_id() as usize))?.as_ref()?;
 
         // Find the closest mapping, just like here:
