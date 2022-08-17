@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Features**:
+
+- Add a new `get_scope_for_token` method to `SourceMapHermes` as a more flexible alternative to `get_original_function_name`. ([#48](https://github.com/getsentry/rust-sourcemap/pull/48))
+
 ## 6.0.2
 
 **Fixes**:
