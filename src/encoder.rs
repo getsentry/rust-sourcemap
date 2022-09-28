@@ -85,8 +85,7 @@ impl Encodable for SourceMap {
             version: Some(3),
             file: self.get_file().map(|x| Value::String(x.to_string())),
             sources: Some(self.sources().map(|x| Some(x.to_string())).collect()),
-            // XXX: consider setting this to common root
-            source_root: None,
+            source_root: self.get_source_root().map(|x| x.to_string()),
             sources_content: if have_contents { Some(contents) } else { None },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),

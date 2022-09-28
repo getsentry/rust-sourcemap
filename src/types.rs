@@ -458,6 +458,7 @@ pub struct SourceMap {
     tokens: Vec<RawToken>,
     index: Vec<(u32, u32, u32)>,
     names: Vec<String>,
+    source_root: Option<String>,
     sources: Vec<String>,
     sources_content: Vec<Option<SourceView<'static>>>,
 }
@@ -494,7 +495,7 @@ impl SourceMap {
     ///
     /// Note that this operation will generate an equivalent sourcemap to the
     /// one that was generated on load however there might be small differences
-    /// in the generated JSON and layout.  For instance `sourceRoot` will not
+    /// in the generated JSON and layout. For instance `sourceRoot` will not
     /// be set as upon parsing of the sourcemap the sources will already be
     /// expanded.
     ///
@@ -561,6 +562,7 @@ impl SourceMap {
             tokens,
             index,
             names,
+            source_root: None,
             sources,
             sources_content: sources_content
                 .unwrap_or_default()
@@ -572,12 +574,22 @@ impl SourceMap {
 
     /// Returns the embedded filename in case there is one.
     pub fn get_file(&self) -> Option<&str> {
-        self.file.as_ref().map(|x| &x[..])
+        self.file.as_deref()
     }
 
     /// Sets a new value for the file.
-    pub fn set_file(&mut self, value: Option<&str>) {
-        self.file = value.map(str::to_owned);
+    pub fn set_file<T: Into<String>>(&mut self, value: Option<T>) {
+        self.file = value.map(Into::into);
+    }
+
+    /// Returns the embedded source_root in case there is one.
+    pub fn get_source_root(&self) -> Option<&str> {
+        self.source_root.as_deref()
+    }
+
+    /// Sets a new value for the source_root.
+    pub fn set_source_root<T: Into<String>>(&mut self, value: Option<T>) {
+        self.source_root = value.map(Into::into);
     }
 
     /// Looks up a token by its index.

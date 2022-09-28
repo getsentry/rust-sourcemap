@@ -23,6 +23,7 @@ pub struct SourceMapBuilder {
     names: Vec<String>,
     tokens: Vec<RawToken>,
     source_map: HashMap<String, u32>,
+    source_root: Option<String>,
     sources: Vec<String>,
     source_contents: Vec<Option<String>>,
 }
@@ -53,19 +54,30 @@ impl SourceMapBuilder {
             names: vec![],
             tokens: vec![],
             source_map: HashMap::new(),
+            source_root: None,
             sources: vec![],
             source_contents: vec![],
         }
     }
 
     /// Sets the file for the sourcemap (optional)
-    pub fn set_file(&mut self, value: Option<&str>) {
-        self.file = value.map(str::to_owned);
+    pub fn set_file<T: Into<String>>(&mut self, value: Option<T>) {
+        self.file = value.map(Into::into);
     }
 
     /// Returns the currently set file.
     pub fn get_file(&self) -> Option<&str> {
-        self.file.as_ref().map(|x| &x[..])
+        self.file.as_deref()
+    }
+
+    /// Sets a new value for the source_root.
+    pub fn set_source_root<T: Into<String>>(&mut self, value: Option<T>) {
+        self.source_root = value.map(Into::into);
+    }
+
+    /// Returns the embedded source_root in case there is one.
+    pub fn get_source_root(&self) -> Option<&str> {
+        self.source_root.as_deref()
     }
 
     /// Registers a new source with the builder and returns the source ID.
@@ -244,6 +256,10 @@ impl SourceMapBuilder {
         } else {
             None
         };
-        SourceMap::new(self.file, self.tokens, self.names, self.sources, contents)
+
+        let mut sm = SourceMap::new(self.file, self.tokens, self.names, self.sources, contents);
+        sm.set_source_root(self.source_root.as_deref());
+
+        sm
     }
 }
