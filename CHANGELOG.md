@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.2.0
+
+**Features**:
+
+- Add `source_root` support for `SourceMap` and `SourceMapBuilder`, with respective getters/setters and de/serialization. ([#51](https://github.com/getsentry/rust-sourcemap/pull/51))
+
 ## 6.1.0
 
 **Features**:
