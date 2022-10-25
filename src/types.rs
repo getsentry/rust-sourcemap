@@ -628,10 +628,12 @@ impl SourceMap {
         }
 
         if low > 0 && low <= self.index.len() {
-            self.get_token(self.index[low as usize - 1].2)
-        } else {
-            None
+            let ii = &self.index[low - 1];
+            if line == ii.0 {
+                return self.get_token(ii.2);
+            }
         }
+        None
     }
 
     /// Given a location, name and minified source file resolve a minified
