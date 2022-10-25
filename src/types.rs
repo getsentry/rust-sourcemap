@@ -295,14 +295,11 @@ pub struct TokenIter<'a> {
 
 impl<'a> TokenIter<'a> {
     pub fn seek(&mut self, line: u32, col: u32) -> bool {
-        let token = self.i.lookup_token(line, col);
-        match token {
-            Some(token) => {
-                self.next_idx = token.idx + 1;
-                true
-            }
-            None => false,
-        }
+        let ii = greatest_lower_bound(&self.i.index, |ii| (line, col).cmp(&(ii.0, ii.1)));
+        ii.map(|ii| {
+            self.next_idx = ii.2 + 1;
+        })
+        .is_some()
     }
 }
 
@@ -614,26 +611,14 @@ impl SourceMap {
 
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let mut low = 0;
-        let mut high = self.index.len();
-
-        while low < high {
-            let mid = (low + high) / 2;
-            let ii = &self.index[mid];
-            if (line, col) < (ii.0, ii.1) {
-                high = mid;
-            } else {
-                low = mid + 1;
-            }
-        }
-
-        if low > 0 && low <= self.index.len() {
-            let ii = &self.index[low - 1];
+        let ii = greatest_lower_bound(&self.index, |ii| (line, col).cmp(&(ii.0, ii.1)));
+        ii.and_then(|ii| {
             if line == ii.0 {
-                return self.get_token(ii.2);
+                self.get_token(ii.2)
+            } else {
+                None
             }
-        }
-        None
+        })
     }
 
     /// Given a location, name and minified source file resolve a minified
@@ -937,30 +922,16 @@ impl SourceMapIndex {
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let mut low = 0;
-        let mut high = self.sections.len();
-
-        while low < high {
-            let mid = (low + high) / 2;
-            let section = &self.sections[mid];
-            if (line, col) < section.get_offset() {
-                high = mid;
-            } else {
-                low = mid + 1;
-            }
-        }
-
-        if low > 0 && low <= self.sections.len() {
-            let section = &self.sections[low - 1];
-            let (off_line, off_col) = section.get_offset();
-            if let Some(map) = section.get_sourcemap() {
-                return map.lookup_token(
+        let section = greatest_lower_bound(&self.sections, |s| (line, col).cmp(&s.get_offset()));
+        section.and_then(|s| {
+            s.get_sourcemap().and_then(|m| {
+                let (off_line, off_col) = s.get_offset();
+                m.lookup_token(
                     line - off_line,
                     if line == off_line { col - off_col } else { col },
-                );
-            }
-        }
-        None
+                )
+            })
+        })
     }
 
     /// Flattens an indexed sourcemap into a regular one.  This requires
@@ -1085,5 +1056,26 @@ impl SourceMapSection {
     /// Replaces the embedded sourcemap
     pub fn set_sourcemap(&mut self, sm: Option<DecodedMap>) {
         self.map = sm.map(Box::new);
+    }
+}
+
+fn greatest_lower_bound<T, C: Fn(&T) -> Ordering>(slice: &[T], cmp: C) -> Option<&T> {
+    let mut low = 0;
+    let mut high = slice.len();
+
+    while low < high {
+        let mid = (low + high) / 2;
+        let ii = &slice[mid];
+        if cmp(ii) == Ordering::Less {
+            high = mid;
+        } else {
+            low = mid + 1;
+        }
+    }
+
+    if low > 0 && low <= slice.len() {
+        Some(&slice[low - 1])
+    } else {
+        None
     }
 }
