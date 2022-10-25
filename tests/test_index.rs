@@ -23,7 +23,7 @@ fn test_basic_indexed_sourcemap() {
             {
                 "offset": {
                     "line": 1,
-                    "column": 0
+                    "column": 1
                 },
                 "map": {
                     "version":3,
@@ -95,6 +95,24 @@ fn test_basic_indexed_sourcemap() {
             .unwrap_or_else(|| panic!("no source for {}", filename));
         assert_eq!(&view.lines().collect::<Vec<_>>(), ref_contents);
     }
+
+    assert_eq!(
+        ism.lookup_token(0, 0).unwrap().to_tuple(),
+        ("file1.js", 0, 0, None)
+    );
+    assert_eq!(ism.lookup_token(1, 0), None);
+    assert_eq!(
+        ism.lookup_token(1, 1).unwrap().to_tuple(),
+        ("file2.js", 0, 0, None)
+    );
+    assert_eq!(
+        ism.lookup_token(1, 8).unwrap().to_tuple(),
+        ("file2.js", 0, 0, None)
+    );
+    assert_eq!(
+        ism.lookup_token(1, 9).unwrap().to_tuple(),
+        ("file2.js", 0, 9, Some("multiply"))
+    );
 }
 
 #[test]

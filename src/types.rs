@@ -619,7 +619,7 @@ impl SourceMap {
 
         while low < high {
             let mid = (low + high) / 2;
-            let ii = &self.index[mid as usize];
+            let ii = &self.index[mid];
             if (line, col) < (ii.0, ii.1) {
                 high = mid;
             } else {
@@ -935,15 +935,27 @@ impl SourceMapIndex {
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        for section in self.sections() {
-            let (off_line, off_col) = section.get_offset();
-            if off_line < line || off_col < col {
-                continue;
+        let mut low = 0;
+        let mut high = self.sections.len();
+
+        while low < high {
+            let mid = (low + high) / 2;
+            let section = &self.sections[mid];
+            if (line, col) < section.get_offset() {
+                high = mid;
+            } else {
+                low = mid + 1;
             }
+        }
+
+        if low > 0 && low <= self.sections.len() {
+            let section = &self.sections[low - 1];
+            let (off_line, off_col) = section.get_offset();
             if let Some(map) = section.get_sourcemap() {
-                if let Some(tok) = map.lookup_token(line - off_line, col - off_col) {
-                    return Some(tok);
-                }
+                return map.lookup_token(
+                    line - off_line,
+                    if line == off_line { col - off_col } else { col },
+                );
             }
         }
         None
