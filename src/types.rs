@@ -295,11 +295,14 @@ pub struct TokenIter<'a> {
 
 impl<'a> TokenIter<'a> {
     pub fn seek(&mut self, line: u32, col: u32) -> bool {
-        let ii = greatest_lower_bound(&self.i.index, |ii| (line, col).cmp(&(ii.0, ii.1)));
-        ii.map(|ii| {
-            self.next_idx = ii.2 + 1;
-        })
-        .is_some()
+        let token = self.i.lookup_token(line, col);
+        match token {
+            Some(token) => {
+                self.next_idx = token.idx + 1;
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -612,13 +615,7 @@ impl SourceMap {
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         let ii = greatest_lower_bound(&self.index, |ii| (line, col).cmp(&(ii.0, ii.1)));
-        ii.and_then(|ii| {
-            if line == ii.0 {
-                self.get_token(ii.2)
-            } else {
-                None
-            }
-        })
+        self.get_token(ii.2)
     }
 
     /// Given a location, name and minified source file resolve a minified

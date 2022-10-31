@@ -29,6 +29,9 @@ fn test_basic_sourcemap() {
         ("coolstuff.js", 2, 8, None)
     );
 
-    // Token must be on the same line to be found.
-    assert_eq!(sm.lookup_token(1000, 0), None);
+    // Token can return prior lines.
+    assert_eq!(
+        sm.lookup_token(1000, 0).unwrap().to_tuple(),
+        ("coolstuff.js", 2, 8, None)
+    );
 }
