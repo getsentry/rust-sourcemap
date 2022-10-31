@@ -614,7 +614,7 @@ impl SourceMap {
 
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let ii = greatest_lower_bound(&self.index, |ii| (line, col).cmp(&(ii.0, ii.1)));
+        let ii = greatest_lower_bound(&self.index, &(line, col), |ii| (ii.0, ii.1))?;
         self.get_token(ii.2)
     }
 
@@ -919,16 +919,14 @@ impl SourceMapIndex {
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let section = greatest_lower_bound(&self.sections, |s| (line, col).cmp(&s.get_offset()));
-        section.and_then(|s| {
-            s.get_sourcemap().and_then(|m| {
-                let (off_line, off_col) = s.get_offset();
-                m.lookup_token(
-                    line - off_line,
-                    if line == off_line { col - off_col } else { col },
-                )
-            })
-        })
+        let section =
+            greatest_lower_bound(&self.sections, &(line, col), SourceMapSection::get_offset)?;
+        let map = section.get_sourcemap()?;
+        let (off_line, off_col) = section.get_offset();
+        map.lookup_token(
+            line - off_line,
+            if line == off_line { col - off_col } else { col },
+        )
     }
 
     /// Flattens an indexed sourcemap into a regular one.  This requires
@@ -1056,23 +1054,19 @@ impl SourceMapSection {
     }
 }
 
-fn greatest_lower_bound<T, C: Fn(&T) -> Ordering>(slice: &[T], cmp: C) -> Option<&T> {
-    let mut low = 0;
-    let mut high = slice.len();
-
-    while low < high {
-        let mid = (low + high) / 2;
-        let ii = &slice[mid];
-        if cmp(ii) == Ordering::Less {
-            high = mid;
-        } else {
-            low = mid + 1;
+fn greatest_lower_bound<'a, T, K: Ord, F: Fn(&'a T) -> K>(
+    slice: &'a [T],
+    key: &K,
+    map: F,
+) -> Option<&'a T> {
+    match slice.binary_search_by_key(key, map) {
+        Ok(index) => Some(&slice[index]),
+        Err(index) => {
+            if index > 0 {
+                Some(&slice[index - 1])
+            } else {
+                None
+            }
         }
-    }
-
-    if low > 0 && low <= slice.len() {
-        Some(&slice[low - 1])
-    } else {
-        None
     }
 }
