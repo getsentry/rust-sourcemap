@@ -3,9 +3,9 @@ use crate::encoder::{encode, Encodable};
 use crate::errors::{Error, Result};
 use crate::jsontypes::{FacebookScopeMapping, FacebookSources, RawSourceMap};
 use crate::types::{DecodedMap, RewriteOptions, SourceMap};
+use crate::utils::greatest_lower_bound;
 use crate::vlq::parse_vlq_segment_into;
 use crate::Token;
-use std::cmp::Ordering;
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
 
@@ -104,24 +104,12 @@ impl SourceMapHermes {
 
         // Find the closest mapping, just like here:
         // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L204-L231
-        let mapping =
-            function_map
-                .mappings
-                .binary_search_by(|o| match o.line.cmp(&token.get_src_line()) {
-                    Ordering::Equal => o.column.cmp(&token.get_src_col()),
-                    x => x,
-                });
-        let name_index = function_map
-            .mappings
-            .get(match mapping {
-                Ok(a) => a,
-                Err(a) => a.saturating_sub(1),
-            })?
-            .name_index;
-
+        let mapping = greatest_lower_bound(&function_map.mappings, &token.get_src(), |o| {
+            (o.line, o.column)
+        })?;
         function_map
             .names
-            .get(name_index as usize)
+            .get(mapping.name_index as usize)
             .map(|n| n.as_str())
     }
 

@@ -144,6 +144,23 @@ pub fn make_relative_path(base: &str, target: &str) -> String {
     }
 }
 
+pub fn greatest_lower_bound<'a, T, K: Ord, F: Fn(&'a T) -> K>(
+    slice: &'a [T],
+    key: &K,
+    map: F,
+) -> Option<&'a T> {
+    match slice.binary_search_by_key(key, map) {
+        Ok(index) => Some(&slice[index]),
+        Err(index) => {
+            if index > 0 {
+                Some(&slice[index - 1])
+            } else {
+                None
+            }
+        }
+    }
+}
+
 #[test]
 fn test_is_abs_path() {
     assert!(is_abs_path("C:\\foo.txt"));
