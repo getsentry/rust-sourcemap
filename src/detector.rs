@@ -51,7 +51,7 @@ impl SourceMapRef {
         if url.starts_with("data:") {
             return None;
         }
-        resolve_url(url, &Url::from_file_path(&minified_path).ok()?)
+        resolve_url(url, &Url::from_file_path(minified_path).ok()?)
             .and_then(|x| x.to_file_path().ok())
     }
 
