@@ -10,7 +10,7 @@ use crate::encoder::encode;
 use crate::errors::{Error, Result};
 use crate::hermes::SourceMapHermes;
 use crate::sourceview::SourceView;
-use crate::utils::find_common_prefix;
+use crate::utils::{find_common_prefix, greatest_lower_bound};
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -614,24 +614,8 @@ impl SourceMap {
 
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let mut low = 0;
-        let mut high = self.index.len();
-
-        while low < high {
-            let mid = (low + high) / 2;
-            let ii = &self.index[mid as usize];
-            if (line, col) < (ii.0, ii.1) {
-                high = mid;
-            } else {
-                low = mid + 1;
-            }
-        }
-
-        if low > 0 && low <= self.index.len() {
-            self.get_token(self.index[low as usize - 1].2)
-        } else {
-            None
-        }
+        let ii = greatest_lower_bound(&self.index, &(line, col), |ii| (ii.0, ii.1))?;
+        self.get_token(ii.2)
     }
 
     /// Given a location, name and minified source file resolve a minified
@@ -935,18 +919,14 @@ impl SourceMapIndex {
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        for section in self.sections() {
-            let (off_line, off_col) = section.get_offset();
-            if off_line < line || off_col < col {
-                continue;
-            }
-            if let Some(map) = section.get_sourcemap() {
-                if let Some(tok) = map.lookup_token(line - off_line, col - off_col) {
-                    return Some(tok);
-                }
-            }
-        }
-        None
+        let section =
+            greatest_lower_bound(&self.sections, &(line, col), SourceMapSection::get_offset)?;
+        let map = section.get_sourcemap()?;
+        let (off_line, off_col) = section.get_offset();
+        map.lookup_token(
+            line - off_line,
+            if line == off_line { col - off_col } else { col },
+        )
     }
 
     /// Flattens an indexed sourcemap into a regular one.  This requires
