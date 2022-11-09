@@ -9,7 +9,7 @@ fn test(sm: &SourceMap) {
     for (src_id, source) in sm.sources().enumerate() {
         let path = Path::new(source);
         if path.is_file() {
-            let mut f = fs::File::open(&path).unwrap();
+            let mut f = fs::File::open(path).unwrap();
             let mut contents = String::new();
             if f.read_to_string(&mut contents).ok().is_none() {
                 continue;

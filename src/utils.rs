@@ -150,14 +150,8 @@ pub fn greatest_lower_bound<'a, T, K: Ord, F: Fn(&'a T) -> K>(
     map: F,
 ) -> Option<&'a T> {
     match slice.binary_search_by_key(key, map) {
-        Ok(index) => Some(&slice[index]),
-        Err(index) => {
-            if index > 0 {
-                Some(&slice[index - 1])
-            } else {
-                None
-            }
-        }
+        Ok(index) => slice.get(index),
+        Err(index) => slice.get(index.checked_sub(1)?),
     }
 }
 
