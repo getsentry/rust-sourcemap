@@ -23,7 +23,7 @@ fn is_valid_continue(c: char) -> bool {
     }
 }
 
-fn strip_to_js_token(s: &str) -> Option<&str> {
+fn strip_identifier(s: &str) -> Option<&str> {
     let mut iter = s.char_indices();
     // Is the first character a valid starting character
     match iter.next() {
@@ -49,14 +49,13 @@ fn strip_to_js_token(s: &str) -> Option<&str> {
 }
 
 pub fn is_valid_javascript_identifier(s: &str) -> bool {
-    // check explicitly we do not have a dot in this identifier so that
-    // we do not match on foo.bar
-    !s.contains('.') && strip_to_js_token(s).map_or(0, |t| t.len()) == s.len()
+    // check stripping does not reduce the length of the token
+    strip_identifier(s).map_or(0, |t| t.len()) == s.len()
 }
 
 pub fn get_javascript_token(source_line: &str) -> Option<&str> {
     match source_line.split_whitespace().next() {
-        Some(s) => strip_to_js_token(s),
+        Some(s) => strip_identifier(s),
         None => None,
     }
 }
