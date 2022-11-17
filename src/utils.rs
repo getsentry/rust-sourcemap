@@ -1,36 +1,6 @@
 use std::borrow::Cow;
 use std::iter::repeat;
 
-use lazy_static::lazy_static;
-use regex::Regex;
-
-lazy_static! {
-    static ref ANCHORED_IDENT_RE: Regex = Regex::new(
-        r#"(?x)
-            ^
-            \s*
-            ([\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_]
-            [\d\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$_]*)
-        "#
-    )
-    .unwrap();
-}
-
-pub fn is_valid_javascript_identifier(s: &str) -> bool {
-    // check explicitly we do not have a dot in this identifier so that
-    // we do not match on foo.bar
-    s.trim() == s && !s.contains('.') && ANCHORED_IDENT_RE.is_match(s)
-}
-
-pub fn get_javascript_token(source_line: &str) -> Option<&str> {
-    if let Some(m) = ANCHORED_IDENT_RE.captures(source_line) {
-        let rng = m.get(1).unwrap();
-        Some(&source_line[rng.start()..rng.end()])
-    } else {
-        None
-    }
-}
-
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;
     let mut rv = vec![];
