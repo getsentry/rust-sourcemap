@@ -144,7 +144,8 @@ impl<'a> RamBundle<'a> {
     ///
     /// The provided path should point to a javascript file, that serves
     /// as an entry point (startup code) for the app. The modules are stored in js-modules/
-    /// directory, next to the entry point.
+    /// directory, next to the entry point. The js-modules/ directory must ONLY contain
+    /// files with integer names and the ".js" file suffix, along with the UNBUNDLE magic file.
     pub fn parse_unbundle_from_path(bundle_path: &Path) -> Result<Self> {
         Ok(RamBundle {
             repr: RamBundleImpl::Unbundle(UnbundleRamBundle::parse(bundle_path)?),
