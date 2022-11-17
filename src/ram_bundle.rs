@@ -1,5 +1,4 @@
 //! RAM bundle operations
-use regex::Regex;
 use scroll::Pread;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -192,6 +191,16 @@ impl<'a> RamBundle<'a> {
     }
 }
 
+/// Filename must be made of ascii-only digits and the .js extension
+/// Anything else errors with `Error::InvalidRamBundleIndex`
+fn js_filename_to_index_strict(filename: &str) -> Result<usize> {
+    match filename.rsplit_once(".js") {
+        Some((basename, "")) => basename
+            .parse::<usize>()
+            .or(Err(Error::InvalidRamBundleIndex)),
+        _ => Err(Error::InvalidRamBundleIndex),
+    }
+}
 /// Represents a file RAM bundle
 ///
 /// This RAM bundle type is mostly used on Android.
@@ -217,7 +226,6 @@ impl UnbundleRamBundle {
         let mut max_module_id = 0;
         let mut modules: BTreeMap<usize, Vec<u8>> = Default::default();
 
-        let module_regex = Regex::new(r"^(\d+)\.js$").unwrap();
         let js_modules_dir = bundle_dir.join(JS_MODULES_DIR_NAME);
 
         for entry in js_modules_dir.read_dir()? {
@@ -229,15 +237,10 @@ impl UnbundleRamBundle {
             let path = entry.path();
             let filename_os = path.file_name().unwrap();
             let filename: &str = &filename_os.to_string_lossy();
-            let module_id = match module_regex.captures(filename) {
-                Some(captures) => {
-                    let module_string = captures.get(1).unwrap().as_str();
-                    module_string
-                        .parse::<usize>()
-                        .or(Err(Error::InvalidRamBundleIndex))?
-                }
-                None => continue,
-            };
+            if filename == "UNBUNDLE" {
+                continue;
+            }
+            let module_id = js_filename_to_index_strict(filename)?;
             if module_id > max_module_id {
                 max_module_id = module_id;
             }
