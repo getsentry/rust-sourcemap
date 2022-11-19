@@ -195,11 +195,11 @@ impl<'a> RamBundle<'a> {
 /// Filename must be made of ascii-only digits and the .js extension
 /// Anything else errors with `Error::InvalidRamBundleIndex`
 fn js_filename_to_index_strict(filename: &str) -> Result<usize> {
-    match filename.rsplit_once(".js") {
-        Some((basename, "")) => basename
+    match filename.strip_suffix(".js") {
+        Some(basename) => basename
             .parse::<usize>()
             .or(Err(Error::InvalidRamBundleIndex)),
-        _ => Err(Error::InvalidRamBundleIndex),
+        None => Err(Error::InvalidRamBundleIndex),
     }
 }
 /// Represents a file RAM bundle

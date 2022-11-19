@@ -11,9 +11,12 @@ fn is_valid_start(c: char) -> bool {
     }
 }
 
-/// Returns true if `c` is a valid character for an identifier part after
-/// start.
+/// Returns true if `c` is a valid character for an identifier part after start.
 fn is_valid_continue(c: char) -> bool {
+    // As specified by the ECMA-262 spec, U+200C (ZERO WIDTH NON-JOINER) and U+200D
+    // (ZERO WIDTH JOINER) are format-control characters that are used to make necessary
+    // distinctions when forming words or phrases in certain languages. They are however
+    // not considered by UnicodeID to be universally valid identifier characters.
     c == '$' || c == '_' || c == '\u{200c}' || c == '\u{200d}' || c.is_ascii_alphanumeric() || {
         if c.is_ascii() {
             false
@@ -45,7 +48,7 @@ fn strip_identifier(s: &str) -> Option<&str> {
             break;
         }
     }
-    return Some(&s[..=end_idx]);
+    Some(&s[..=end_idx])
 }
 
 pub fn is_valid_javascript_identifier(s: &str) -> bool {
@@ -53,6 +56,8 @@ pub fn is_valid_javascript_identifier(s: &str) -> bool {
     strip_identifier(s).map_or(0, |t| t.len()) == s.len()
 }
 
+/// Finds the first valid identifier in the JS Source string given, provided
+/// the string begins with the identifier or whitespace.
 pub fn get_javascript_token(source_line: &str) -> Option<&str> {
     match source_line.split_whitespace().next() {
         Some(s) => strip_identifier(s),
@@ -62,15 +67,15 @@ pub fn get_javascript_token(source_line: &str) -> Option<&str> {
 
 #[test]
 fn test_is_valid_javascript_identifier() {
-    // assert_eq!(is_valid_javascript_identifier("foo 123"), true);
-    assert_eq!(is_valid_javascript_identifier("foo_$123"), true);
-    assert_eq!(is_valid_javascript_identifier(" foo"), false);
-    assert_eq!(is_valid_javascript_identifier("foo "), false);
-    assert_eq!(is_valid_javascript_identifier("[123]"), false);
-    assert_eq!(is_valid_javascript_identifier("foo.bar"), false);
+    // assert_eq!(is_valid_javascript_identifier("foo 123"));
+    assert!(is_valid_javascript_identifier("foo_$123"));
+    assert!(!is_valid_javascript_identifier(" foo"));
+    assert!(!is_valid_javascript_identifier("foo "));
+    assert!(!is_valid_javascript_identifier("[123]"));
+    assert!(!is_valid_javascript_identifier("foo.bar"));
     // Should these pass?
-    // assert_eq!(is_valid_javascript_identifier("foo [bar]"), true);
-    // assert_eq!(is_valid_javascript_identifier("foo[bar]"), true);
+    // assert!(is_valid_javascript_identifier("foo [bar]"));
+    // assert!(is_valid_javascript_identifier("foo[bar]"));
 
     assert_eq!(get_javascript_token("foo "), Some("foo"));
     assert_eq!(get_javascript_token("f _hi"), Some("f"));
