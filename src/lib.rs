@@ -69,6 +69,7 @@ mod detector;
 mod encoder;
 mod errors;
 mod hermes;
+mod js_identifiers;
 mod jsontypes;
 mod sourceview;
 mod types;

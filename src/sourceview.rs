@@ -8,8 +8,8 @@ use if_chain::if_chain;
 
 use crate::detector::{locate_sourcemap_reference_slice, SourceMapRef};
 use crate::errors::Result;
+use crate::js_identifiers::{get_javascript_token, is_valid_javascript_identifier};
 use crate::types::{idx_from_token, sourcemap_from_token, Token};
-use crate::utils::{get_javascript_token, is_valid_javascript_identifier};
 
 /// An iterator that iterates over tokens in reverse.
 pub struct RevTokenIter<'view, 'viewbase, 'map>
