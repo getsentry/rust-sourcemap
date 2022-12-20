@@ -26,6 +26,7 @@ pub struct SourceMapBuilder {
     source_root: Option<String>,
     sources: Vec<String>,
     source_contents: Vec<Option<String>>,
+    sources_mapping: Vec<u32>,
 }
 
 #[cfg(any(unix, windows, target_os = "redox"))]
@@ -57,6 +58,7 @@ impl SourceMapBuilder {
             source_root: None,
             sources: vec![],
             source_contents: vec![],
+            sources_mapping: vec![],
         }
     }
 
@@ -82,10 +84,15 @@ impl SourceMapBuilder {
 
     /// Registers a new source with the builder and returns the source ID.
     pub fn add_source(&mut self, src: &str) -> u32 {
+        self.add_source_with_id(src, !0)
+    }
+
+    fn add_source_with_id(&mut self, src: &str, old_id: u32) -> u32 {
         let count = self.sources.len() as u32;
         let id = *self.source_map.entry(src.into()).or_insert(count);
         if id == count {
             self.sources.push(src.into());
+            self.sources_mapping.push(old_id);
         }
         id
     }
@@ -144,7 +151,7 @@ impl SourceMapBuilder {
 
         let rv = to_read.len();
         for (src_id, path) in to_read {
-            if let Ok(mut f) = fs::File::open(&path) {
+            if let Ok(mut f) = fs::File::open(path) {
                 let mut contents = String::new();
                 if f.read_to_string(&mut contents).is_ok() {
                     self.set_source_contents(src_id, Some(&contents));
@@ -175,8 +182,22 @@ impl SourceMapBuilder {
         source: Option<&str>,
         name: Option<&str>,
     ) -> RawToken {
+        self.add_with_id(dst_line, dst_col, src_line, src_col, source, !0, name)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_with_id(
+        &mut self,
+        dst_line: u32,
+        dst_col: u32,
+        src_line: u32,
+        src_col: u32,
+        source: Option<&str>,
+        source_id: u32,
+        name: Option<&str>,
+    ) -> RawToken {
         let src_id = match source {
-            Some(source) => self.add_source(source),
+            Some(source) => self.add_source_with_id(source, source_id),
             None => !0,
         };
         let name_id = match name {
@@ -223,12 +244,13 @@ impl SourceMapBuilder {
     /// optionally removing the name.
     pub fn add_token(&mut self, token: &Token<'_>, with_name: bool) -> RawToken {
         let name = if with_name { token.get_name() } else { None };
-        self.add(
+        self.add_with_id(
             token.get_dst_line(),
             token.get_dst_col(),
             token.get_src_line(),
             token.get_src_col(),
             token.get_source(),
+            token.get_src_id(),
             name,
         )
     }
@@ -247,6 +269,10 @@ impl SourceMapBuilder {
                 }
             }
         }
+    }
+
+    pub(crate) fn take_mapping(&mut self) -> Vec<u32> {
+        std::mem::take(&mut self.sources_mapping)
     }
 
     /// Converts the builder into a sourcemap.

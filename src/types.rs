@@ -757,6 +757,14 @@ impl SourceMap {
     /// });
     /// ```
     pub fn rewrite(self, options: &RewriteOptions<'_>) -> Result<SourceMap> {
+        Ok(self.rewrite_with_mapping(options)?.0)
+    }
+
+    /// Same as `rewrite`, except also returns a remapping index for deduplicated `sources`.
+    pub(crate) fn rewrite_with_mapping(
+        self,
+        options: &RewriteOptions<'_>,
+    ) -> Result<(SourceMap, Vec<u32>)> {
         let mut builder = SourceMapBuilder::new(self.get_file());
 
         for token in self.tokens() {
@@ -795,7 +803,11 @@ impl SourceMap {
             builder.strip_prefixes(&prefixes);
         }
 
-        Ok(builder.into_sourcemap())
+        let mapping = builder.take_mapping();
+
+        let sm = builder.into_sourcemap();
+
+        Ok((sm, mapping))
     }
 }
 

@@ -100,7 +100,10 @@ impl SourceMapHermes {
 
     /// Resolves the name of the enclosing function for the given [`Token`].
     pub fn get_scope_for_token(&self, token: Token) -> Option<&str> {
-        let function_map = (self.function_maps.get(token.get_src_id() as usize))?.as_ref()?;
+        let function_map = self
+            .function_maps
+            .get(token.get_src_id() as usize)?
+            .as_ref()?;
 
         // Find the closest mapping, just like here:
         // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L204-L231
@@ -120,10 +123,25 @@ impl SourceMapHermes {
     pub fn rewrite(self, options: &RewriteOptions<'_>) -> Result<Self> {
         let Self {
             sm,
-            function_maps,
-            raw_facebook_sources,
+            mut function_maps,
+            mut raw_facebook_sources,
         } = self;
-        let sm = sm.rewrite(options)?;
+
+        let (sm, mapping) = sm.rewrite_with_mapping(options)?;
+
+        if function_maps.len() >= mapping.len() {
+            function_maps = mapping
+                .iter()
+                .map(|idx| function_maps[*idx as usize].take())
+                .collect();
+            raw_facebook_sources = raw_facebook_sources.map(|mut sources| {
+                mapping
+                    .into_iter()
+                    .map(|idx| sources[idx as usize].take())
+                    .collect()
+            });
+        }
+
         Ok(Self {
             sm,
             function_maps,
