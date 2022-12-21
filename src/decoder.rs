@@ -172,7 +172,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                     if name_id >= names.len() as u32 {
                         fail!(Error::BadNameReference(name_id));
                     }
-                    name = name_id as u32;
+                    name = name_id;
                 }
             }
 

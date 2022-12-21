@@ -4,6 +4,7 @@ use sourcemap::SourceMapHermes;
 fn test_react_native_hermes() {
     let input = include_bytes!("./fixtures/react-native-hermes/output.map");
     let sm = SourceMapHermes::from_reader(&input[..]).unwrap();
+    let sm = sm.rewrite(&Default::default()).unwrap();
 
     //    at foo (address at unknown:1:11939)
     assert_eq!(
@@ -24,6 +25,10 @@ fn test_react_native_hermes() {
 fn test_react_native_metro() {
     let input = include_bytes!("./fixtures/react-native-metro/output.js.map");
     let sm = SourceMapHermes::from_reader(&input[..]).unwrap();
+    // The given map has a bogus `__prelude__` first source, which is being
+    // dropped (as its not referenced) by rewriting the sourcemap, and thus
+    // the internal hermes mappings also need to be rewritten accordingly
+    let sm = sm.rewrite(&Default::default()).unwrap();
 
     //    at foo (output.js:1289:11)
     let token = sm.lookup_token(1288, 10).unwrap();
