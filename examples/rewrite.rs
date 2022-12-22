@@ -15,7 +15,7 @@ fn test(sm: &SourceMap) {
                 continue;
             }
             if Some(contents.as_str()) != sm.get_source_contents(src_id as u32) {
-                println!("  !!! {}", source);
+                println!("  !!! {source}");
             }
         }
     }

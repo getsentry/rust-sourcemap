@@ -390,7 +390,7 @@ impl<'a> Iterator for IndexIter<'a> {
 
 impl<'a> fmt::Debug for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<Token {:#}>", self)
+        write!(f, "<Token {self:#}>")
     }
 }
 
@@ -403,7 +403,7 @@ impl<'a> fmt::Display for Token<'a> {
             self.get_src_line(),
             self.get_src_col(),
             self.get_name()
-                .map(|x| format!(" name={}", x))
+                .map(|x| format!(" name={x}"))
                 .unwrap_or_default()
         )?;
         if f.alternate() {

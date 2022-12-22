@@ -19,7 +19,7 @@ Both indexed and file RAM bundles are supported.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().collect();
     if args.len() < 4 {
-        println!("{}", USAGE);
+        println!("{USAGE}");
         std::process::exit(1);
     }
 
@@ -47,11 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ram_bundle_iter = split_ram_bundle(&ram_bundle, &ism).unwrap();
     for result in ram_bundle_iter {
         let (name, sv, sm) = result.unwrap();
-        println!("Writing down source: {}", name);
+        println!("Writing down source: {name}");
         fs::write(output_directory.join(name.clone()), sv.source())?;
 
-        let sourcemap_name = format!("{}.map", name);
-        println!("Writing down sourcemap: {}", sourcemap_name);
+        let sourcemap_name = format!("{name}.map");
+        println!("Writing down sourcemap: {sourcemap_name}");
         let out_sm = File::create(output_directory.join(sourcemap_name))?;
         sm.to_writer(out_sm)?;
     }
