@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - master
-      - release/**
-
+      - "release/**"
   pull_request:
 
 env:
@@ -16,77 +15,39 @@ jobs:
     name: Lints
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Install rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt, clippy
-          override: true
+      - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy --no-self-update
 
-      - name: Cache rust cargo artifacts
-        uses: swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-features --workspace --tests --examples
+      - run: cargo clippy --all-features --workspace --tests --examples -- -D clippy::all
 
   unit-test:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Install rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+      - run: rustup toolchain install stable --profile minimal --no-self-update
 
-      - name: Cache rust cargo artifacts
-        uses: swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace
+      - run: cargo test --workspace
 
   unit-test-all-features:
     name: "Unit Tests - all features"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Install rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+      - run: rustup toolchain install stable --profile minimal --no-self-update
 
-      - name: Cache rust cargo artifacts
-        uses: swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --all-features
+      - run: cargo test --workspace --all-features --all-targets
 
   doc-comments:
     name: Rust doc comments
@@ -94,21 +55,10 @@ jobs:
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Install rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          components: rust-docs
-          override: true
+      - run: rustup toolchain install stable --profile minimal --component rust-docs --no-self-update
 
-      - name: Cache rust cargo artifacts
-        uses: swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --workspace --all-features --no-deps
+      - run: cargo doc --workspace --all-features --document-private-items --no-deps

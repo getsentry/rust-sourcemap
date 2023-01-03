@@ -202,7 +202,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                     if is_valid {
                         x
                     } else {
-                        format!("{}/{}", source_root, x)
+                        format!("{source_root}/{x}")
                     }
                 })
                 .collect()

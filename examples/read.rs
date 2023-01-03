@@ -34,5 +34,5 @@ fn main() {
     };
 
     let token = sm.lookup_token(line, column).unwrap(); // line-number and column
-    println!("token: {}", token);
+    println!("token: {token}");
 }
