@@ -1,5 +1,14 @@
 # Changelog
 
+## 6.2.1
+
+### Various fixes & improvements
+
+- ref: Update CI definitions (#58) by @Swatinem
+- fix: Correctly rewrite SourceMapHermes (#56) by @Swatinem
+- Remove regex dependency for faster runtime, and compile (#55) by @willstott101
+- Jridgewell index (#54) by @Swatinem
+
 ## 6.2.0
 
 **Features**:
