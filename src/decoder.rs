@@ -300,7 +300,9 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
         fail!(Error::InvalidDataUrl);
     }
     let data_b64 = &url[DATA_PREAMBLE.len()..];
-    let data = base64::decode(data_b64).map_err(|_| Error::InvalidDataUrl)?;
+    let data = data_encoding::BASE64
+        .decode(data_b64.as_bytes())
+        .map_err(|_| Error::InvalidDataUrl)?;
     decode_slice(&data[..])
 }
 
