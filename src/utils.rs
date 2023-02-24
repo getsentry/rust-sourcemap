@@ -122,7 +122,7 @@ pub fn greatest_lower_bound<'a, T, K: Ord, F: Fn(&'a T) -> K>(
     let mut idx = match slice.binary_search_by_key(key, &map) {
         Ok(index) => index,
         Err(index) => {
-            // If there is no match, then we no for certain that the index is where we should
+            // If there is no match, then we know for certain that the index is where we should
             // insert a new token, and that the token directly before is the greatest lower bound.
             return slice.get(index.checked_sub(1)?);
         }
