@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.2.2
+
+### Various fixes & improvements
+
+- Ensure greatest_lower_bound returns lowest match index (#60) by @jridgewell
+- feat: Switch to data-encoding for base64 (#59) by @mitsuhiko
+
 ## 6.2.1
 
 ### Various fixes & improvements
