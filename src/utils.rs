@@ -119,10 +119,26 @@ pub fn greatest_lower_bound<'a, T, K: Ord, F: Fn(&'a T) -> K>(
     key: &K,
     map: F,
 ) -> Option<&'a T> {
-    match slice.binary_search_by_key(key, map) {
-        Ok(index) => slice.get(index),
-        Err(index) => slice.get(index.checked_sub(1)?),
+    let mut idx = match slice.binary_search_by_key(key, &map) {
+        Ok(index) => index,
+        Err(index) => {
+            // If there is no match, then we know for certain that the index is where we should
+            // insert a new token, and that the token directly before is the greatest lower bound.
+            return slice.get(index.checked_sub(1)?);
+        }
+    };
+
+    // If we get an exact match, then we need to continue looking at previous tokens to see if
+    // they also match. We use a linear search because the number of exact matches is generally
+    // very small, and almost certainly smaller than the number of tokens before the index.
+    for i in (0..idx).rev() {
+        if map(&slice[i]) == *key {
+            idx = i;
+        } else {
+            break;
+        }
     }
+    slice.get(idx)
 }
 
 #[test]
@@ -178,4 +194,34 @@ fn test_make_relative_path() {
     );
     assert_eq!(&make_relative_path("foo.txt", "foo.js"), "foo.js");
     assert_eq!(&make_relative_path("blah/foo.txt", "foo.js"), "../foo.js");
+}
+
+#[test]
+fn test_greatest_lower_bound() {
+    let cmp = |&(i, _id)| i;
+
+    let haystack = vec![(1, 1)];
+    assert_eq!(greatest_lower_bound(&haystack, &1, cmp), Some(&(1, 1)));
+    assert_eq!(greatest_lower_bound(&haystack, &2, cmp), Some(&(1, 1)));
+    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+
+    let haystack = vec![(1, 1), (1, 2)];
+    assert_eq!(greatest_lower_bound(&haystack, &1, cmp), Some(&(1, 1)));
+    assert_eq!(greatest_lower_bound(&haystack, &2, cmp), Some(&(1, 2)));
+    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+
+    let haystack = vec![(1, 1), (1, 2), (1, 3)];
+    assert_eq!(greatest_lower_bound(&haystack, &1, cmp), Some(&(1, 1)));
+    assert_eq!(greatest_lower_bound(&haystack, &2, cmp), Some(&(1, 3)));
+    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+
+    let haystack = vec![(1, 1), (1, 2), (1, 3), (1, 4)];
+    assert_eq!(greatest_lower_bound(&haystack, &1, cmp), Some(&(1, 1)));
+    assert_eq!(greatest_lower_bound(&haystack, &2, cmp), Some(&(1, 4)));
+    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+
+    let haystack = vec![(1, 1), (1, 2), (1, 3), (1, 4), (1, 5)];
+    assert_eq!(greatest_lower_bound(&haystack, &1, cmp), Some(&(1, 1)));
+    assert_eq!(greatest_lower_bound(&haystack, &2, cmp), Some(&(1, 5)));
+    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
 }
