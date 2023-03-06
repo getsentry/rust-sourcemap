@@ -2,12 +2,12 @@ use sourcemap::SourceMap;
 
 #[test]
 fn test_basic_sourcemap() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["coolstuff.js"],
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     let sm = SourceMap::from_reader(input).unwrap();
     let mut out: Vec<u8> = vec![];
     sm.to_writer(&mut out).unwrap();

@@ -40,32 +40,32 @@ fn test_no_ref() {
 
 #[test]
 fn test_detect_basic_sourcemap() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["coolstuff.js"],
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     assert!(is_sourcemap_slice(input));
 }
 
 #[test]
 fn test_detect_bad_sourcemap() {
-    let input: &[_] = b"{
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"]
-    }";
+    let input: &[_] = br#"{
+        "sources": ["coolstuff.js"],
+        "names": ["x","alert"]
+    }"#;
     assert!(!is_sourcemap_slice(input));
 }
 
 #[test]
 fn test_detect_basic_sourcemap_with_junk_header() {
-    let input: &[_] = b")]}garbage\n
+    let input: &[_] = br#")]}garbage\n
     {
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+        "version": 3,
+        "sources": ["coolstuff.js"],
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     assert!(is_sourcemap_slice(input));
 }
