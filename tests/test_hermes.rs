@@ -2,8 +2,8 @@ use sourcemap::SourceMapHermes;
 
 #[test]
 fn test_react_native_hermes() {
-    let input = include_bytes!("./fixtures/react-native-hermes/output.map");
-    let sm = SourceMapHermes::from_reader(&input[..]).unwrap();
+    let input: &[_] = include_bytes!("./fixtures/react-native-hermes/output.map");
+    let sm = SourceMapHermes::from_reader(input).unwrap();
     let sm = sm.rewrite(&Default::default()).unwrap();
 
     //    at foo (address at unknown:1:11939)
@@ -23,8 +23,8 @@ fn test_react_native_hermes() {
 
 #[test]
 fn test_react_native_metro() {
-    let input = include_bytes!("./fixtures/react-native-metro/output.js.map");
-    let sm = SourceMapHermes::from_reader(&input[..]).unwrap();
+    let input: &[_] = include_bytes!("./fixtures/react-native-metro/output.js.map");
+    let sm = SourceMapHermes::from_reader(input).unwrap();
     // The given map has a bogus `__prelude__` first source, which is being
     // dropped (as its not referenced) by rewriting the sourcemap, and thus
     // the internal hermes mappings also need to be rewritten accordingly

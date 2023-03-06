@@ -5,7 +5,7 @@ use sourcemap::{decode_data_url, DecodedMap, SourceMap, Token};
 
 #[test]
 fn test_no_header() {
-    let input: &[_] = b"[1, 2, 3]";
+    let input: &[_] = br#"[1, 2, 3]"#;
     let mut reader = io::BufReader::new(input);
     let mut text = String::new();
     reader.read_line(&mut text).ok();
@@ -14,21 +14,21 @@ fn test_no_header() {
 
 #[test]
 fn test_no_header_object() {
-    let input: &[_] = b"{\"x\":[1, 2, 3]}";
+    let input: &[_] = br#"{"x": [1, 2, 3]}"#;
     let mut reader = io::BufReader::new(input);
     let mut text = String::new();
     reader.read_line(&mut text).ok();
-    assert_eq!(text, "{\"x\":[1, 2, 3]}");
+    assert_eq!(text, r#"{"x": [1, 2, 3]}"#);
 }
 
 #[test]
 fn test_basic_sourcemap() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\"],
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["coolstuff.js"],
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     let sm = SourceMap::from_reader(input).unwrap();
     let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(
@@ -48,13 +48,13 @@ fn test_basic_sourcemap() {
 
 #[test]
 fn test_basic_sourcemap_with_root() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\"],
-        \"sourceRoot\":\"x\",
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["coolstuff.js"],
+        "sourceRoot": "x",
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     let sm = SourceMap::from_reader(input).unwrap();
     let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(
@@ -74,13 +74,13 @@ fn test_basic_sourcemap_with_root() {
 
 #[test]
 fn test_basic_sourcemap_with_absolute_uri_root() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[\"coolstuff.js\", \"./evencoolerstuff.js\"],
-        \"sourceRoot\":\"webpack:///\",
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,ICAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["coolstuff.js", "./evencoolerstuff.js"],
+        "sourceRoot": "webpack:///",
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,ICAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     let sm = SourceMap::from_reader(input).unwrap();
     let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(
@@ -129,12 +129,12 @@ fn test_sourcemap_data_url() {
 
 #[test]
 fn test_sourcemap_nofiles() {
-    let input: &[_] = b"{
-        \"version\":3,
-        \"sources\":[null],
-        \"names\":[\"x\",\"alert\"],
-        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
-    }";
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": [null],
+        "names": ["x","alert"],
+        "mappings": "AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM"
+    }"#;
     let sm = SourceMap::from_reader(input).unwrap();
     let mut iter = sm.tokens().filter(Token::has_name);
     assert_eq!(iter.next().unwrap().to_tuple(), ("", 0, 4, Some("x")));
