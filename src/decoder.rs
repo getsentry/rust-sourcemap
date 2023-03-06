@@ -189,7 +189,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let sources = match rsm.source_root {
         Some(ref source_root) if !source_root.is_empty() => {
-            let source_root = if let Some(stripped) = source_root.strip_suffix("/") {
+            let source_root = if let Some(stripped) = source_root.strip_suffix('/') {
                 stripped
             } else {
                 source_root
