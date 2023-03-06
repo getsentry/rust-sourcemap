@@ -73,6 +73,32 @@ fn test_basic_sourcemap_with_root() {
 }
 
 #[test]
+fn test_basic_sourcemap_with_absolute_uri_root() {
+    let input: &[_] = b"{
+        \"version\":3,
+        \"sources\":[\"coolstuff.js\", \"./evencoolerstuff.js\"],
+        \"sourceRoot\":\"webpack:///\",
+        \"names\":[\"x\",\"alert\"],
+        \"mappings\":\"AAAA,GAAIA,GAAI,EACR,ICAIA,GAAK,EAAG,CACVC,MAAM\"
+    }";
+    let sm = SourceMap::from_reader(input).unwrap();
+    let mut iter = sm.tokens().filter(Token::has_name);
+    assert_eq!(
+        iter.next().unwrap().to_tuple(),
+        ("webpack:///coolstuff.js", 0, 4, Some("x"))
+    );
+    assert_eq!(
+        iter.next().unwrap().to_tuple(),
+        ("webpack:///./evencoolerstuff.js", 1, 4, Some("x"))
+    );
+    assert_eq!(
+        iter.next().unwrap().to_tuple(),
+        ("webpack:///./evencoolerstuff.js", 2, 2, Some("alert"))
+    );
+    assert!(iter.next().is_none());
+}
+
+#[test]
 fn test_sourcemap_data_url() {
     let url = "data:application/json;base64,\
                eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNvb2xzdHVmZi5qcyJdLCJzb3VyY2VSb290I\
