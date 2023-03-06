@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.2.3
+
+### Various fixes & improvements
+
+- fix: Correctly handle protocol-only sourceRoot values (#61) by @kamilogorek
+
 ## 6.2.2
 
 ### Various fixes & improvements
