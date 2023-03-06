@@ -189,7 +189,12 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let sources = match rsm.source_root {
         Some(ref source_root) if !source_root.is_empty() => {
-            let source_root = source_root.trim_end_matches('/');
+            let source_root = if source_root.ends_with('/') {
+                source_root[..source_root.len() - 1].to_string()
+            } else {
+                source_root.clone()
+            };
+
             sources
                 .into_iter()
                 .map(|x| {
