@@ -1,3 +1,4 @@
+use debugid::DebugId;
 use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -49,6 +50,8 @@ pub struct RawSourceMap {
     pub x_metro_module_paths: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x_facebook_sources: FacebookSources,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debug_id: Option<DebugId>,
 }
 
 #[derive(Deserialize)]

@@ -232,7 +232,14 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         _ => "<invalid>".into(),
     });
 
-    let mut sm = SourceMap::new(file, tokens, names, sources, rsm.sources_content);
+    let mut sm = SourceMap::new(
+        file,
+        tokens,
+        names,
+        sources,
+        rsm.sources_content,
+        rsm.debug_id,
+    );
     sm.set_source_root(rsm.source_root);
 
     Ok(sm)

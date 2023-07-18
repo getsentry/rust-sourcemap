@@ -7,6 +7,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use debugid::DebugId;
 use url::Url;
 
 use crate::errors::Result;
@@ -27,6 +28,7 @@ pub struct SourceMapBuilder {
     sources: Vec<String>,
     source_contents: Vec<Option<String>>,
     sources_mapping: Vec<u32>,
+    debug_id: Option<DebugId>,
 }
 
 #[cfg(any(unix, windows, target_os = "redox"))]
@@ -59,7 +61,13 @@ impl SourceMapBuilder {
             sources: vec![],
             source_contents: vec![],
             sources_mapping: vec![],
+            debug_id: None,
         }
+    }
+
+    /// Sets the debug id for the sourcemap (optional)
+    pub fn set_debug_id(&mut self, debug_id: Option<DebugId>) {
+        self.debug_id = debug_id;
     }
 
     /// Sets the file for the sourcemap (optional)
@@ -283,7 +291,14 @@ impl SourceMapBuilder {
             None
         };
 
-        let mut sm = SourceMap::new(self.file, self.tokens, self.names, self.sources, contents);
+        let mut sm = SourceMap::new(
+            self.file,
+            self.tokens,
+            self.names,
+            self.sources,
+            contents,
+            self.debug_id,
+        );
         sm.set_source_root(self.source_root);
 
         sm
