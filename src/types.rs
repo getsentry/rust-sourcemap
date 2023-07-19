@@ -21,6 +21,7 @@ use debugid::DebugId;
 /// * `with_names`: true
 /// * `with_source_contents`: true
 /// * `load_local_source_contents`: false
+#[derive(Debug, Clone)]
 pub struct RewriteOptions<'a> {
     /// If enabled, names are kept in the rewritten sourcemap.
     pub with_names: bool,
