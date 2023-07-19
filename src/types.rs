@@ -12,6 +12,8 @@ use crate::hermes::SourceMapHermes;
 use crate::sourceview::SourceView;
 use crate::utils::{find_common_prefix, greatest_lower_bound};
 
+use debugid::DebugId;
+
 /// Controls the `SourceMap::rewrite` behavior
 ///
 /// Default configuration:
@@ -19,6 +21,7 @@ use crate::utils::{find_common_prefix, greatest_lower_bound};
 /// * `with_names`: true
 /// * `with_source_contents`: true
 /// * `load_local_source_contents`: false
+#[derive(Debug, Clone)]
 pub struct RewriteOptions<'a> {
     /// If enabled, names are kept in the rewritten sourcemap.
     pub with_names: bool,
@@ -461,6 +464,7 @@ pub struct SourceMap {
     source_root: Option<String>,
     sources: Vec<String>,
     sources_content: Vec<Option<SourceView<'static>>>,
+    debug_id: Option<DebugId>,
 }
 
 impl SourceMap {
@@ -569,7 +573,18 @@ impl SourceMap {
                 .into_iter()
                 .map(|opt| opt.map(SourceView::from_string))
                 .collect(),
+            debug_id: None,
         }
+    }
+
+    /// Returns the embedded debug id.
+    pub fn get_debug_id(&self) -> Option<DebugId> {
+        self.debug_id
+    }
+
+    /// Sets a new value for the debug id.
+    pub fn set_debug_id(&mut self, debug_id: Option<DebugId>) {
+        self.debug_id = debug_id
     }
 
     /// Returns the embedded filename in case there is one.
@@ -766,6 +781,7 @@ impl SourceMap {
         options: &RewriteOptions<'_>,
     ) -> Result<(SourceMap, Vec<u32>)> {
         let mut builder = SourceMapBuilder::new(self.get_file());
+        builder.set_debug_id(self.debug_id);
 
         for token in self.tokens() {
             let raw = builder.add_token(&token, options.with_names);
@@ -1063,5 +1079,35 @@ impl SourceMapSection {
     /// Replaces the embedded sourcemap
     pub fn set_sourcemap(&mut self, sm: Option<DecodedMap>) {
         self.map = sm.map(Box::new);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RewriteOptions, SourceMap};
+    use debugid::DebugId;
+
+    #[test]
+    fn test_rewrite_debugid() {
+        let input: &[_] = br#"{
+         "version":3,
+         "sources":["coolstuff.js"],
+         "names":["x","alert"],
+         "mappings":"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM",
+         "debug_id":"00000000-0000-0000-0000-000000000000"
+     }"#;
+
+        let sm = SourceMap::from_slice(input).unwrap();
+
+        assert_eq!(sm.debug_id, Some(DebugId::default()));
+
+        let new_sm = sm
+            .rewrite(&RewriteOptions {
+                with_names: false,
+                ..Default::default()
+            })
+            .unwrap();
+
+        assert_eq!(new_sm.debug_id, Some(DebugId::default()));
     }
 }

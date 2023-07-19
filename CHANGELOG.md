@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Various fixes & improvements
+
+- feat: Sourcemaps now support debug ids (#66) by @loewenheim
+
 ## 6.2.3
 
 ### Various fixes & improvements
