@@ -291,15 +291,9 @@ impl SourceMapBuilder {
             None
         };
 
-        let mut sm = SourceMap::new(
-            self.file,
-            self.tokens,
-            self.names,
-            self.sources,
-            contents,
-            self.debug_id,
-        );
+        let mut sm = SourceMap::new(self.file, self.tokens, self.names, self.sources, contents);
         sm.set_source_root(self.source_root);
+        sm.set_debug_id(self.debug_id);
 
         sm
     }

@@ -553,7 +553,6 @@ impl SourceMap {
         names: Vec<String>,
         sources: Vec<String>,
         sources_content: Option<Vec<Option<String>>>,
-        debug_id: Option<DebugId>,
     ) -> SourceMap {
         let mut index: Vec<_> = tokens
             .iter()
@@ -573,7 +572,7 @@ impl SourceMap {
                 .into_iter()
                 .map(|opt| opt.map(SourceView::from_string))
                 .collect(),
-            debug_id,
+            debug_id: None,
         }
     }
 
