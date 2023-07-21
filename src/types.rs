@@ -842,104 +842,140 @@ impl SourceMap {
     /// The source root, sources, source contents, and names will be copied from `self`. The only information
     /// that is used from `other` are the mappings.
     pub fn transform(&self, other: &Self) -> Self {
+        #[derive(Debug, Clone, Copy)]
+        struct Range {
+            start: (u32, u32),
+            end: (u32, u32),
+            value: RawToken,
+        }
         let mut builder = SourceMapBuilder::new(self.file.as_deref());
         builder.set_source_root(self.get_source_root());
 
-        let mut other_tokens = other.tokens.clone();
-        other_tokens.sort_unstable_by_key(|token| (token.src_line, token.src_col));
+        // Turn `self.tokens` and `other.tokens` into vectors of ranges so we have easy access to
+        // both start and end. For `other`, the range is on `src_line/col`, for `self` it's on
+        // `dst_line/col`.
+        let mut other_ranges = Vec::new();
+        let mut other_token_iter = other.tokens.iter().peekable();
 
-        dbg!(&other_tokens);
+        while let Some(&t) = other_token_iter.next() {
+            let (end_line, end_col) = other_token_iter
+                .peek()
+                .map_or((u32::MAX, u32::MAX), |&&t| (t.src_line, t.src_col));
+            other_ranges.push(Range {
+                start: (t.src_line, t.src_col),
+                end: (end_line, end_col),
+                value: t,
+            });
+        }
 
-        let mut other_tokens_iter = other_tokens.iter().peekable();
+        other_ranges.sort_unstable_by_key(|r| r.start);
 
-        while let Some(&current) = other_tokens_iter.next() {
-            if current.src_line == u32::MAX || current.src_col == u32::MAX {
+        dbg!(&other_ranges);
+
+        let mut self_ranges = Vec::new();
+        let mut self_token_iter = self.tokens.iter().peekable();
+
+        while let Some(&t) = self_token_iter.next() {
+            let (end_line, end_col) = self_token_iter
+                .peek()
+                .map_or((u32::MAX, u32::MAX), |&&t| (t.dst_line, t.dst_col));
+            self_ranges.push(Range {
+                start: (t.dst_line, t.dst_col),
+                end: (end_line, end_col),
+                value: t,
+            });
+        }
+
+        self_ranges.sort_unstable_by_key(|r| r.start);
+
+        dbg!(&self_ranges);
+
+        let mut self_ranges_iter = self_ranges.iter_mut();
+
+        let Some(mut self_range) = self_ranges_iter.next() else {
+            return builder.into_sourcemap();
+        };
+
+        // Iterate over `other.ranges` (sorted by `src_line/col`). For each such range, consider
+        // all `self.ranges` which overlap with it.
+        for &other_range in &other_ranges {
+            // The `other_range` offsets lines and columns by a certain amount. All `self_ranges`
+            // it covers will get the same offset.
+            let (line_diff, col_diff) = (
+                other_range.value.src_line as i32 - other_range.value.dst_line as i32,
+                other_range.value.src_col as i32 - other_range.value.dst_col as i32,
+            );
+
+            dbg!(line_diff, col_diff);
+
+            // Skip `self_ranges` that are entirely before the `other_range`.
+            while self_range.end <= other_range.start {
+                let Some(r) = self_ranges_iter.next() else {
+                    return builder.into_sourcemap();
+                };
+
+                self_range = r;
+            }
+
+            // If the first `self_range` under this `other_range` starts after the `other_range`,
+            // there is a gap. Insert an empty mapping there.
+            if self_range.start > other_range.start {
                 builder.add(
-                    current.dst_line,
-                    current.dst_col,
+                    other_range.value.dst_line,
+                    other_range.value.dst_col,
                     u32::MAX,
                     u32::MAX,
                     None,
                     None,
                 );
-                continue;
             }
 
-            let first_idx = match dbg!(greatest_lower_bound(
-                dbg!(&self.index),
-                dbg!(&(&current.src_line, &current.src_col)),
-                |(l, c, _)| (l, c),
-            )) {
-                None => Bound::Unbounded,
-                Some((_, _, idx)) => Bound::Included(*idx as usize),
-            };
-            dbg!(first_idx);
-            // All tokens in `self` that are "covered" by the current token in `other`.
-            let self_tokens = match other_tokens_iter.peek() {
-                Some(&&next) => {
-                    let last_idx = match greatest_lower_bound(
-                        &self.index,
-                        &(&next.src_line, &next.src_col),
-                        |(l, c, _)| (l, c),
-                    ) {
-                        None => Bound::Unbounded,
-                        Some((_, _, idx)) => Bound::Excluded(*idx as usize),
+            // Iterate over `self_ranges` that fall at least partially within the `other_range`.
+            while self_range.start < other_range.end {
+                dbg!(&self_range);
+                // If `self_range` started before `other_range`, cut it off.
+                self_range.start = std::cmp::max(self_range.start, other_range.start);
+                dbg!(&self_range);
+                let token = &mut self_range.value;
+                // Keep the `dst_line/col` in sync with the range start.
+                token.dst_line = self_range.start.0;
+                token.dst_col = self_range.start.1;
+                dbg!(&token);
+
+                // Lookup the `self_range`'s source and name.
+                let name = self.get_name(token.name_id);
+                let source = self.get_source(token.src_id);
+
+                if let Some(source) = source {
+                    let contents = self.get_source_contents(token.src_id);
+
+                    let new_id = builder.add_source(source);
+                    builder.set_source_contents(new_id, contents);
+                }
+
+                let dst_line = (token.dst_line as i32 - line_diff) as u32;
+                let dst_col = (token.dst_col as i32 - col_diff) as u32;
+
+                builder.add(
+                    dst_line,
+                    dst_col,
+                    token.src_line,
+                    token.src_col,
+                    source,
+                    name,
+                );
+
+                if self_range.end < other_range.end {
+                    // We're not yet past the end of the `other_range`. Advance the `self_range`.
+                    let Some(r) = self_ranges_iter.next() else {
+                        return builder.into_sourcemap();
                     };
 
-                    dbg!(last_idx);
-
-                    &self.tokens[(first_idx, last_idx)]
-                }
-                None => &self.tokens[(first_idx, Bound::Unbounded)],
-            };
-
-            dbg!(self_tokens);
-
-            match self_tokens {
-                [] => {
-                    builder.add(
-                        current.dst_line,
-                        current.dst_col,
-                        u32::MAX,
-                        u32::MAX,
-                        None,
-                        None,
-                    );
-                }
-                [_first, ..] => {
-                    let (line_diff, col_diff) = (
-                        current.src_line as i32 - current.dst_line as i32,
-                        current.src_col as i32 - current.dst_col as i32,
-                    );
-
-                    dbg!(line_diff, col_diff);
-
-                    for token in self_tokens {
-                        let name = self.get_name(token.name_id);
-                        let source = self.get_source(token.src_id);
-
-                        if let Some(source) = source {
-                            let contents = self.get_source_contents(token.src_id);
-
-                            let new_id = builder.add_source(source);
-                            builder.set_source_contents(new_id, contents);
-                        }
-
-                        let (mut line, mut col) = (token.dst_line as i32, token.dst_col as i32);
-                        if (line, col) >= (current.src_line as i32, current.src_col as i32) {
-                            line -= line_diff;
-                            col -= col_diff;
-                        }
-
-                        builder.add(
-                            dbg!(line as u32),
-                            dbg!(col as u32),
-                            token.src_line,
-                            token.src_col,
-                            source,
-                            name,
-                        );
-                    }
+                    self_range = r;
+                } else {
+                    // The next `self_range` certainly doesn't fall under this `other_range` anymore
+                    // (because the current one already satisfies `self_range.end` >= `other_range.end`)
+                    break;
                 }
             }
         }
@@ -1233,7 +1269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_transform() {
+    fn test_transform_1() {
         let first_sourcemap = br#"{
             "version":3,
             "mappings":"IAAA,GAAG,uBAAQ,GAAG",
