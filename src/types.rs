@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
+use std::ops::Bound;
 use std::path::Path;
 
 use crate::builder::SourceMapBuilder;
@@ -844,31 +845,101 @@ impl SourceMap {
         let mut builder = SourceMapBuilder::new(self.file.as_deref());
         builder.set_source_root(self.get_source_root());
 
-        for &RawToken {
-            dst_line,
-            dst_col,
-            src_line,
-            src_col,
-            ..
-        } in &other.tokens
-        {
-            match self.lookup_token(src_line, src_col) {
-                Some(Token { raw, .. }) => {
-                    let name = self.get_name(raw.name_id);
-                    let source = self.get_source(raw.src_id);
+        let mut other_tokens = other.tokens.clone();
+        other_tokens.sort_unstable_by_key(|token| (token.src_line, token.src_col));
 
-                    if let Some(source) = source {
-                        let contents = self.get_source_contents(raw.src_id);
+        dbg!(&other_tokens);
 
-                        let new_id = builder.add_source(source);
-                        builder.set_source_contents(new_id, contents);
-                    }
+        let mut other_tokens_iter = other_tokens.iter().peekable();
 
-                    builder.add(dst_line, dst_col, raw.src_line, raw.src_col, source, name);
+        while let Some(&current) = other_tokens_iter.next() {
+            if current.src_line == u32::MAX || current.src_col == u32::MAX {
+                builder.add(
+                    current.dst_line,
+                    current.dst_col,
+                    u32::MAX,
+                    u32::MAX,
+                    None,
+                    None,
+                );
+                continue;
+            }
+
+            let first_idx = match dbg!(greatest_lower_bound(
+                dbg!(&self.index),
+                dbg!(&(&current.src_line, &current.src_col)),
+                |(l, c, _)| (l, c),
+            )) {
+                None => Bound::Unbounded,
+                Some((_, _, idx)) => Bound::Included(*idx as usize),
+            };
+            dbg!(first_idx);
+            // All tokens in `self` that are "covered" by the current token in `other`.
+            let self_tokens = match other_tokens_iter.peek() {
+                Some(&&next) => {
+                    let last_idx = match greatest_lower_bound(
+                        &self.index,
+                        &(&next.src_line, &next.src_col),
+                        |(l, c, _)| (l, c),
+                    ) {
+                        None => Bound::Unbounded,
+                        Some((_, _, idx)) => Bound::Excluded(*idx as usize),
+                    };
+
+                    dbg!(last_idx);
+
+                    &self.tokens[(first_idx, last_idx)]
                 }
+                None => &self.tokens[(first_idx, Bound::Unbounded)],
+            };
 
-                None => {
-                    builder.add(dst_line, dst_col, u32::MAX, u32::MAX, None, None);
+            dbg!(self_tokens);
+
+            match self_tokens {
+                [] => {
+                    builder.add(
+                        current.dst_line,
+                        current.dst_col,
+                        u32::MAX,
+                        u32::MAX,
+                        None,
+                        None,
+                    );
+                }
+                [_first, ..] => {
+                    let (line_diff, col_diff) = (
+                        current.src_line as i32 - current.dst_line as i32,
+                        current.src_col as i32 - current.dst_col as i32,
+                    );
+
+                    dbg!(line_diff, col_diff);
+
+                    for token in self_tokens {
+                        let name = self.get_name(token.name_id);
+                        let source = self.get_source(token.src_id);
+
+                        if let Some(source) = source {
+                            let contents = self.get_source_contents(token.src_id);
+
+                            let new_id = builder.add_source(source);
+                            builder.set_source_contents(new_id, contents);
+                        }
+
+                        let (mut line, mut col) = (token.dst_line as i32, token.dst_col as i32);
+                        if (line, col) >= (current.src_line as i32, current.src_col as i32) {
+                            line -= line_diff;
+                            col -= col_diff;
+                        }
+
+                        builder.add(
+                            dbg!(line as u32),
+                            dbg!(col as u32),
+                            token.src_line,
+                            token.src_col,
+                            source,
+                            name,
+                        );
+                    }
                 }
             }
         }
@@ -1159,5 +1230,91 @@ mod tests {
             .unwrap();
 
         assert_eq!(new_sm.debug_id, Some(DebugId::default()));
+    }
+
+    #[test]
+    fn test_transform() {
+        let first_sourcemap = br#"{
+            "version":3,
+            "mappings":"IAAA,GAAG,uBAAQ,GAAG",
+            "names":[],
+            "sources":["original.js"],
+            "sourcesContent":["my problems = 99"]
+        }"#;
+
+        let second_sourcemap = br#"{
+            "version":3,
+            "mappings":"AAAA",
+            "names":[],
+            "sources":["edited.js"],
+            "sourcesContent":["var my answer/* ignore this */ = 42;"]
+        }"#;
+
+        let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
+        let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
+
+        let transformed = first_sourcemap.transform(&second_sourcemap);
+
+        dbg!(transformed);
+    }
+
+    #[test]
+    fn test_transform_2() {
+        let first_sourcemap = br#"{
+            "version":3,
+            "mappings":"IAAA,GAAG,uBAAQ,GAAG",
+            "names":[],
+            "sources":["original.js"],
+            "sourcesContent":["my problems = 99"]
+        }"#;
+
+        let second_sourcemap = br#"{
+            "version":3,
+            "mappings":"AAAA,OAAa",
+            "names":[],
+            "sources":["edited.js"],
+            "sourcesContent":["var my answer/* ignore this */ = 42;"]
+        }"#;
+
+        let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
+        let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
+
+        let transformed = first_sourcemap.transform(&second_sourcemap);
+
+        dbg!(&transformed);
+
+        let mut f = std::fs::File::create("test_transform_2.map").unwrap();
+        transformed.to_writer(&mut f).unwrap();
+    }
+
+    #[test]
+    fn test_transform_3() {
+        // Maps "var my answer/* ignore this */ = 42;\nthis is not nice" to "my problems = 99\nthis is nice".
+        let first_sourcemap = br#"{
+            "version":3,
+            "mappings":"IAAA,GAAG,uBAAQ,GAAG,GAAE;AAChB,WAAO",
+            "names":[],
+            "sources":["original.js"],
+            "sourcesContent":["my problems = 99\nthis is nice"]
+        }"#;
+
+        // Maps "var my /* ignore this */ = 42;\nthis is nice" to "var my answer/* ignore this */ = 42;\nthis is not nice".
+        let second_sourcemap = br#"{
+            "version":3,
+            "mappings":"AAAA,OAAa;AACb,OAAW",
+            "names":[],
+            "sources":["edited.js"],
+            "sourcesContent":["var my answer/* ignore this */ = 42;\nthis is not nice"]
+        }"#;
+
+        let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
+        let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
+
+        let transformed = first_sourcemap.transform(&second_sourcemap);
+
+        dbg!(&transformed);
+
+        let mut f = std::fs::File::create("test_transform_3.map").unwrap();
+        transformed.to_writer(&mut f).unwrap();
     }
 }
