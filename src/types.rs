@@ -825,6 +825,56 @@ impl SourceMap {
 
         Ok((sm, mapping))
     }
+
+    /// Transforms `self` by precomposing it with another sourcemap.
+    ///
+    /// This function assumes that `other` only maps between two files and
+    /// its target file is the source file of `self`. In other words, if `self`
+    /// maps from `minified.js` to `original_1.js`, …, `original_n.js`, then
+    /// `other` must map from `transformed.js` to `minitfied.js` for some file
+    /// `transformed.js`. The resulting sourcemap will then map from `transformed.js`
+    /// to to `original_1.js`, …, `original_n.js`.
+    ///
+    /// Mappings are composed in the obvious way: if `other` maps `(l₁, c₁)` to `(l₂, c₂)` and `self`
+    /// maps `(l₂', c₂')` to `(l₃, c₃)`, then `self.transform(&other)` maps `(l₁, c₁)` to `(l₃, c₃)`.
+    ///
+    /// The source root, sources, source contents, and names will be copied from `self`. The only information
+    /// that is used from `other` are the mappings.
+    pub fn transform(&self, other: &Self) -> Self {
+        let mut builder = SourceMapBuilder::new(self.file.as_deref());
+        builder.set_source_root(self.get_source_root());
+
+        for &RawToken {
+            dst_line,
+            dst_col,
+            src_line,
+            src_col,
+            ..
+        } in &other.tokens
+        {
+            match self.lookup_token(src_line, src_col) {
+                Some(Token { raw, .. }) => {
+                    let name = self.get_name(raw.name_id);
+                    let source = self.get_source(raw.src_id);
+
+                    if let Some(source) = source {
+                        let contents = self.get_source_contents(raw.src_id);
+
+                        let new_id = builder.add_source(source);
+                        builder.set_source_contents(new_id, contents);
+                    }
+
+                    builder.add(dst_line, dst_col, raw.src_line, raw.src_col, source, name);
+                }
+
+                None => {
+                    builder.add(dst_line, dst_col, u32::MAX, u32::MAX, None, None);
+                }
+            }
+        }
+
+        builder.into_sourcemap()
+    }
 }
 
 impl SourceMapIndex {
