@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
-use std::ops::Bound;
 use std::path::Path;
 
 use crate::builder::SourceMapBuilder;
@@ -854,8 +853,10 @@ impl SourceMap {
         // Turn `self.tokens` and `other.tokens` into vectors of ranges so we have easy access to
         // both start and end. For `other`, the range is on `src_line/col`, for `self` it's on
         // `dst_line/col`.
+        let mut other_tokens = other.tokens.clone();
+        other_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
+        let mut other_token_iter = other_tokens.iter().peekable();
         let mut other_ranges = Vec::new();
-        let mut other_token_iter = other.tokens.iter().peekable();
 
         while let Some(&t) = other_token_iter.next() {
             let (end_line, end_col) = other_token_iter
@@ -868,12 +869,12 @@ impl SourceMap {
             });
         }
 
-        other_ranges.sort_unstable_by_key(|r| r.start);
-
         dbg!(&other_ranges);
 
+        let mut self_tokens = self.tokens.clone();
+        self_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+        let mut self_token_iter = self_tokens.iter().peekable();
         let mut self_ranges = Vec::new();
-        let mut self_token_iter = self.tokens.iter().peekable();
 
         while let Some(&t) = self_token_iter.next() {
             let (end_line, end_col) = self_token_iter
@@ -885,8 +886,6 @@ impl SourceMap {
                 value: t,
             });
         }
-
-        self_ranges.sort_unstable_by_key(|r| r.start);
 
         dbg!(&self_ranges);
 
@@ -910,11 +909,10 @@ impl SourceMap {
 
             // Skip `self_ranges` that are entirely before the `other_range`.
             while self_range.end <= other_range.start {
-                let Some(r) = self_ranges_iter.next() else {
-                    return builder.into_sourcemap();
-                };
-
-                self_range = r;
+                match self_ranges_iter.next() {
+                    Some(r) => self_range = r,
+                    None => return builder.into_sourcemap(),
+                }
             }
 
             // If the first `self_range` under this `other_range` starts after the `other_range`,
