@@ -1212,7 +1212,6 @@ impl SourceMapSection {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
 
     use super::{RewriteOptions, SourceMap};
     use debugid::DebugId;
