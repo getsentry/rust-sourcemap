@@ -826,126 +826,102 @@ impl SourceMap {
         Ok((sm, mapping))
     }
 
-    /// Transforms `self` by precomposing it with another sourcemap.
+    /// Composes two sourcemaps.
     ///
-    /// This function assumes that `other` only maps between two files and
-    /// its target file is the source file of `self`. In other words, if `self`
+    /// This function assumes that `first` only maps between two files and
+    /// its target file is the source file of `second`. In other words, if `first`
+    /// maps from `transformed.js` to `minitfied.js` and `second`
     /// maps from `minified.js` to `original_1.js`, …, `original_n.js`, then
-    /// `other` must map from `transformed.js` to `minitfied.js` for some file
-    /// `transformed.js`. The resulting sourcemap will then map from `transformed.js`
+    /// the resulting sourcemap maps from `transformed.js`
     /// to to `original_1.js`, …, `original_n.js`.
     ///
-    /// Mappings are composed in the obvious way: if `other` maps `(l₁, c₁)` to `(l₂, c₂)` and `self`
-    /// maps `(l₂', c₂')` to `(l₃, c₃)`, then `self.transform(&other)` maps `(l₁, c₁)` to `(l₃, c₃)`.
-    ///
-    /// The source root, sources, source contents, and names will be copied from `self`. The only information
-    /// that is used from `other` are the mappings.
-    pub fn transform(&self, other: &Self) -> Self {
+    /// The source root, sources, source contents, and names will be copied from `second`. The only information
+    /// that is used from `first` are the mappings.
+    pub fn compose(first: &Self, second: &Self) -> Self {
         #[derive(Debug, Clone, Copy)]
         struct Range {
             start: (u32, u32),
             end: (u32, u32),
             value: RawToken,
         }
-        let mut builder = SourceMapBuilder::new(self.file.as_deref());
-        builder.set_source_root(self.get_source_root());
+        let mut builder = SourceMapBuilder::new(second.file.as_deref());
+        builder.set_source_root(second.get_source_root());
 
-        // Turn `self.tokens` and `other.tokens` into vectors of ranges so we have easy access to
-        // both start and end. For `other`, the range is on `src_line/col`, for `self` it's on
-        // `dst_line/col`.
-        let mut other_tokens = other.tokens.clone();
-        other_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
-        let mut other_token_iter = other_tokens.iter().peekable();
-        let mut other_ranges = Vec::new();
+        // Turn `first.tokens` and `second.tokens` into vectors of ranges so we have easy access to
+        // both start and end.
+        let mut first_tokens = first.tokens.clone();
+        first_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
+        let mut first_token_iter = first_tokens.iter().peekable();
+        let mut first_ranges = Vec::new();
 
-        while let Some(&t) = other_token_iter.next() {
-            let (end_line, end_col) = other_token_iter
+        while let Some(&t) = first_token_iter.next() {
+            let (end_line, end_col) = first_token_iter
                 .peek()
                 .map_or((u32::MAX, u32::MAX), |&&t| (t.src_line, t.src_col));
-            other_ranges.push(Range {
+            first_ranges.push(Range {
                 start: (t.src_line, t.src_col),
                 end: (end_line, end_col),
                 value: t,
             });
         }
 
-        dbg!(&other_ranges);
+        let mut second_tokens = second.tokens.clone();
+        second_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+        let mut second_token_iter = second_tokens.iter().peekable();
+        let mut second_ranges = Vec::new();
 
-        let mut self_tokens = self.tokens.clone();
-        self_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
-        let mut self_token_iter = self_tokens.iter().peekable();
-        let mut self_ranges = Vec::new();
-
-        while let Some(&t) = self_token_iter.next() {
-            let (end_line, end_col) = self_token_iter
+        while let Some(&t) = second_token_iter.next() {
+            let (end_line, end_col) = second_token_iter
                 .peek()
                 .map_or((u32::MAX, u32::MAX), |&&t| (t.dst_line, t.dst_col));
-            self_ranges.push(Range {
+            second_ranges.push(Range {
                 start: (t.dst_line, t.dst_col),
                 end: (end_line, end_col),
                 value: t,
             });
         }
 
-        dbg!(&self_ranges);
+        let mut second_ranges_iter = second_ranges.iter_mut();
 
-        let mut self_ranges_iter = self_ranges.iter_mut();
-
-        let Some(mut self_range) = self_ranges_iter.next() else {
+        let Some(mut second_range) = second_ranges_iter.next() else {
             return builder.into_sourcemap();
         };
 
-        // Iterate over `other.ranges` (sorted by `src_line/col`). For each such range, consider
-        // all `self.ranges` which overlap with it.
-        for &other_range in &other_ranges {
-            // The `other_range` offsets lines and columns by a certain amount. All `self_ranges`
+        // Iterate over `first.ranges` (sorted by `src_line/col`). For each such range, consider
+        // all `second.ranges` which overlap with it.
+        for &first_range in &first_ranges {
+            // The `first_range` offsets lines and columns by a certain amount. All `second_ranges`
             // it covers will get the same offset.
             let (line_diff, col_diff) = (
-                other_range.value.src_line as i32 - other_range.value.dst_line as i32,
-                other_range.value.src_col as i32 - other_range.value.dst_col as i32,
+                first_range.value.src_line as i32 - first_range.value.dst_line as i32,
+                first_range.value.src_col as i32 - first_range.value.dst_col as i32,
             );
 
-            dbg!(line_diff, col_diff);
-
-            // Skip `self_ranges` that are entirely before the `other_range`.
-            while self_range.end <= other_range.start {
-                match self_ranges_iter.next() {
-                    Some(r) => self_range = r,
+            // Skip `second_ranges` that are entirely before the `first_range`.
+            while second_range.end <= first_range.start {
+                match second_ranges_iter.next() {
+                    Some(r) => second_range = r,
                     None => return builder.into_sourcemap(),
                 }
             }
 
-            // If the first `self_range` under this `other_range` starts after the `other_range`,
-            // there is a gap. Insert an empty mapping there.
-            if self_range.start > other_range.start {
-                builder.add(
-                    other_range.value.dst_line,
-                    other_range.value.dst_col,
-                    u32::MAX,
-                    u32::MAX,
-                    None,
-                    None,
-                );
-            }
+            // At this point `second_range.end` > `first_range.start`
 
-            // Iterate over `self_ranges` that fall at least partially within the `other_range`.
-            while self_range.start < other_range.end {
-                dbg!(&self_range);
-                // If `self_range` started before `other_range`, cut it off.
-                self_range.start = std::cmp::max(self_range.start, other_range.start);
-                dbg!(&self_range);
-                let token = &mut self_range.value;
+            // Iterate over `second_ranges` that fall at least partially within the `first_range`.
+            while second_range.start < first_range.end {
+                // If `second_range` started before `first_range`, cut it off.
+                second_range.start = std::cmp::max(second_range.start, first_range.start);
+                let token = &mut second_range.value;
                 // Keep the `dst_line/col` in sync with the range start.
-                token.dst_line = self_range.start.0;
-                token.dst_col = self_range.start.1;
-                dbg!(&token);
+                token.dst_line = second_range.start.0;
+                token.dst_col = second_range.start.1;
 
-                // Lookup the `self_range`'s source and name.
-                let name = self.get_name(token.name_id);
-                let source = self.get_source(token.src_id);
+                // Lookup the `second_range`'s source and name.
+                let name = second.get_name(token.name_id);
+                let source = second.get_source(token.src_id);
 
                 if let Some(source) = source {
-                    let contents = self.get_source_contents(token.src_id);
+                    let contents = second.get_source_contents(token.src_id);
 
                     let new_id = builder.add_source(source);
                     builder.set_source_contents(new_id, contents);
@@ -963,16 +939,13 @@ impl SourceMap {
                     name,
                 );
 
-                if self_range.end < other_range.end {
-                    // We're not yet past the end of the `other_range`. Advance the `self_range`.
-                    let Some(r) = self_ranges_iter.next() else {
-                        return builder.into_sourcemap();
-                    };
-
-                    self_range = r;
+                if second_range.end < first_range.end {
+                    //  Advance the `second_range`.
+                    match second_ranges_iter.next() {
+                        Some(r) => second_range = r,
+                        None => return builder.into_sourcemap(),
+                    }
                 } else {
-                    // The next `self_range` certainly doesn't fall under this `other_range` anymore
-                    // (because the current one already satisfies `self_range.end` >= `other_range.end`)
                     break;
                 }
             }
@@ -1239,6 +1212,8 @@ impl SourceMapSection {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+
     use super::{RewriteOptions, SourceMap};
     use debugid::DebugId;
 
@@ -1267,16 +1242,9 @@ mod tests {
     }
 
     #[test]
-    fn test_transform_1() {
+    fn test_compose_identity() {
+        // Identity mapping on "var my answer/* ignore this */ = 42;".
         let first_sourcemap = br#"{
-            "version":3,
-            "mappings":"IAAA,GAAG,uBAAQ,GAAG",
-            "names":[],
-            "sources":["original.js"],
-            "sourcesContent":["my problems = 99"]
-        }"#;
-
-        let second_sourcemap = br#"{
             "version":3,
             "mappings":"AAAA",
             "names":[],
@@ -1284,17 +1252,8 @@ mod tests {
             "sourcesContent":["var my answer/* ignore this */ = 42;"]
         }"#;
 
-        let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
-        let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
-
-        let transformed = first_sourcemap.transform(&second_sourcemap);
-
-        dbg!(transformed);
-    }
-
-    #[test]
-    fn test_transform_2() {
-        let first_sourcemap = br#"{
+        // Maps "var my answer/* ignore this */ = 42;" to "my problems = 99".
+        let second_sourcemap = br#"{
             "version":3,
             "mappings":"IAAA,GAAG,uBAAQ,GAAG",
             "names":[],
@@ -1302,53 +1261,11 @@ mod tests {
             "sourcesContent":["my problems = 99"]
         }"#;
 
-        let second_sourcemap = br#"{
-            "version":3,
-            "mappings":"AAAA,OAAa",
-            "names":[],
-            "sources":["edited.js"],
-            "sourcesContent":["var my answer/* ignore this */ = 42;"]
-        }"#;
-
         let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
         let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
 
-        let transformed = first_sourcemap.transform(&second_sourcemap);
+        let composed = SourceMap::compose(&first_sourcemap, &second_sourcemap);
 
-        dbg!(&transformed);
-
-        let mut f = std::fs::File::create("test_transform_2.map").unwrap();
-        transformed.to_writer(&mut f).unwrap();
-    }
-
-    #[test]
-    fn test_transform_3() {
-        // Maps "var my answer/* ignore this */ = 42;\nthis is not nice" to "my problems = 99\nthis is nice".
-        let first_sourcemap = br#"{
-            "version":3,
-            "mappings":"IAAA,GAAG,uBAAQ,GAAG,GAAE;AAChB,WAAO",
-            "names":[],
-            "sources":["original.js"],
-            "sourcesContent":["my problems = 99\nthis is nice"]
-        }"#;
-
-        // Maps "var my /* ignore this */ = 42;\nthis is nice" to "var my answer/* ignore this */ = 42;\nthis is not nice".
-        let second_sourcemap = br#"{
-            "version":3,
-            "mappings":"AAAA,OAAa;AACb,OAAW",
-            "names":[],
-            "sources":["edited.js"],
-            "sourcesContent":["var my answer/* ignore this */ = 42;\nthis is not nice"]
-        }"#;
-
-        let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
-        let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
-
-        let transformed = first_sourcemap.transform(&second_sourcemap);
-
-        dbg!(&transformed);
-
-        let mut f = std::fs::File::create("test_transform_3.map").unwrap();
-        transformed.to_writer(&mut f).unwrap();
+        assert_eq!(composed.tokens, second_sourcemap.tokens);
     }
 }
