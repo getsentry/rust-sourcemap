@@ -838,6 +838,20 @@ impl SourceMap {
     /// The source root, sources, source contents, and names will be copied from `right`. The only information
     /// that is used from `first` are the mappings.
     pub fn compose(left: &Self, right: &Self) -> Self {
+        // The composition works by going through the tokens in `right` in order and adjusting
+        // them depending on the token in `left` they're "covered" by.
+        // For example:
+        // Let `l` be a token in `left` mapping `(17, 23)` to `(8, 30)` and let
+        // `r₁ : (8, 32) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
+        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `right` that fall in the range of `l`.
+        // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
+        // amount. Thus, the composed sourcemap will contain the tokens
+        // `c₁ : (17, 25) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
+        // `c3 : (18, 3) -> (103, 12)`.
+        // Moreover, there is a small gap between the start of the range of `l` (`(8, 30)`) and the start
+        // of the domain of `r₁` (`(8, 32)`). Therefore, we also add a token `c₀ : (8, 30) -> !` that maps
+        // the small range `(8, 30)..(8, 32)` to nothing.
+
         // Helper struct that makes it easier to compare tokens by the start and end
         // of the range they cover.
         #[derive(Debug, Clone, Copy)]
@@ -851,6 +865,9 @@ impl SourceMap {
 
         // Turn `left.tokens` and `right.tokens` into vectors of ranges so we have easy access to
         // both start and end.
+        // We want to compare `left` tokens and `right` by line/column numbers in the "middle" file.
+        // These line/column numbers are the `src_line/col` for `left` tokens and `dst_line/col` for
+        // the right tokens.
         let mut left_tokens = left.tokens.clone();
         left_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
         let mut left_token_iter = left_tokens.iter().peekable();
@@ -895,8 +912,8 @@ impl SourceMap {
             // The `left_range` offsets lines and columns by a certain amount. All `right_ranges`
             // it covers will get the same offset.
             let (line_diff, col_diff) = (
-                left_range.value.src_line as i32 - left_range.value.dst_line as i32,
-                left_range.value.src_col as i32 - left_range.value.dst_col as i32,
+                left_range.value.dst_line as i32 - left_range.value.src_line as i32,
+                left_range.value.dst_col as i32 - left_range.value.src_col as i32,
             );
 
             // Skip `right_ranges` that are entirely before the `left_range`.
@@ -943,8 +960,8 @@ impl SourceMap {
                     builder.set_source_contents(new_id, contents);
                 }
 
-                let dst_line = (token.dst_line as i32 - line_diff) as u32;
-                let dst_col = (token.dst_col as i32 - col_diff) as u32;
+                let dst_line = (token.dst_line as i32 + line_diff) as u32;
+                let dst_col = (token.dst_col as i32 + col_diff) as u32;
 
                 builder.add(
                     dst_line,
