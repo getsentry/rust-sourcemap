@@ -828,100 +828,116 @@ impl SourceMap {
 
     /// Composes two sourcemaps.
     ///
-    /// This function assumes that `first` only maps between two files and
-    /// its target file is the source file of `second`. In other words, if `first`
-    /// maps from `transformed.js` to `minitfied.js` and `second`
+    /// This function assumes that `left` only maps between two files and
+    /// its target file is the source file of `right`. In other words, if `left`
+    /// maps from `transformed.js` to `minitfied.js` and `right`
     /// maps from `minified.js` to `original_1.js`, …, `original_n.js`, then
     /// the resulting sourcemap maps from `transformed.js`
     /// to to `original_1.js`, …, `original_n.js`.
     ///
-    /// The source root, sources, source contents, and names will be copied from `second`. The only information
+    /// The source root, sources, source contents, and names will be copied from `right`. The only information
     /// that is used from `first` are the mappings.
-    pub fn compose(first: &Self, second: &Self) -> Self {
+    pub fn compose(left: &Self, right: &Self) -> Self {
+        // Helper struct that makes it easier to compare tokens by the start and end
+        // of the range they cover.
         #[derive(Debug, Clone, Copy)]
         struct Range {
             start: (u32, u32),
             end: (u32, u32),
             value: RawToken,
         }
-        let mut builder = SourceMapBuilder::new(second.file.as_deref());
-        builder.set_source_root(second.get_source_root());
+        let mut builder = SourceMapBuilder::new(right.file.as_deref());
+        builder.set_source_root(right.get_source_root());
 
-        // Turn `first.tokens` and `second.tokens` into vectors of ranges so we have easy access to
+        // Turn `left.tokens` and `right.tokens` into vectors of ranges so we have easy access to
         // both start and end.
-        let mut first_tokens = first.tokens.clone();
-        first_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
-        let mut first_token_iter = first_tokens.iter().peekable();
-        let mut first_ranges = Vec::new();
+        let mut left_tokens = left.tokens.clone();
+        left_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
+        let mut left_token_iter = left_tokens.iter().peekable();
+        let mut left_ranges = Vec::new();
 
-        while let Some(&t) = first_token_iter.next() {
-            let (end_line, end_col) = first_token_iter
+        while let Some(&t) = left_token_iter.next() {
+            let (end_line, end_col) = left_token_iter
                 .peek()
                 .map_or((u32::MAX, u32::MAX), |&&t| (t.src_line, t.src_col));
-            first_ranges.push(Range {
+            left_ranges.push(Range {
                 start: (t.src_line, t.src_col),
                 end: (end_line, end_col),
                 value: t,
             });
         }
 
-        let mut second_tokens = second.tokens.clone();
-        second_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
-        let mut second_token_iter = second_tokens.iter().peekable();
-        let mut second_ranges = Vec::new();
+        let mut right_tokens = right.tokens.clone();
+        right_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+        let mut right_token_iter = right_tokens.iter().peekable();
+        let mut right_ranges = Vec::new();
 
-        while let Some(&t) = second_token_iter.next() {
-            let (end_line, end_col) = second_token_iter
+        while let Some(&t) = right_token_iter.next() {
+            let (end_line, end_col) = right_token_iter
                 .peek()
                 .map_or((u32::MAX, u32::MAX), |&&t| (t.dst_line, t.dst_col));
-            second_ranges.push(Range {
+            right_ranges.push(Range {
                 start: (t.dst_line, t.dst_col),
                 end: (end_line, end_col),
                 value: t,
             });
         }
 
-        let mut second_ranges_iter = second_ranges.iter_mut();
+        let mut right_ranges_iter = right_ranges.iter_mut();
 
-        let Some(mut second_range) = second_ranges_iter.next() else {
+        let Some(mut right_range) = right_ranges_iter.next() else {
             return builder.into_sourcemap();
         };
 
-        // Iterate over `first.ranges` (sorted by `src_line/col`). For each such range, consider
-        // all `second.ranges` which overlap with it.
-        for &first_range in &first_ranges {
-            // The `first_range` offsets lines and columns by a certain amount. All `second_ranges`
+        // Iterate over `left.ranges` (sorted by `src_line/col`). For each such range, consider
+        // all `right.ranges` which overlap with it.
+        for &left_range in &left_ranges {
+            // The `left_range` offsets lines and columns by a certain amount. All `right_ranges`
             // it covers will get the same offset.
             let (line_diff, col_diff) = (
-                first_range.value.src_line as i32 - first_range.value.dst_line as i32,
-                first_range.value.src_col as i32 - first_range.value.dst_col as i32,
+                left_range.value.src_line as i32 - left_range.value.dst_line as i32,
+                left_range.value.src_col as i32 - left_range.value.dst_col as i32,
             );
 
-            // Skip `second_ranges` that are entirely before the `first_range`.
-            while second_range.end <= first_range.start {
-                match second_ranges_iter.next() {
-                    Some(r) => second_range = r,
+            // Skip `right_ranges` that are entirely before the `left_range`.
+            while right_range.end <= left_range.start {
+                match right_ranges_iter.next() {
+                    Some(r) => right_range = r,
                     None => return builder.into_sourcemap(),
                 }
             }
 
-            // At this point `second_range.end` > `first_range.start`
+            // At this point `right_range.end` > `left_range.start`
 
-            // Iterate over `second_ranges` that fall at least partially within the `first_range`.
-            while second_range.start < first_range.end {
-                // If `second_range` started before `first_range`, cut it off.
-                second_range.start = std::cmp::max(second_range.start, first_range.start);
-                let token = &mut second_range.value;
+            // If the first `right_range` starts after the `left_range`,
+            // there's a gap between the `left_range` and the `right_range`.
+            // Add an "empty" mapping for that gap.
+            if right_range.start > left_range.start {
+                builder.add(
+                    left_range.value.dst_line,
+                    left_range.value.dst_col,
+                    u32::MAX,
+                    u32::MAX,
+                    None,
+                    None,
+                );
+            }
+
+            // Iterate over `right_ranges` that fall at least partially within the `left_range`.
+            while right_range.start < left_range.end {
+                // If `right_range` started before `left_range`, cut it off.
+                right_range.start = std::cmp::max(right_range.start, left_range.start);
+                let token = &mut right_range.value;
                 // Keep the `dst_line/col` in sync with the range start.
-                token.dst_line = second_range.start.0;
-                token.dst_col = second_range.start.1;
+                token.dst_line = right_range.start.0;
+                token.dst_col = right_range.start.1;
 
-                // Lookup the `second_range`'s source and name.
-                let name = second.get_name(token.name_id);
-                let source = second.get_source(token.src_id);
+                // Lookup the `right_range`'s source and name.
+                let name = right.get_name(token.name_id);
+                let source = right.get_source(token.src_id);
 
                 if let Some(source) = source {
-                    let contents = second.get_source_contents(token.src_id);
+                    let contents = right.get_source_contents(token.src_id);
 
                     let new_id = builder.add_source(source);
                     builder.set_source_contents(new_id, contents);
@@ -939,14 +955,16 @@ impl SourceMap {
                     name,
                 );
 
-                if second_range.end < first_range.end {
-                    //  Advance the `second_range`.
-                    match second_ranges_iter.next() {
-                        Some(r) => second_range = r,
+                if right_range.end >= left_range.end {
+                    // There are surely no more `right_ranges` for this `left_range`.
+                    // Break the loop without advancing the `right_range`.
+                    break;
+                } else {
+                    //  Advance the `right_range`.
+                    match right_ranges_iter.next() {
+                        Some(r) => right_range = r,
                         None => return builder.into_sourcemap(),
                     }
-                } else {
-                    break;
                 }
             }
         }
@@ -1212,6 +1230,7 @@ impl SourceMapSection {
 
 #[cfg(test)]
 mod tests {
+    use crate::RawToken;
 
     use super::{RewriteOptions, SourceMap};
     use debugid::DebugId;
@@ -1265,6 +1284,18 @@ mod tests {
 
         let composed = SourceMap::compose(&first_sourcemap, &second_sourcemap);
 
-        assert_eq!(composed.tokens, second_sourcemap.tokens);
+        // The composition added an explicit non-mapping at the beginning.
+        assert_eq!(
+            &composed.tokens[0],
+            &RawToken {
+                dst_line: 0,
+                dst_col: 0,
+                src_line: u32::MAX,
+                src_col: u32::MAX,
+                src_id: u32::MAX,
+                name_id: u32::MAX,
+            }
+        );
+        assert_eq!(&composed.tokens[1..], second_sourcemap.tokens);
     }
 }
