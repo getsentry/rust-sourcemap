@@ -974,8 +974,8 @@ impl SourceMap {
 
                 if right_range.end >= left_range.end {
                     // There are surely no more `right_ranges` for this `left_range`.
-                    // Continue to the next `left_range` without advancing the `right_range`.
-                    continue;
+                    // Break the loop without advancing the `right_range`.
+                    break;
                 } else {
                     //  Advance the `right_range`.
                     match right_ranges_iter.next() {
