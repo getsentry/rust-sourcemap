@@ -1266,9 +1266,9 @@ mod tests {
     }
 
     #[test]
-    fn test_compose_identity() {
+    fn test_compose_identity_left() {
         // Identity mapping on "var my answer/* ignore this */ = 42;".
-        let first_sourcemap = br#"{
+        let left_sourcemap = br#"{
             "version":3,
             "mappings":"AAAA",
             "names":[],
@@ -1277,7 +1277,7 @@ mod tests {
         }"#;
 
         // Maps "var my answer/* ignore this */ = 42;" to "my problems = 99".
-        let second_sourcemap = br#"{
+        let right_sourcemap = br#"{
             "version":3,
             "mappings":"IAAA,GAAG,uBAAQ,GAAG",
             "names":[],
@@ -1285,11 +1285,44 @@ mod tests {
             "sourcesContent":["my problems = 99"]
         }"#;
 
-        let first_sourcemap = SourceMap::from_slice(first_sourcemap).unwrap();
-        let second_sourcemap = SourceMap::from_slice(second_sourcemap).unwrap();
+        let left_sourcemap = SourceMap::from_slice(left_sourcemap).unwrap();
+        let right_sourcemap = SourceMap::from_slice(right_sourcemap).unwrap();
 
-        let composed = SourceMap::compose(&first_sourcemap, &second_sourcemap);
+        let composed = SourceMap::compose(&left_sourcemap, &right_sourcemap);
 
-        assert_eq!(composed.tokens, second_sourcemap.tokens);
+        assert_eq!(composed.tokens, right_sourcemap.tokens);
+    }
+
+    #[test]
+    fn test_compose_identity_right() {
+        // Hires map from "var my problems = 99;" to "my problems = 99"
+        let left_sourcemap = br#"{
+            "version":3,
+            "mappings":"GAAA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC",
+            "names":[],
+            "sources":["edited.js"],
+            "sourcesContent":["my problems = 99"]
+        }"#;
+
+        // Identity map on "my problems = 99"
+        let right_sourcemap = br#"{
+            "version":3,
+            "mappings":"AAAA",
+            "names":[],
+            "sources":["original.js"],
+            "sourcesContent":["my problems = 99"]
+        }"#;
+
+        let left_sourcemap = SourceMap::from_slice(left_sourcemap).unwrap();
+        let right_sourcemap = SourceMap::from_slice(right_sourcemap).unwrap();
+
+        let composed = SourceMap::compose(&left_sourcemap, &right_sourcemap);
+
+        // After composition, all mappings point to (0, 0).
+        // Morally, the composition is the same as the map with the single mapping `(0,3) -> (0, 0)`.
+        for t in &composed.tokens {
+            assert_eq!(t.src_line, 0);
+            assert_eq!(t.src_col, 0);
+        }
     }
 }
