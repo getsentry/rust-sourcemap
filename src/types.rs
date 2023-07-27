@@ -889,12 +889,13 @@ impl SourceMap {
         // These line/column numbers are the `src_line/col` for `left` tokens and `dst_line/col` for
         // the right tokens.
         let left_ranges = create_ranges(&left.tokens, |t| (t.src_line, t.src_col));
-        let mut right_ranges = create_ranges(&right.tokens, |t| (t.dst_line, t.dst_col));
+        let right_ranges = create_ranges(&right.tokens, |t| (t.dst_line, t.dst_col));
 
-        let mut right_ranges_iter = right_ranges.iter_mut();
+        let mut right_ranges_iter = right_ranges.iter();
 
-        let Some(mut right_range) = right_ranges_iter.next() else {
-            return builder.into_sourcemap();
+        let mut right_range = match right_ranges_iter.next() {
+            Some(r) => r,
+            None => return builder.into_sourcemap(),
         };
 
         // Iterate over `left.ranges` (sorted by `src_line/col`). For each such range, consider
@@ -919,12 +920,13 @@ impl SourceMap {
 
             // Iterate over `right_ranges` that fall at least partially within the `left_range`.
             while right_range.start < left_range.end {
-                // If `right_range` started before `left_range`, cut it off.
-                right_range.start = std::cmp::max(right_range.start, left_range.start);
-                let token = &mut right_range.value;
-                // Keep the `dst_line/col` in sync with the range start.
-                token.dst_line = right_range.start.0;
-                token.dst_col = right_range.start.1;
+                // If `right_range` started before `left_range`, cut off the token's start.
+                let (dst_line, dst_col) = std::cmp::max(right_range.start, left_range.start);
+                let token = RawToken {
+                    dst_line,
+                    dst_col,
+                    ..right_range.value
+                };
 
                 // Lookup the `right_range`'s source and name.
                 let name = right.get_name(token.name_id);
