@@ -926,20 +926,6 @@ impl SourceMap {
 
             // At this point `right_range.end` > `left_range.start`
 
-            // If the first `right_range` starts after the `left_range`,
-            // there's a gap between the `left_range` and the `right_range`.
-            // Add an "empty" mapping for that gap.
-            if right_range.start > left_range.start {
-                builder.add(
-                    left_range.value.dst_line,
-                    left_range.value.dst_col,
-                    u32::MAX,
-                    u32::MAX,
-                    None,
-                    None,
-                );
-            }
-
             // Iterate over `right_ranges` that fall at least partially within the `left_range`.
             while right_range.start < left_range.end {
                 // If `right_range` started before `left_range`, cut it off.
@@ -1301,18 +1287,6 @@ mod tests {
 
         let composed = SourceMap::compose(&first_sourcemap, &second_sourcemap);
 
-        // The composition added an explicit non-mapping at the beginning.
-        assert_eq!(
-            &composed.tokens[0],
-            &RawToken {
-                dst_line: 0,
-                dst_col: 0,
-                src_line: u32::MAX,
-                src_col: u32::MAX,
-                src_id: u32::MAX,
-                name_id: u32::MAX,
-            }
-        );
-        assert_eq!(&composed.tokens[1..], second_sourcemap.tokens);
+        assert_eq!(composed.tokens, second_sourcemap.tokens);
     }
 }
