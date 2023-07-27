@@ -863,42 +863,33 @@ impl SourceMap {
         let mut builder = SourceMapBuilder::new(right.file.as_deref());
         builder.set_source_root(right.get_source_root());
 
+        /// Turns a list of tokens into a list of ranges, using the provided function to determine the start of a token.
+        fn create_ranges(tokens: &[RawToken], key: fn(&RawToken) -> (u32, u32)) -> Vec<Range> {
+            let mut tokens = tokens.to_vec();
+            tokens.sort_unstable_by_key(key);
+
+            let mut token_iter = tokens.into_iter().peekable();
+            let mut ranges = Vec::new();
+
+            while let Some(t) = token_iter.next() {
+                let (end_line, end_col) = token_iter.peek().map_or((u32::MAX, u32::MAX), key);
+                ranges.push(Range {
+                    start: key(&t),
+                    end: (end_line, end_col),
+                    value: t,
+                });
+            }
+
+            ranges
+        }
+
         // Turn `left.tokens` and `right.tokens` into vectors of ranges so we have easy access to
         // both start and end.
         // We want to compare `left` tokens and `right` by line/column numbers in the "middle" file.
         // These line/column numbers are the `src_line/col` for `left` tokens and `dst_line/col` for
         // the right tokens.
-        let mut left_tokens = left.tokens.clone();
-        left_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
-        let mut left_token_iter = left_tokens.iter().peekable();
-        let mut left_ranges = Vec::new();
-
-        while let Some(&t) = left_token_iter.next() {
-            let (end_line, end_col) = left_token_iter
-                .peek()
-                .map_or((u32::MAX, u32::MAX), |&&t| (t.src_line, t.src_col));
-            left_ranges.push(Range {
-                start: (t.src_line, t.src_col),
-                end: (end_line, end_col),
-                value: t,
-            });
-        }
-
-        let mut right_tokens = right.tokens.clone();
-        right_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
-        let mut right_token_iter = right_tokens.iter().peekable();
-        let mut right_ranges = Vec::new();
-
-        while let Some(&t) = right_token_iter.next() {
-            let (end_line, end_col) = right_token_iter
-                .peek()
-                .map_or((u32::MAX, u32::MAX), |&&t| (t.dst_line, t.dst_col));
-            right_ranges.push(Range {
-                start: (t.dst_line, t.dst_col),
-                end: (end_line, end_col),
-                value: t,
-            });
-        }
+        let left_ranges = create_ranges(&left.tokens, |t| (t.src_line, t.src_col));
+        let mut right_ranges = create_ranges(&right.tokens, |t| (t.dst_line, t.dst_col));
 
         let mut right_ranges_iter = right_ranges.iter_mut();
 
@@ -1233,8 +1224,6 @@ impl SourceMapSection {
 
 #[cfg(test)]
 mod tests {
-    use crate::RawToken;
-
     use super::{RewriteOptions, SourceMap};
     use debugid::DebugId;
 
