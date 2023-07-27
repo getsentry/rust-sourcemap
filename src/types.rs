@@ -842,15 +842,27 @@ impl SourceMap {
         // them depending on the token in `left` they're "covered" by.
         // For example:
         // Let `l` be a token in `left` mapping `(17, 23)` to `(8, 30)` and let
-        // `r₁ : (8, 32) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
+        // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
         // `r₃ : (9, 10) -> (103, 12)` be the tokens in `right` that fall in the range of `l`.
         // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
         // amount. Thus, the composed sourcemap will contain the tokens
-        // `c₁ : (17, 25) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
+        // `c₁ : (17, 23) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
         // `c3 : (18, 3) -> (103, 12)`.
-        // Moreover, there is a small gap between the start of the range of `l` (`(8, 30)`) and the start
-        // of the domain of `r₁` (`(8, 32)`). Therefore, we also add a token `c₀ : (8, 30) -> !` that maps
-        // the small range `(8, 30)..(8, 32)` to nothing.
+        //
+        // Or, in diagram form:
+        //
+        //    (17, 23)                                    (position in the left file)
+        //    ↓ l
+        //    (8, 30)
+        // (8, 28)        (8, 40)        (9, 10)          (positions in the middle file)
+        // ↓ r₁           ↓ r₂           ↓ r₃
+        // (102, 35)      (102, 50)      (103, 12)        (positions in the right file)
+        //
+        // becomes
+        //
+        //    (17, 23)       (17, 33)       (18, 3)       (positions in the left file)
+        //    ↓ c₁           ↓ c₂           ↓ c₃
+        //    (102, 35)      (102, 50)      (103, 12)     (positions in the right file)
 
         // Helper struct that makes it easier to compare tokens by the start and end
         // of the range they cover.
