@@ -826,43 +826,48 @@ impl SourceMap {
         Ok((sm, mapping))
     }
 
-    /// Composes two sourcemaps.
+    /// Adjusts the mappings in `original` using the mappings in `adjustment`.
     ///
-    /// This function assumes that `left` only maps between two files and
-    /// its target file is the source file of `right`. In other words, if `left`
-    /// maps from `transformed.js` to `minitfied.js` and `right`
-    /// maps from `minified.js` to `original_1.js`, …, `original_n.js`, then
-    /// the resulting sourcemap maps from `transformed.js`
-    /// to to `original_1.js`, …, `original_n.js`.
+    /// Here is the intended use case for this function:
+    /// * You have a source file (for example, minified JS) `foo.js` and a
+    ///   corresponding sourcemap `foo.js.map`.
+    /// * You modify `foo.js` in some way and generate a sourcemap `transform.js.map`
+    ///   representing this modification. This can be done using `magic-string`, for example.
+    /// * You want a sourcemap that is "like" `foo.js.map`, but takes the changes you made to `foo.js` into account.
+    /// Then `SourceMap::adjust_mappings(foo.js.map, transform.js.map)` is the desired sourcemap.
     ///
-    /// The source root, sources, source contents, and names will be copied from `right`. The only information
-    /// that is used from `first` are the mappings.
-    pub fn compose(left: &Self, right: &Self) -> Self {
-        // The composition works by going through the tokens in `right` in order and adjusting
-        // them depending on the token in `left` they're "covered" by.
+    /// This function assumes that `adjustment` contains no relevant information except for mappings.
+    /// All information about sources and names is copied from `original`.
+    ///
+    /// Note that the resulting sourcemap will be at most as fine-grained as `original.` For example,
+    /// if `original` maps every line/column to `0/0`, then `SourceMap::adjust_mappings(original, adjustment)`
+    /// will not map to anything other than`0/0`, irrespective of how detailed the mappings in `adjustment` are.
+    pub fn adjust_mappings(original: &Self, adjustment: &Self) -> Self {
+        // The algorithm works by going through the tokens in `original` in order and adjusting
+        // them depending on the token in `adjustment` they're "covered" by.
         // For example:
-        // Let `l` be a token in `left` mapping `(17, 23)` to `(8, 30)` and let
+        // Let `l` be a token in `original` mapping `(17, 23)` to `(8, 30)` and let
         // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
-        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `right` that fall in the range of `l`.
+        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `original` that fall in the range of `l`.
         // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
-        // amount. Thus, the composed sourcemap will contain the tokens
+        // amount. Thus, the adjusted sourcemap will contain the tokens
         // `c₁ : (17, 23) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
         // `c3 : (18, 3) -> (103, 12)`.
         //
         // Or, in diagram form:
         //
-        //    (17, 23)                                    (position in the left file)
+        //    (17, 23)                                    (position in the edited source file)
         //    ↓ l
         //    (8, 30)
-        // (8, 28)        (8, 40)        (9, 10)          (positions in the middle file)
+        // (8, 28)        (8, 40)        (9, 10)          (positions in the original source file)
         // ↓ r₁           ↓ r₂           ↓ r₃
-        // (102, 35)      (102, 50)      (103, 12)        (positions in the right file)
+        // (102, 35)      (102, 50)      (103, 12)        (positions in the target file)
         //
         // becomes
         //
-        //    (17, 23)       (17, 33)       (18, 3)       (positions in the left file)
+        //    (17, 23)       (17, 33)       (18, 3)       (positions in the edited source file)
         //    ↓ c₁           ↓ c₂           ↓ c₃
-        //    (102, 35)      (102, 50)      (103, 12)     (positions in the right file)
+        //    (102, 35)      (102, 50)      (103, 12)     (positions in the target file)
 
         // Helper struct that makes it easier to compare tokens by the start and end
         // of the range they cover.
@@ -872,8 +877,8 @@ impl SourceMap {
             end: (u32, u32),
             value: RawToken,
         }
-        let mut builder = SourceMapBuilder::new(right.file.as_deref());
-        builder.set_source_root(right.get_source_root());
+        let mut builder = SourceMapBuilder::new(original.file.as_deref());
+        builder.set_source_root(original.get_source_root());
 
         /// Turns a list of tokens into a list of ranges, using the provided function to determine the start of a token.
         fn create_ranges(tokens: &[RawToken], key: fn(&RawToken) -> (u32, u32)) -> Vec<Range> {
@@ -895,57 +900,58 @@ impl SourceMap {
             ranges
         }
 
-        // Turn `left.tokens` and `right.tokens` into vectors of ranges so we have easy access to
+        // Turn `original.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
         // both start and end.
-        // We want to compare `left` tokens and `right` by line/column numbers in the "middle" file.
-        // These line/column numbers are the `src_line/col` for `left` tokens and `dst_line/col` for
-        // the right tokens.
-        let left_ranges = create_ranges(&left.tokens, |t| (t.src_line, t.src_col));
-        let right_ranges = create_ranges(&right.tokens, |t| (t.dst_line, t.dst_col));
+        // We want to compare `original` and `adjustment` tokens by line/column numbers in the "original source" file.
+        // These line/column numbers are the `dst_line/col` for
+        // the `original` tokens and `src_line/col` for the `adjustment` tokens.
+        let original_ranges = create_ranges(&original.tokens, |t| (t.dst_line, t.dst_col));
+        let adjustment_ranges = create_ranges(&adjustment.tokens, |t| (t.src_line, t.src_col));
 
-        let mut right_ranges_iter = right_ranges.iter();
+        let mut original_ranges_iter = original_ranges.iter();
 
-        let mut right_range = match right_ranges_iter.next() {
+        let mut original_range = match original_ranges_iter.next() {
             Some(r) => r,
             None => return builder.into_sourcemap(),
         };
 
-        // Iterate over `left.ranges` (sorted by `src_line/col`). For each such range, consider
-        // all `right.ranges` which overlap with it.
-        for &left_range in &left_ranges {
-            // The `left_range` offsets lines and columns by a certain amount. All `right_ranges`
+        // Iterate over `adjustment_ranges` (sorted by `src_line/col`). For each such range, consider
+        // all `original_ranges` which overlap with it.
+        for &adjustment_range in &adjustment_ranges {
+            // The `adjustment_range` offsets lines and columns by a certain amount. All `original_ranges`
             // it covers will get the same offset.
             let (line_diff, col_diff) = (
-                left_range.value.dst_line as i32 - left_range.value.src_line as i32,
-                left_range.value.dst_col as i32 - left_range.value.src_col as i32,
+                adjustment_range.value.dst_line as i32 - adjustment_range.value.src_line as i32,
+                adjustment_range.value.dst_col as i32 - adjustment_range.value.src_col as i32,
             );
 
-            // Skip `right_ranges` that are entirely before the `left_range`.
-            while right_range.end <= left_range.start {
-                match right_ranges_iter.next() {
-                    Some(r) => right_range = r,
+            // Skip `original_ranges` that are entirely before the `adjustment_range`.
+            while original_range.end <= adjustment_range.start {
+                match original_ranges_iter.next() {
+                    Some(r) => original_range = r,
                     None => return builder.into_sourcemap(),
                 }
             }
 
-            // At this point `right_range.end` > `left_range.start`
+            // At this point `original_range.end` > `adjustment_range.start`
 
-            // Iterate over `right_ranges` that fall at least partially within the `left_range`.
-            while right_range.start < left_range.end {
-                // If `right_range` started before `left_range`, cut off the token's start.
-                let (dst_line, dst_col) = std::cmp::max(right_range.start, left_range.start);
+            // Iterate over `original_ranges` that fall at least partially within the `adjustment_range`.
+            while original_range.start < adjustment_range.end {
+                // If `original_range` started before `adjustment_range`, cut off the token's start.
+                let (dst_line, dst_col) =
+                    std::cmp::max(original_range.start, adjustment_range.start);
                 let token = RawToken {
                     dst_line,
                     dst_col,
-                    ..right_range.value
+                    ..original_range.value
                 };
 
-                // Lookup the `right_range`'s source and name.
-                let name = right.get_name(token.name_id);
-                let source = right.get_source(token.src_id);
+                // Look up the `original_range`'s source and name.
+                let name = original.get_name(token.name_id);
+                let source = original.get_source(token.src_id);
 
                 if let Some(source) = source {
-                    let contents = right.get_source_contents(token.src_id);
+                    let contents = original.get_source_contents(token.src_id);
 
                     let new_id = builder.add_source(source);
                     builder.set_source_contents(new_id, contents);
@@ -963,14 +969,14 @@ impl SourceMap {
                     name,
                 );
 
-                if right_range.end >= left_range.end {
-                    // There are surely no more `right_ranges` for this `left_range`.
-                    // Break the loop without advancing the `right_range`.
+                if original_range.end >= adjustment_range.end {
+                    // There are surely no more `original_ranges` for this `adjustment_range`.
+                    // Break the loop without advancing the `original_range`.
                     break;
                 } else {
-                    //  Advance the `right_range`.
-                    match right_ranges_iter.next() {
-                        Some(r) => right_range = r,
+                    //  Advance the `original_range`.
+                    match original_ranges_iter.next() {
+                        Some(r) => original_range = r,
                         None => return builder.into_sourcemap(),
                     }
                 }
@@ -1268,7 +1274,7 @@ mod tests {
     #[test]
     fn test_compose_identity_left() {
         // Identity mapping on "var my answer/* ignore this */ = 42;".
-        let left_sourcemap = br#"{
+        let adjustment = br#"{
             "version":3,
             "mappings":"AAAA",
             "names":[],
@@ -1277,7 +1283,7 @@ mod tests {
         }"#;
 
         // Maps "var my answer/* ignore this */ = 42;" to "my problems = 99".
-        let right_sourcemap = br#"{
+        let original = br#"{
             "version":3,
             "mappings":"IAAA,GAAG,uBAAQ,GAAG",
             "names":[],
@@ -1285,18 +1291,18 @@ mod tests {
             "sourcesContent":["my problems = 99"]
         }"#;
 
-        let left_sourcemap = SourceMap::from_slice(left_sourcemap).unwrap();
-        let right_sourcemap = SourceMap::from_slice(right_sourcemap).unwrap();
+        let adjustment = SourceMap::from_slice(adjustment).unwrap();
+        let original = SourceMap::from_slice(original).unwrap();
 
-        let composed = SourceMap::compose(&left_sourcemap, &right_sourcemap);
+        let composed = SourceMap::adjust_mappings(&original, &adjustment);
 
-        assert_eq!(composed.tokens, right_sourcemap.tokens);
+        assert_eq!(composed.tokens, original.tokens);
     }
 
     #[test]
     fn test_compose_identity_right() {
         // Hires map from "var my problems = 99;" to "my problems = 99"
-        let left_sourcemap = br#"{
+        let adjustment = br#"{
             "version":3,
             "mappings":"GAAA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC",
             "names":[],
@@ -1305,7 +1311,7 @@ mod tests {
         }"#;
 
         // Identity map on "my problems = 99"
-        let right_sourcemap = br#"{
+        let original = br#"{
             "version":3,
             "mappings":"AAAA",
             "names":[],
@@ -1313,10 +1319,10 @@ mod tests {
             "sourcesContent":["my problems = 99"]
         }"#;
 
-        let left_sourcemap = SourceMap::from_slice(left_sourcemap).unwrap();
-        let right_sourcemap = SourceMap::from_slice(right_sourcemap).unwrap();
+        let adjustment = SourceMap::from_slice(adjustment).unwrap();
+        let original = SourceMap::from_slice(original).unwrap();
 
-        let composed = SourceMap::compose(&left_sourcemap, &right_sourcemap);
+        let composed = SourceMap::adjust_mappings(&original, &adjustment);
 
         // After composition, all mappings point to (0, 0).
         // Morally, the composition is the same as the map with the single mapping `(0,3) -> (0, 0)`.
