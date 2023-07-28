@@ -846,7 +846,7 @@ impl SourceMap {
         // The algorithm works by going through the tokens in `original` in order and adjusting
         // them depending on the token in `adjustment` they're "covered" by.
         // For example:
-        // Let `l` be a token in `original` mapping `(17, 23)` to `(8, 30)` and let
+        // Let `l` be a token in `adjustment` mapping `(17, 23)` to `(8, 30)` and let
         // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
         // `r₃ : (9, 10) -> (103, 12)` be the tokens in `original` that fall in the range of `l`.
         // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
