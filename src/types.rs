@@ -889,10 +889,13 @@ impl SourceMap {
             let mut ranges = Vec::new();
 
             while let Some(t) = token_iter.next() {
-                let (end_line, end_col) = token_iter.peek().map_or((u32::MAX, u32::MAX), key);
+                let start = key(&t);
+                let next_start = token_iter.peek().map_or((u32::MAX, u32::MAX), key);
+                // A token extends either to the start of the next token or the end of the line, whichever comes sooner
+                let end = std::cmp::min(next_start, (start.0, u32::MAX));
                 ranges.push(Range {
-                    start: key(&t),
-                    end: (end_line, end_col),
+                    start,
+                    end,
                     value: t,
                 });
             }
