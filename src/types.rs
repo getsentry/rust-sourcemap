@@ -1334,4 +1334,44 @@ mod tests {
             assert_eq!(t.src_col, 0);
         }
     }
+
+    #[test]
+    fn test_adjust_mappings_injection() {
+        // A test that `adjust_mappings` does what it's supposed to for debug id injection.
+        //
+        // For each bundler:
+        // * `bundle.js` and `bundle.js.map` are taken from https://github.com/kamilogorek/sourcemaps-playground/.
+        // * `injected.bundle.js` and `injected.bundle.js.map` were created using the function`fixup_js_file` in `sentry-cli`.
+        //   `injected.bundle.js.map` maps from `injected.bundle.js` to `bundle.js`.
+        // * `composed.bundle.js.map` is the result of calling `adjust_mappings` on `bundle.js.map` and `injected.bundle.js.map`.
+        //
+        // If everything is working as intended, `composed.bundle.js.map` is a (good) sourcemap from `injected.bundle.js` to
+        // the original sources. To verify that this is indeed the case, you can compare `bundle.js` / `bundle.js.map` with
+        // `injected.bundle.js` / `composed.bundle.js.map` using https://sokra.github.io/source-map-visualization/#custom.
+        for bundler in ["esbuild", "rollup", "vite", "webpack"] {
+            let original_map_file = std::fs::File::open(format!(
+                "tests/fixtures/adjust_mappings/{bundler}.bundle.js.map"
+            ))
+            .unwrap();
+
+            let injected_map_file = std::fs::File::open(format!(
+                "tests/fixtures/adjust_mappings/{bundler}-injected.bundle.js.map"
+            ))
+            .unwrap();
+
+            let composed_map_file = std::fs::File::open(format!(
+                "tests/fixtures/adjust_mappings/{bundler}-composed.bundle.js.map"
+            ))
+            .unwrap();
+
+            let original_map = SourceMap::from_reader(original_map_file).unwrap();
+            let injected_map = SourceMap::from_reader(injected_map_file).unwrap();
+            let composed_map = SourceMap::from_reader(composed_map_file).unwrap();
+
+            assert_eq!(
+                SourceMap::adjust_mappings(&original_map, &injected_map).tokens,
+                composed_map.tokens
+            );
+        }
+    }
 }
