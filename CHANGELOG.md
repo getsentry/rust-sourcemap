@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Various fixes and improvements
+
+- feat: Implement sourcemap composition(#67) by @loewenheim
+
 ## 6.3.0
 
 ### Various fixes & improvements
