@@ -825,6 +825,167 @@ impl SourceMap {
 
         Ok((sm, mapping))
     }
+
+    /// Adjusts the mappings in `original` using the mappings in `adjustment`.
+    ///
+    /// Here is the intended use case for this function:
+    /// * You have a source file (for example, minified JS) `foo.js` and a
+    ///   corresponding sourcemap `foo.js.map`.
+    /// * You modify `foo.js` in some way and generate a sourcemap `transform.js.map`
+    ///   representing this modification. This can be done using `magic-string`, for example.
+    /// * You want a sourcemap that is "like" `foo.js.map`, but takes the changes you made to `foo.js` into account.
+    /// Then `SourceMap::adjust_mappings(foo.js.map, transform.js.map)` is the desired sourcemap.
+    ///
+    /// This function assumes that `adjustment` contains no relevant information except for mappings.
+    /// All information about sources and names is copied from `original`.
+    ///
+    /// Note that the resulting sourcemap will be at most as fine-grained as `original.`.
+    pub fn adjust_mappings(original: &Self, adjustment: &Self) -> Self {
+        // The algorithm works by going through the tokens in `original` in order and adjusting
+        // them depending on the token in `adjustment` they're "covered" by.
+        // For example:
+        // Let `l` be a token in `adjustment` mapping `(17, 23)` to `(8, 30)` and let
+        // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
+        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `original` that fall in the range of `l`.
+        // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
+        // amount. Thus, the adjusted sourcemap will contain the tokens
+        // `c₁ : (17, 23) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
+        // `c3 : (18, 3) -> (103, 12)`.
+        //
+        // Or, in diagram form:
+        //
+        //    (17, 23)                                    (position in the edited source file)
+        //    ↓ l
+        //    (8, 30)
+        // (8, 28)        (8, 40)        (9, 10)          (positions in the original source file)
+        // ↓ r₁           ↓ r₂           ↓ r₃
+        // (102, 35)      (102, 50)      (103, 12)        (positions in the target file)
+        //
+        // becomes
+        //
+        //    (17, 23)       (17, 33)       (18, 3)       (positions in the edited source file)
+        //    ↓ c₁           ↓ c₂           ↓ c₃
+        //    (102, 35)      (102, 50)      (103, 12)     (positions in the target file)
+
+        // Helper struct that makes it easier to compare tokens by the start and end
+        // of the range they cover.
+        #[derive(Debug, Clone, Copy)]
+        struct Range {
+            start: (u32, u32),
+            end: (u32, u32),
+            value: RawToken,
+        }
+        let mut builder = SourceMapBuilder::new(original.file.as_deref());
+        builder.set_source_root(original.get_source_root());
+
+        /// Turns a list of tokens into a list of ranges, using the provided function to determine the start of a token.
+        fn create_ranges(tokens: &[RawToken], key: fn(&RawToken) -> (u32, u32)) -> Vec<Range> {
+            let mut tokens = tokens.to_vec();
+            tokens.sort_unstable_by_key(key);
+
+            let mut token_iter = tokens.into_iter().peekable();
+            let mut ranges = Vec::new();
+
+            while let Some(t) = token_iter.next() {
+                let start = key(&t);
+                let next_start = token_iter.peek().map_or((u32::MAX, u32::MAX), key);
+                // A token extends either to the start of the next token or the end of the line, whichever comes sooner
+                let end = std::cmp::min(next_start, (start.0, u32::MAX));
+                ranges.push(Range {
+                    start,
+                    end,
+                    value: t,
+                });
+            }
+
+            ranges
+        }
+
+        // Turn `original.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
+        // both start and end.
+        // We want to compare `original` and `adjustment` tokens by line/column numbers in the "original source" file.
+        // These line/column numbers are the `dst_line/col` for
+        // the `original` tokens and `src_line/col` for the `adjustment` tokens.
+        let original_ranges = create_ranges(&original.tokens, |t| (t.dst_line, t.dst_col));
+        let adjustment_ranges = create_ranges(&adjustment.tokens, |t| (t.src_line, t.src_col));
+
+        let mut original_ranges_iter = original_ranges.iter();
+
+        let mut original_range = match original_ranges_iter.next() {
+            Some(r) => r,
+            None => return builder.into_sourcemap(),
+        };
+
+        // Iterate over `adjustment_ranges` (sorted by `src_line/col`). For each such range, consider
+        // all `original_ranges` which overlap with it.
+        for &adjustment_range in &adjustment_ranges {
+            // The `adjustment_range` offsets lines and columns by a certain amount. All `original_ranges`
+            // it covers will get the same offset.
+            let (line_diff, col_diff) = (
+                adjustment_range.value.dst_line as i32 - adjustment_range.value.src_line as i32,
+                adjustment_range.value.dst_col as i32 - adjustment_range.value.src_col as i32,
+            );
+
+            // Skip `original_ranges` that are entirely before the `adjustment_range`.
+            while original_range.end <= adjustment_range.start {
+                match original_ranges_iter.next() {
+                    Some(r) => original_range = r,
+                    None => return builder.into_sourcemap(),
+                }
+            }
+
+            // At this point `original_range.end` > `adjustment_range.start`
+
+            // Iterate over `original_ranges` that fall at least partially within the `adjustment_range`.
+            while original_range.start < adjustment_range.end {
+                // If `original_range` started before `adjustment_range`, cut off the token's start.
+                let (dst_line, dst_col) =
+                    std::cmp::max(original_range.start, adjustment_range.start);
+                let token = RawToken {
+                    dst_line,
+                    dst_col,
+                    ..original_range.value
+                };
+
+                // Look up the `original_range`'s source and name.
+                let name = original.get_name(token.name_id);
+                let source = original.get_source(token.src_id);
+
+                if let Some(source) = source {
+                    let contents = original.get_source_contents(token.src_id);
+
+                    let new_id = builder.add_source(source);
+                    builder.set_source_contents(new_id, contents);
+                }
+
+                let dst_line = (token.dst_line as i32 + line_diff) as u32;
+                let dst_col = (token.dst_col as i32 + col_diff) as u32;
+
+                builder.add(
+                    dst_line,
+                    dst_col,
+                    token.src_line,
+                    token.src_col,
+                    source,
+                    name,
+                );
+
+                if original_range.end >= adjustment_range.end {
+                    // There are surely no more `original_ranges` for this `adjustment_range`.
+                    // Break the loop without advancing the `original_range`.
+                    break;
+                } else {
+                    //  Advance the `original_range`.
+                    match original_ranges_iter.next() {
+                        Some(r) => original_range = r,
+                        None => return builder.into_sourcemap(),
+                    }
+                }
+            }
+        }
+
+        builder.into_sourcemap()
+    }
 }
 
 impl SourceMapIndex {
@@ -1109,5 +1270,258 @@ mod tests {
             .unwrap();
 
         assert_eq!(new_sm.debug_id, Some(DebugId::default()));
+    }
+
+    #[test]
+    fn test_adjust_mappings_injection() {
+        // A test that `adjust_mappings` does what it's supposed to for debug id injection.
+        //
+        // For each bundler:
+        // * `bundle.js` and `bundle.js.map` are taken from https://github.com/kamilogorek/sourcemaps-playground/.
+        // * `injected.bundle.js` and `injected.bundle.js.map` were created using the function`fixup_js_file` in `sentry-cli`.
+        //   `injected.bundle.js.map` maps from `injected.bundle.js` to `bundle.js`.
+        // * `composed.bundle.js.map` is the result of calling `adjust_mappings` on `bundle.js.map` and `injected.bundle.js.map`.
+        //
+        // If everything is working as intended, `composed.bundle.js.map` is a (good) sourcemap from `injected.bundle.js` to
+        // the original sources. To verify that this is indeed the case, you can compare `bundle.js` / `bundle.js.map` with
+        // `injected.bundle.js` / `composed.bundle.js.map` using https://sokra.github.io/source-map-visualization/#custom.
+        //
+        // NB: In the case of `rspack`, the sourcemap generated by the bundler is *horrible*. It's probably not useful, but
+        // `adjust_mappings` preserves it as far as it goes.
+        for bundler in ["esbuild", "rollup", "vite", "webpack", "rspack"] {
+            let original_map_file = std::fs::File::open(format!(
+                "tests/fixtures/adjust_mappings/{bundler}.bundle.js.map"
+            ))
+            .unwrap();
+
+            let injected_map_file = std::fs::File::open(format!(
+                "tests/fixtures/adjust_mappings/{bundler}-injected.bundle.js.map"
+            ))
+            .unwrap();
+
+            let composed_map_file = std::fs::File::open(format!(
+                "tests/fixtures/adjust_mappings/{bundler}-composed.bundle.js.map"
+            ))
+            .unwrap();
+
+            let original_map = SourceMap::from_reader(original_map_file).unwrap();
+            let injected_map = SourceMap::from_reader(injected_map_file).unwrap();
+            let composed_map = SourceMap::from_reader(composed_map_file).unwrap();
+
+            assert_eq!(
+                SourceMap::adjust_mappings(&original_map, &injected_map).tokens,
+                composed_map.tokens
+            );
+        }
+    }
+
+    mod prop {
+        //! This module exists to test the following property:
+        //!
+        //! Let `s` be a string.
+        //! 1. Edit `s` with `magic-string` in such a way that edits (insertions, deletions) only happen *within* lines.
+        //!    Call the resulting string `t` and the sourcemap relating the two `m₁`.
+        //! 2. Further edit `t` with `magic-string` so that only *whole* lines are edited (inserted, deleted, prepended, appended).
+        //!    Call the resulting string `u` and the sourcemap relating `u` to `t` `m₂`.
+        //! 3. Do (1) and (2) in one go. The resulting string should still be `u`. Call the sourcemap
+        //!    relating `u` and `s` `m₃`.
+        //!
+        //! Then `SourceMap::adjust_mappings(m₁, m₂) = m₃`.
+        //!
+        //! Or, in diagram form:
+        //!
+        //! u  -----m₂--------> t  -----m₁--------> s
+        //! | -----------------m₃-----------------> |
+        //!
+        //! For the sake of simplicty, all input strings are 10 lines by 10 columns of the characters a-z.
+        use magic_string::MagicString;
+        use proptest::prelude::*;
+
+        use crate::SourceMap;
+
+        /// An edit in the first batch (only within a line).
+        #[derive(Debug, Clone)]
+        enum FirstEdit {
+            /// Insert a string at a column.
+            Insert(u32, String),
+            /// Delete from one column to the other.
+            Delete(i64, i64),
+        }
+
+        impl FirstEdit {
+            /// Applies an edit to the given line in the given `MagicString`.
+            fn apply(&self, line: usize, ms: &mut MagicString) {
+                // Every line is 11 bytes long, counting the newline.
+                let line_offset = line * 11;
+                match self {
+                    FirstEdit::Insert(col, s) => {
+                        ms.append_left(line_offset as u32 + *col, s).unwrap();
+                    }
+                    FirstEdit::Delete(start, end) => {
+                        ms.remove(line_offset as i64 + *start, line_offset as i64 + *end)
+                            .unwrap();
+                    }
+                }
+            }
+        }
+
+        /// Find the start and end index of the n'th line in the given string
+        /// (including the terminating newline, if there is one).
+        fn nth_line_start_end(n: usize, s: &str) -> (usize, usize) {
+            let line = s.lines().nth(n).unwrap();
+            let start = line.as_ptr() as usize - s.as_ptr() as usize;
+            // All lines except line 9 have a final newline.
+            let end = if n == 9 {
+                start + line.len()
+            } else {
+                start + line.len() + 1
+            };
+            (start, end)
+        }
+
+        /// An edit in the second batch (only whole lines).
+        #[derive(Debug, Clone)]
+        enum SecondEdit {
+            /// Prepends a string.
+            Prepend(String),
+            /// Appends a string.
+            Append(String),
+            /// Inserts a string at a given line.
+            Insert(usize, String),
+            /// Deletes a a line.
+            Delete(usize),
+        }
+
+        impl SecondEdit {
+            /// Applies an edit to a `MagicString`.
+            ///
+            /// This must know the original string (which unfortunately can't be extracted from a `MagicString`)
+            /// to find line boundaries.
+            fn apply(&self, orig: &str, ms: &mut MagicString) {
+                match self {
+                    SecondEdit::Prepend(s) => {
+                        ms.prepend(s).unwrap();
+                    }
+                    SecondEdit::Append(s) => {
+                        ms.append(s).unwrap();
+                    }
+                    SecondEdit::Insert(line, s) => {
+                        let (start, _) = nth_line_start_end(*line, orig);
+                        ms.prepend_left(start as u32, s).unwrap();
+                    }
+                    SecondEdit::Delete(line) => {
+                        let (start, end) = nth_line_start_end(*line, orig);
+                        ms.remove(start as i64, end as i64).unwrap();
+                    }
+                }
+            }
+        }
+
+        /// Produces a random 10x10 grid of the characters a-z.
+        fn starting_string() -> impl Strategy<Value = String> {
+            (vec!["[a-z]{10}"; 10]).prop_map(|v| v.join("\n"))
+        }
+
+        /// Produces a random first-batch edit.
+        fn first_edit() -> impl Strategy<Value = FirstEdit> {
+            prop_oneof![
+                (1u32..9, "[a-z]{5}").prop_map(|(c, s)| FirstEdit::Insert(c, s)),
+                (1i64..10)
+                    .prop_flat_map(|end| (0..end, Just(end)))
+                    .prop_map(|(a, b)| FirstEdit::Delete(a, b))
+            ]
+        }
+
+        /// Produces a random sequence of first-batch edits, one per line.
+        ///
+        /// Thus, each line will either have an insertion or a deletion.
+        fn first_edit_sequence() -> impl Strategy<Value = Vec<FirstEdit>> {
+            let mut vec = Vec::with_capacity(10);
+
+            for _ in 0..10 {
+                vec.push(first_edit())
+            }
+
+            vec
+        }
+
+        /// Produces a random sequence of second-batch edits, one per line.
+        ///
+        /// Each edit may delete a line, insert a line, or prepend or append something
+        /// to the whole string. No two edits operate on the same line. The order of the edits is random.
+        fn second_edit_sequence() -> impl Strategy<Value = Vec<SecondEdit>> {
+            let edits = (0..10)
+                .map(|i| {
+                    prop_oneof![
+                        "[a-z\n]{12}".prop_map(SecondEdit::Prepend),
+                        "[a-z\n]{12}".prop_map(SecondEdit::Append),
+                        "[a-z\n]{11}\n".prop_map(move |s| SecondEdit::Insert(i, s)),
+                        Just(SecondEdit::Delete(i)),
+                    ]
+                })
+                .collect::<Vec<_>>();
+
+            edits.prop_shuffle()
+        }
+
+        proptest! {
+            #[test]
+            fn test_composition_identity(
+                input in starting_string(),
+                first_edits in first_edit_sequence(),
+                second_edits in second_edit_sequence(),
+            ) {
+
+                // Do edits in two batches and generate two sourcemaps
+
+                let mut ms1 = MagicString::new(&input);
+
+                for (line, first_edit) in first_edits.iter().enumerate() {
+                    first_edit.apply(line, &mut ms1);
+                }
+
+                let first_map = ms1.generate_map(Default::default()).unwrap().to_string().unwrap();
+                let first_map = SourceMap::from_slice(first_map.as_bytes()).unwrap();
+
+                let transformed_input = ms1.to_string();
+
+                let mut ms2 = MagicString::new(&transformed_input);
+
+                for second_edit in second_edits.iter() {
+                    second_edit.apply(&transformed_input, &mut ms2);
+                }
+
+                let output_1 = ms2.to_string();
+
+                let second_map = ms2.generate_map(Default::default()).unwrap().to_string().unwrap();
+                let second_map = SourceMap::from_slice(second_map.as_bytes()).unwrap();
+
+                // Do edits again in one batch and generate one big sourcemap
+
+                let mut ms3 = MagicString::new(&input);
+
+                for (line, first_edit) in first_edits.iter().enumerate() {
+                    first_edit.apply(line, &mut ms3);
+                }
+
+                for second_edit in second_edits.iter() {
+                    second_edit.apply(&input, &mut ms3);
+                }
+
+                let output_2 = ms3.to_string();
+
+                let third_map = ms3.generate_map(Default::default()).unwrap().to_string().unwrap();
+                let third_map = SourceMap::from_slice(third_map.as_bytes()).unwrap();
+
+
+                // Both methods must produce the same output
+                assert_eq!(output_1, output_2);
+
+
+                let composed_map = SourceMap::adjust_mappings(&first_map, &second_map);
+
+                assert_eq!(composed_map.tokens, third_map.tokens);
+            }
+        }
     }
 }
