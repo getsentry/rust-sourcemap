@@ -1314,4 +1314,214 @@ mod tests {
             );
         }
     }
+
+    mod prop {
+        //! This module exists to test the following property:
+        //!
+        //! Let `s` be a string.
+        //! 1. Edit `s` with `magic-string` in such a way that edits (insertions, deletions) only happen *within* lines.
+        //!    Call the resulting string `t` and the sourcemap relating the two `m₁`.
+        //! 2. Further edit `t` with `magic-string` so that only *whole* lines are edited (inserted, deleted, prepended, appended).
+        //!    Call the resulting string `u` and the sourcemap relating `u` to `t` `m₂`.
+        //! 3. Do (1) and (2) in one go. The resulting string should still be `u`. Call the sourcemap
+        //!    relating `u` and `s` `m₃`.
+        //!
+        //! Then `SourceMap::adjust_mappings(m₁, m₂) = m₃`.
+        //!
+        //! Or, in diagram form:
+        //!
+        //! u  -----m₂--------> t  -----m₁--------> s
+        //! | -----------------m₃-----------------> |
+        //!
+        //! For the sake of simplicty, all input strings are 10 lines by 10 columns of the characters a-z.
+        use magic_string::MagicString;
+        use proptest::prelude::*;
+
+        use crate::SourceMap;
+
+        /// An edit in the first batch (only within a line).
+        #[derive(Debug, Clone)]
+        enum FirstEdit {
+            /// Insert a string at a column.
+            Insert(u32, String),
+            /// Delete from one column to the other.
+            Delete(i64, i64),
+        }
+
+        impl FirstEdit {
+            /// Applies an edit to the given line in the given `MagicString`.
+            fn apply(&self, line: usize, ms: &mut MagicString) {
+                // Every line is 11 bytes long, counting the newline.
+                let line_offset = line * 11;
+                match self {
+                    FirstEdit::Insert(col, s) => {
+                        ms.append_left(line_offset as u32 + *col, s).unwrap();
+                    }
+                    FirstEdit::Delete(start, end) => {
+                        ms.remove(line_offset as i64 + *start, line_offset as i64 + *end)
+                            .unwrap();
+                    }
+                }
+            }
+        }
+
+        /// Find the start and end index of the n'th line in the given string
+        /// (including the terminating newline, if there is one).
+        fn nth_line_start_end(n: usize, s: &str) -> (usize, usize) {
+            let line = s.lines().nth(n).unwrap();
+            let start = line.as_ptr() as usize - s.as_ptr() as usize;
+            // All lines except line 9 have a final newline.
+            let end = if n == 9 {
+                start + line.len()
+            } else {
+                start + line.len() + 1
+            };
+            (start, end)
+        }
+
+        /// An edit in the second batch (only whole lines).
+        #[derive(Debug, Clone)]
+        enum SecondEdit {
+            /// Prepends a string.
+            Prepend(String),
+            /// Appends a string.
+            Append(String),
+            /// Inserts a string at a given line.
+            Insert(usize, String),
+            /// Deletes a a line.
+            Delete(usize),
+        }
+
+        impl SecondEdit {
+            /// Applies an edit to a `MagicString`.
+            ///
+            /// This must know the original string (which unfortunately can't be extracted from a `MagicString`)
+            /// to find line boundaries.
+            fn apply(&self, orig: &str, ms: &mut MagicString) {
+                match self {
+                    SecondEdit::Prepend(s) => {
+                        ms.prepend(s).unwrap();
+                    }
+                    SecondEdit::Append(s) => {
+                        ms.append(s).unwrap();
+                    }
+                    SecondEdit::Insert(line, s) => {
+                        let (start, _) = nth_line_start_end(*line, orig);
+                        ms.prepend_left(start as u32, s).unwrap();
+                    }
+                    SecondEdit::Delete(line) => {
+                        let (start, end) = nth_line_start_end(*line, orig);
+                        ms.remove(start as i64, end as i64).unwrap();
+                    }
+                }
+            }
+        }
+
+        /// Produces a random 10x10 grid of the characters a-z.
+        fn starting_string() -> impl Strategy<Value = String> {
+            (vec!["[a-z]{10}"; 10]).prop_map(|v| v.join("\n"))
+        }
+
+        /// Produces a random first-batch edit.
+        fn first_edit() -> impl Strategy<Value = FirstEdit> {
+            prop_oneof![
+                (1u32..9, "[a-z]{5}").prop_map(|(c, s)| FirstEdit::Insert(c, s)),
+                (1i64..10)
+                    .prop_flat_map(|end| (0..end, Just(end)))
+                    .prop_map(|(a, b)| FirstEdit::Delete(a, b))
+            ]
+        }
+
+        /// Produces a random sequence of first-batch edits, one per line.
+        ///
+        /// Thus, each line will either have an insertion or a deletion.
+        fn first_edit_sequence() -> impl Strategy<Value = Vec<FirstEdit>> {
+            let mut vec = Vec::with_capacity(10);
+
+            for _ in 0..10 {
+                vec.push(first_edit())
+            }
+
+            vec
+        }
+
+        /// Produces a random sequence of second-batch edits, one per line.
+        ///
+        /// Each edit may delete a line, insert a line, or prepend or append something
+        /// to the whole string. No two edits operate on the same line. The order of the edits is random.
+        fn second_edit_sequence() -> impl Strategy<Value = Vec<SecondEdit>> {
+            let edits = (0..10)
+                .map(|i| {
+                    prop_oneof![
+                        "[a-z\n]{12}".prop_map(SecondEdit::Prepend),
+                        "[a-z\n]{12}".prop_map(SecondEdit::Append),
+                        "[a-z\n]{11}\n".prop_map(move |s| SecondEdit::Insert(i, s)),
+                        Just(SecondEdit::Delete(i)),
+                    ]
+                })
+                .collect::<Vec<_>>();
+
+            edits.prop_shuffle()
+        }
+
+        proptest! {
+            #[test]
+            fn test_composition_identity(
+                input in starting_string(),
+                first_edits in first_edit_sequence(),
+                second_edits in second_edit_sequence(),
+            ) {
+
+                // Do edits in two batches and generate two sourcemaps
+
+                let mut ms1 = MagicString::new(&input);
+
+                for (line, first_edit) in first_edits.iter().enumerate() {
+                    first_edit.apply(line, &mut ms1);
+                }
+
+                let first_map = ms1.generate_map(Default::default()).unwrap().to_string().unwrap();
+                let first_map = SourceMap::from_slice(first_map.as_bytes()).unwrap();
+
+                let transformed_input = ms1.to_string();
+
+                let mut ms2 = MagicString::new(&transformed_input);
+
+                for second_edit in second_edits.iter() {
+                    second_edit.apply(&transformed_input, &mut ms2);
+                }
+
+                let output_1 = ms2.to_string();
+
+                let second_map = ms2.generate_map(Default::default()).unwrap().to_string().unwrap();
+                let second_map = SourceMap::from_slice(second_map.as_bytes()).unwrap();
+
+                // Do edits again in one batch and generate one big sourcemap
+
+                let mut ms3 = MagicString::new(&input);
+
+                for (line, first_edit) in first_edits.iter().enumerate() {
+                    first_edit.apply(line, &mut ms3);
+                }
+
+                for second_edit in second_edits.iter() {
+                    second_edit.apply(&input, &mut ms3);
+                }
+
+                let output_2 = ms3.to_string();
+
+                let third_map = ms3.generate_map(Default::default()).unwrap().to_string().unwrap();
+                let third_map = SourceMap::from_slice(third_map.as_bytes()).unwrap();
+
+
+                // Both methods must produce the same output
+                assert_eq!(output_1, output_2);
+
+
+                let composed_map = SourceMap::adjust_mappings(&first_map, &second_map);
+
+                assert_eq!(composed_map.tokens, third_map.tokens);
+            }
+        }
+    }
 }

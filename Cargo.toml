@@ -42,3 +42,7 @@ ram_bundle = ["scroll"]
 [[example]]
 name = "split_ram_bundle"
 required-features = ["ram_bundle"]
+
+[dev-dependencies]
+magic_string = "0.3.4"
+proptest = "1.2.0"
