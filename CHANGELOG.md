@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.4.1
+
+### Various fixes & improvements
+
+- fix: Do not set source_contents if it already exists (#68) by @kamilogorek
+
 ## 6.4.0
 
 ### Various fixes and improvements
