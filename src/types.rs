@@ -951,11 +951,12 @@ impl SourceMap {
                 let name = original.get_name(token.name_id);
                 let source = original.get_source(token.src_id);
 
-                if let Some(source) = source {
-                    let contents = original.get_source_contents(token.src_id);
-
-                    let new_id = builder.add_source(source);
-                    builder.set_source_contents(new_id, contents);
+                if !builder.has_source_contents(token.src_id) {
+                    if let Some(source) = source {
+                        let contents = original.get_source_contents(token.src_id);
+                        let new_id = builder.add_source(source);
+                        builder.set_source_contents(new_id, contents);
+                    }
                 }
 
                 let dst_line = (token.dst_line as i32 + line_diff) as u32;
