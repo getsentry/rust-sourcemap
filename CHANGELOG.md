@@ -4,7 +4,7 @@
 
 ### Various fixes and improvements
 
-- feat: Conversion from magic_string's DecodedSourceMap type (gated behind magic_string feature)
+- feat: Conversion from magic_string's DecodedSourceMap type (gated behind magic_string feature) (#69) by @loewenheim
 
 ## 6.4.1
 
