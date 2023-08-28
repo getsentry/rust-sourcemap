@@ -46,6 +46,7 @@ Functionality of the crate can be turned on and off by feature flags.  This is t
 current list of feature flags:
 
 * `ram_bundle`: turns on RAM bundle support
+* `magic_string`: enables conversion from `magic_string`'s `DecodedSourceMap` type to this crate's `SourceMap` type
 
 
 License: BSD-3-Clause

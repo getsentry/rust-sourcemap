@@ -989,6 +989,91 @@ impl SourceMap {
     }
 }
 
+#[cfg(feature = "magic_string")]
+impl From<magic_string::DecodedMap> for SourceMap {
+    fn from(sm: magic_string::DecodedMap) -> Self {
+        let mut tokens = Vec::new();
+        let mut dst_col;
+        let mut src_line = 0;
+        let mut src_col = 0;
+        let mut src_id = 0;
+        let mut name_id = 0;
+
+        for (dst_line, line) in sm.mappings.into_iter().enumerate() {
+            if line.is_empty() {
+                continue;
+            }
+
+            dst_col = 0;
+
+            for segment in line {
+                if segment.is_empty() {
+                    continue;
+                };
+                dst_col = (i64::from(dst_col) + segment[0]) as u32;
+
+                let mut src = !0;
+                let mut name = !0;
+
+                if segment.len() > 1 {
+                    src_id = (i64::from(src_id) + segment[1]) as u32;
+                    src = src_id;
+                    src_line = (i64::from(src_line) + segment[2]) as u32;
+                    src_col = (i64::from(src_col) + segment[3]) as u32;
+
+                    if segment.len() > 4 {
+                        name_id = (i64::from(name_id) + segment[4]) as u32;
+                        name = name_id;
+                    }
+                }
+
+                tokens.push(RawToken {
+                    dst_line: dst_line as u32,
+                    dst_col,
+                    src_line,
+                    src_col,
+                    src_id: src,
+                    name_id: name,
+                });
+            }
+        }
+
+        let sources = match sm.source_root {
+            Some(ref source_root) if !source_root.is_empty() => {
+                let source_root = if let Some(stripped) = source_root.strip_suffix('/') {
+                    stripped
+                } else {
+                    source_root
+                };
+
+                sm.sources
+                    .into_iter()
+                    .map(|x| {
+                        let x = x.unwrap_or_default();
+                        let is_valid = !x.is_empty()
+                            && (x.starts_with('/')
+                                || x.starts_with("http:")
+                                || x.starts_with("https:"));
+
+                        if is_valid {
+                            x
+                        } else {
+                            format!("{source_root}/{x}")
+                        }
+                    })
+                    .collect()
+            }
+            _ => sm
+                .sources
+                .into_iter()
+                .map(Option::unwrap_or_default)
+                .collect(),
+        };
+
+        Self::new(sm.file, tokens, sm.names, sources, Some(sm.sources_content))
+    }
+}
+
 impl SourceMapIndex {
     /// Creates a sourcemap index from a reader over a JSON stream in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
