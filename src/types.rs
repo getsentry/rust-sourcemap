@@ -970,12 +970,12 @@ impl SourceMap {
         }
 
         // Regenerate the index
-        self.index = self
-            .tokens
-            .iter()
-            .enumerate()
-            .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32))
-            .collect();
+        self.index.extend(
+            self.tokens
+                .iter()
+                .enumerate()
+                .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32)),
+        );
         self.index.sort_unstable();
     }
 }
