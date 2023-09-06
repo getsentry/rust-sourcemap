@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 7.0.0
 
 ### Various fixes and improvements
 
