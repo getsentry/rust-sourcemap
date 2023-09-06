@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Various fixes and improvements
+
+- ref: SourceMap::adjust_mappings now works in place (#70) by @loewenheim
+
 ## 6.4.1
 
 ### Various fixes & improvements

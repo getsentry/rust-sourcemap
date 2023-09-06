@@ -826,7 +826,7 @@ impl SourceMap {
         Ok((sm, mapping))
     }
 
-    /// Adjusts the mappings in `original` using the mappings in `adjustment`.
+    /// Adjusts the mappings in `self` using the mappings in `adjustment`.
     ///
     /// Here is the intended use case for this function:
     /// * You have a source file (for example, minified JS) `foo.js` and a
@@ -834,19 +834,19 @@ impl SourceMap {
     /// * You modify `foo.js` in some way and generate a sourcemap `transform.js.map`
     ///   representing this modification. This can be done using `magic-string`, for example.
     /// * You want a sourcemap that is "like" `foo.js.map`, but takes the changes you made to `foo.js` into account.
-    /// Then `SourceMap::adjust_mappings(foo.js.map, transform.js.map)` is the desired sourcemap.
+    /// Then `foo.js.map.adjust_mappings(transform.js.map)` is the desired sourcemap.
     ///
     /// This function assumes that `adjustment` contains no relevant information except for mappings.
-    /// All information about sources and names is copied from `original`.
+    /// All information about sources and names is copied from `self`.
     ///
-    /// Note that the resulting sourcemap will be at most as fine-grained as `original.`.
-    pub fn adjust_mappings(original: &Self, adjustment: &Self) -> Self {
-        // The algorithm works by going through the tokens in `original` in order and adjusting
+    /// Note that the resulting sourcemap will be at most as fine-grained as `self.`.
+    pub fn adjust_mappings(&mut self, adjustment: &Self) {
+        // The algorithm works by going through the tokens in `self` in order and adjusting
         // them depending on the token in `adjustment` they're "covered" by.
         // For example:
         // Let `l` be a token in `adjustment` mapping `(17, 23)` to `(8, 30)` and let
         // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
-        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `original` that fall in the range of `l`.
+        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `self` that fall in the range of `l`.
         // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
         // amount. Thus, the adjusted sourcemap will contain the tokens
         // `c₁ : (17, 23) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
@@ -875,12 +875,12 @@ impl SourceMap {
             end: (u32, u32),
             value: RawToken,
         }
-        let mut builder = SourceMapBuilder::new(original.file.as_deref());
-        builder.set_source_root(original.get_source_root());
 
-        /// Turns a list of tokens into a list of ranges, using the provided function to determine the start of a token.
-        fn create_ranges(tokens: &[RawToken], key: fn(&RawToken) -> (u32, u32)) -> Vec<Range> {
-            let mut tokens = tokens.to_vec();
+        /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
+        fn create_ranges(
+            mut tokens: Vec<RawToken>,
+            key: fn(&RawToken) -> (u32, u32),
+        ) -> Vec<Range> {
             tokens.sort_unstable_by_key(key);
 
             let mut token_iter = tokens.into_iter().peekable();
@@ -901,24 +901,27 @@ impl SourceMap {
             ranges
         }
 
-        // Turn `original.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
+        // Turn `self.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
         // both start and end.
-        // We want to compare `original` and `adjustment` tokens by line/column numbers in the "original source" file.
+        // We want to compare `self` and `adjustment` tokens by line/column numbers in the "original source" file.
         // These line/column numbers are the `dst_line/col` for
-        // the `original` tokens and `src_line/col` for the `adjustment` tokens.
-        let original_ranges = create_ranges(&original.tokens, |t| (t.dst_line, t.dst_col));
-        let adjustment_ranges = create_ranges(&adjustment.tokens, |t| (t.src_line, t.src_col));
+        // the `self` tokens and `src_line/col` for the `adjustment` tokens.
+        let self_tokens = std::mem::take(&mut self.tokens);
+        let original_ranges = create_ranges(self_tokens, |t| (t.dst_line, t.dst_col));
+        self.index.clear();
+        let adjustment_ranges =
+            create_ranges(adjustment.tokens.clone(), |t| (t.src_line, t.src_col));
 
         let mut original_ranges_iter = original_ranges.iter();
 
         let mut original_range = match original_ranges_iter.next() {
             Some(r) => r,
-            None => return builder.into_sourcemap(),
+            None => return,
         };
 
         // Iterate over `adjustment_ranges` (sorted by `src_line/col`). For each such range, consider
         // all `original_ranges` which overlap with it.
-        for &adjustment_range in &adjustment_ranges {
+        'outer: for &adjustment_range in &adjustment_ranges {
             // The `adjustment_range` offsets lines and columns by a certain amount. All `original_ranges`
             // it covers will get the same offset.
             let (line_diff, col_diff) = (
@@ -930,7 +933,7 @@ impl SourceMap {
             while original_range.end <= adjustment_range.start {
                 match original_ranges_iter.next() {
                     Some(r) => original_range = r,
-                    None => return builder.into_sourcemap(),
+                    None => break 'outer,
                 }
             }
 
@@ -941,35 +944,16 @@ impl SourceMap {
                 // If `original_range` started before `adjustment_range`, cut off the token's start.
                 let (dst_line, dst_col) =
                     std::cmp::max(original_range.start, adjustment_range.start);
-                let token = RawToken {
+                let mut token = RawToken {
                     dst_line,
                     dst_col,
                     ..original_range.value
                 };
 
-                // Look up the `original_range`'s source and name.
-                let name = original.get_name(token.name_id);
-                let source = original.get_source(token.src_id);
+                token.dst_line = (token.dst_line as i32 + line_diff) as u32;
+                token.dst_col = (token.dst_col as i32 + col_diff) as u32;
 
-                if !builder.has_source_contents(token.src_id) {
-                    if let Some(source) = source {
-                        let contents = original.get_source_contents(token.src_id);
-                        let new_id = builder.add_source(source);
-                        builder.set_source_contents(new_id, contents);
-                    }
-                }
-
-                let dst_line = (token.dst_line as i32 + line_diff) as u32;
-                let dst_col = (token.dst_col as i32 + col_diff) as u32;
-
-                builder.add(
-                    dst_line,
-                    dst_col,
-                    token.src_line,
-                    token.src_col,
-                    source,
-                    name,
-                );
+                self.tokens.push(token);
 
                 if original_range.end >= adjustment_range.end {
                     // There are surely no more `original_ranges` for this `adjustment_range`.
@@ -979,13 +963,20 @@ impl SourceMap {
                     //  Advance the `original_range`.
                     match original_ranges_iter.next() {
                         Some(r) => original_range = r,
-                        None => return builder.into_sourcemap(),
+                        None => break 'outer,
                     }
                 }
             }
         }
 
-        builder.into_sourcemap()
+        // Regenerate the index
+        self.index.extend(
+            self.tokens
+                .iter()
+                .enumerate()
+                .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32)),
+        );
+        self.index.sort_unstable();
     }
 }
 
@@ -1305,13 +1296,14 @@ mod tests {
             ))
             .unwrap();
 
-            let original_map = SourceMap::from_reader(original_map_file).unwrap();
+            let mut original_map = SourceMap::from_reader(original_map_file).unwrap();
             let injected_map = SourceMap::from_reader(injected_map_file).unwrap();
             let composed_map = SourceMap::from_reader(composed_map_file).unwrap();
+            original_map.adjust_mappings(&injected_map);
 
             assert_eq!(
-                SourceMap::adjust_mappings(&original_map, &injected_map).tokens,
-                composed_map.tokens
+                original_map.tokens, composed_map.tokens,
+                "bundler = {bundler}"
             );
         }
     }
@@ -1482,7 +1474,7 @@ mod tests {
                 }
 
                 let first_map = ms1.generate_map(Default::default()).unwrap().to_string().unwrap();
-                let first_map = SourceMap::from_slice(first_map.as_bytes()).unwrap();
+                let mut first_map = SourceMap::from_slice(first_map.as_bytes()).unwrap();
 
                 let transformed_input = ms1.to_string();
 
@@ -1514,14 +1506,12 @@ mod tests {
                 let third_map = ms3.generate_map(Default::default()).unwrap().to_string().unwrap();
                 let third_map = SourceMap::from_slice(third_map.as_bytes()).unwrap();
 
-
                 // Both methods must produce the same output
                 assert_eq!(output_1, output_2);
 
+                first_map.adjust_mappings(&second_map);
 
-                let composed_map = SourceMap::adjust_mappings(&first_map, &second_map);
-
-                assert_eq!(composed_map.tokens, third_map.tokens);
+                assert_eq!(first_map.tokens, third_map.tokens);
             }
         }
     }
