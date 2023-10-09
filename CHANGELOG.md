@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Various fixes and improvements
+
+- fix: Fixed a bug in index sourcemap flattening (#74) by @loewenheim
+
 ## 7.0.0
 
 ### Various fixes and improvements
