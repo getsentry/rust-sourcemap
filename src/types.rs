@@ -1133,9 +1133,14 @@ impl SourceMapIndex {
             };
 
             for token in map.tokens() {
+                let dst_col = if token.get_dst_line() == 0 {
+                    token.get_dst_col() + off_col
+                } else {
+                    token.get_dst_col()
+                };
                 let raw = builder.add(
                     token.get_dst_line() + off_line,
-                    token.get_dst_col() + off_col,
+                    dst_col,
                     token.get_src_line(),
                     token.get_src_col(),
                     token.get_source(),
