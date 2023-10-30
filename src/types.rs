@@ -1313,6 +1313,29 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_roundtrip() {
+        let sm = br#"{
+            "version": 3,
+            "file": "foo.js",
+            "sources": [
+                "./bar.js",
+                "./baz.js"
+            ],
+            "sourceRoot": "webpack:///",
+            "sourcesContent": [null, null],
+            "names": [],
+            "mappings": ""
+        }"#;
+
+        let sm = SourceMap::from_slice(sm).unwrap();
+        let mut out = Vec::new();
+        sm.to_writer(&mut out).unwrap();
+
+        let sm_new = SourceMap::from_slice(&out).unwrap();
+        assert_eq!(sm_new.sources, sm.sources);
+    }
+
     mod prop {
         //! This module exists to test the following property:
         //!
