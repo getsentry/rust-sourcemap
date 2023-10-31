@@ -457,14 +457,15 @@ pub struct SourceMapIndex {
 /// rejected with an error on reading.
 #[derive(Clone, Debug)]
 pub struct SourceMap {
-    file: Option<String>,
-    tokens: Vec<RawToken>,
-    index: Vec<(u32, u32, u32)>,
-    names: Vec<String>,
-    source_root: Option<String>,
-    sources: Vec<String>,
-    sources_content: Vec<Option<SourceView<'static>>>,
-    debug_id: Option<DebugId>,
+    pub(crate) file: Option<String>,
+    pub(crate) tokens: Vec<RawToken>,
+    pub(crate) index: Vec<(u32, u32, u32)>,
+    pub(crate) names: Vec<String>,
+    pub(crate) source_root: Option<String>,
+    pub(crate) sources: Vec<String>,
+    pub(crate) sources_prefixed: Option<Vec<String>>,
+    pub(crate) sources_content: Vec<Option<SourceView<'static>>>,
+    pub(crate) debug_id: Option<DebugId>,
 }
 
 impl SourceMap {
@@ -568,6 +569,7 @@ impl SourceMap {
             names,
             source_root: None,
             sources,
+            sources_prefixed: None,
             sources_content: sources_content
                 .unwrap_or_default()
                 .into_iter()
@@ -602,9 +604,35 @@ impl SourceMap {
         self.source_root.as_deref()
     }
 
+    fn prefix_source(source_root: &str, source: &str) -> String {
+        let source_root = source_root.strip_suffix('/').unwrap_or(source_root);
+        let is_valid = !source.is_empty()
+            && (source.starts_with('/')
+                || source.starts_with("http:")
+                || source.starts_with("https:"));
+
+        if is_valid {
+            source.to_string()
+        } else {
+            format!("{source_root}/{source}")
+        }
+    }
+
     /// Sets a new value for the source_root.
     pub fn set_source_root<T: Into<String>>(&mut self, value: Option<T>) {
         self.source_root = value.map(Into::into);
+
+        match self.source_root.as_deref().filter(|rs| !rs.is_empty()) {
+            Some(source_root) => {
+                let sources_prefixed = self
+                    .sources
+                    .iter()
+                    .map(|source| Self::prefix_source(source_root, source))
+                    .collect();
+                self.sources_prefixed = Some(sources_prefixed)
+            }
+            None => self.sources_prefixed = None,
+        }
     }
 
     /// Looks up a token by its index.
@@ -659,7 +687,8 @@ impl SourceMap {
 
     /// Looks up a source for a specific index.
     pub fn get_source(&self, idx: u32) -> Option<&str> {
-        self.sources.get(idx as usize).map(|x| &x[..])
+        let sources = self.sources_prefixed.as_deref().unwrap_or(&self.sources);
+        sources.get(idx as usize).map(|x| &x[..])
     }
 
     /// Sets a new source value for an index.  This cannot add new
@@ -668,6 +697,12 @@ impl SourceMap {
     /// This panics if a source is set that does not exist.
     pub fn set_source(&mut self, idx: u32, value: &str) {
         self.sources[idx as usize] = value.to_string();
+
+        if let Some(sources_prefixed) = self.sources_prefixed.as_mut() {
+            // If sources_prefixed is `Some`, we must have a nonempty `source_root`.
+            sources_prefixed[idx as usize] =
+                Self::prefix_source(self.source_root.as_deref().unwrap(), value);
+        }
     }
 
     /// Iterates over all sources
