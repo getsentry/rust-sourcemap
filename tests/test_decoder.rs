@@ -99,6 +99,22 @@ fn test_basic_sourcemap_with_absolute_uri_root() {
 }
 
 #[test]
+fn test_basic_sourcemap_source_root_logic() {
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["coolstuff.js", "/evencoolerstuff.js", "https://awesome.js"],
+        "sourceRoot": "webpack:///",
+        "mappings": ""
+    }"#;
+    let sm = SourceMap::from_reader(input).unwrap();
+    let mut iter = sm.sources();
+    assert_eq!(iter.next().unwrap(), "webpack:///coolstuff.js");
+    assert_eq!(iter.next().unwrap(), "/evencoolerstuff.js");
+    assert_eq!(iter.next().unwrap(), "https://awesome.js");
+    assert!(iter.next().is_none());
+}
+
+#[test]
 fn test_sourcemap_data_url() {
     let url = "data:application/json;base64,\
                eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNvb2xzdHVmZi5qcyJdLCJzb3VyY2VSb290I\
