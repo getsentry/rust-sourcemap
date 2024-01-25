@@ -214,7 +214,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
-            if rmi != 0 && (line_index as u32) == rmi {
+            if rmi != 0 && (line_index as u32) == rmi - 1 {
                 range_tokens.push(tokens.len() as u32)
             }
 
