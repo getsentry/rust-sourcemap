@@ -169,7 +169,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     for (dst_line, (line, rmi_str)) in mappings
         .split(';')
-        .zip(range_mappings.split(';'))
+        .zip(range_mappings.split(';').chain(std::iter::repeat("")))
         .enumerate()
     {
         if line.is_empty() {
