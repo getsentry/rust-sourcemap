@@ -120,7 +120,7 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     Ok(&slice[slice.len()..])
 }
 
-/// Decodes range mappping index string into index
+/// Decodes range mappping bitfield string into index
 fn decode_rmi(rmi_str: &str) -> Result<u32> {
     let mut val = 0u32;
 
@@ -137,6 +137,8 @@ fn decode_rmi(rmi_str: &str) -> Result<u32> {
             b'A'..=b'Z' => byte - b'A',
             b'a'..=b'z' => byte - b'a' + 26,
             b'0'..=b'9' => byte - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
             _ => unreachable!("invalid rmi"),
         };
 
