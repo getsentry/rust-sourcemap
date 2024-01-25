@@ -179,11 +179,8 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         dst_col = 0;
 
         let rmi = decode_rmi(rmi_str)?;
-        if rmi != 0 {
-            range_tokens.push(rmi);
-        }
 
-        for segment in line.split(',') {
+        for (line_index, segment) in line.split(',').enumerate() {
             if segment.is_empty() {
                 continue;
             }
@@ -215,6 +212,10 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                     }
                     name = name_id;
                 }
+            }
+
+            if rmi != 0 && (line_index as u32) == rmi {
+                range_tokens.push(tokens.len() as u32)
             }
 
             tokens.push(RawToken {

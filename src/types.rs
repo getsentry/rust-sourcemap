@@ -673,20 +673,18 @@ impl SourceMap {
 
     /// Sets range_token indices.
     ///
-    /// `range_tokens` should be sorted.
+    /// A token is a range token if the index is element of range_tokens.
     pub fn set_range_tokens(&mut self, range_tokens: Vec<u32>) {
         self.range_tokens = range_tokens;
     }
 
     /// Looks up a token by its index.
     pub fn get_token(&self, idx: u32) -> Option<Token<'_>> {
-        let is_range = self.range_tokens.binary_search(&idx).is_ok();
-
         self.tokens.get(idx as usize).map(|raw| Token {
             raw,
             i: self,
             idx,
-            is_range,
+            is_range: self.range_tokens.contains(&idx),
         })
     }
 
