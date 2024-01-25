@@ -22,7 +22,18 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
 }
 
 fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
-    // TODO
+    let mut buf = String::new();
+    let mut prev_line = 0;
+
+    for &rt_idx in sm.range_tokens.iter() {
+        let token = sm.tokens.get(rt_idx as usize)?;
+
+        while token.dst_line != prev_line {
+            buf.push(';');
+            prev_line += 1;
+        }
+    }
+
     None
 }
 
