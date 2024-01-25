@@ -129,6 +129,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
+    let range_mappings = rsm.range_mappings.unwrap_or_default();
     let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
