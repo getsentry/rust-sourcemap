@@ -169,7 +169,7 @@ fn test_sourcemap_range_mappings() {
         "rangeMappings": "AAB;;g"
     }"#;
     let sm = SourceMap::from_reader(input).unwrap();
-    dbg!(&sm);
+
     let mut iter = sm.tokens().filter(Token::is_range);
 
     assert_eq!(sm.tokens().filter(Token::is_range).count(), 2);
