@@ -121,8 +121,8 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 }
 
 /// Decodes range mappping index string into index
-fn decode_rmi(rmi_str: &str) -> Result<usize> {
-    let mut val = 0usize;
+fn decode_rmi(rmi_str: &str) -> Result<u32> {
+    let mut val = 0u32;
 
     for &byte in rmi_str.as_bytes() {
         // A: 0b000000
@@ -140,7 +140,7 @@ fn decode_rmi(rmi_str: &str) -> Result<usize> {
             _ => unreachable!("invalid rmi"),
         };
 
-        let delta = (byte.trailing_zeros() as usize) + 1;
+        let delta = byte.trailing_zeros() + 1;
 
         val += delta;
     }
@@ -248,6 +248,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     });
 
     let mut sm = SourceMap::new(file, tokens, names, sources, rsm.sources_content);
+    sm.set_range_tokens(range_tokens);
     sm.set_source_root(rsm.source_root);
     sm.set_debug_id(rsm.debug_id);
 
