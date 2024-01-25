@@ -161,6 +161,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
+    let mut range_tokens = vec![];
 
     let mut nums = Vec::with_capacity(6);
 
@@ -178,8 +179,11 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         dst_col = 0;
 
         let rmi = decode_rmi(rmi_str)?;
+        if rmi != 0 {
+            range_tokens.push(rmi);
+        }
 
-        for (nth, segment) in line.split(',').enumerate() {
+        for segment in line.split(',') {
             if segment.is_empty() {
                 continue;
             }
