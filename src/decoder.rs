@@ -1,14 +1,14 @@
 use std::io;
 use std::io::{BufReader, Read};
 
-use data_encoding::BASE64;
+use data_encoding::{BASE64, BASE64_NOPAD};
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
 use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
-use crate::vlq::parse_vlq_segment_into;
+use crate::vlq::{parse_vlq_segment, parse_vlq_segment_into};
 
 const DATA_PREAMBLE: &str = "data:application/json;base64,";
 
@@ -121,6 +121,27 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     Ok(&slice[slice.len()..])
 }
 
+/// Decodes range mappping index string into index
+///
+/// When the bit is set, the mapping is a range mapping, otherwise it is a normal mapping. For every 6 bits a base64 encoded char is emitted. Zero bits can be padded or omitted, to create full base64 chars or make the encoding shorter.
+fn decode_rmi(rmi_str: &str) -> Result<usize> {
+    let mut res = 0;
+
+    // So A is 6 zero bits. B is 5 zero bits and a 1
+
+    for (idx, byte) in rmi_str.bytes().enumerate() {
+        let mut val = BASE64_NOPAD
+            .decode(&[byte])
+            .map_err(|_| Error::InvalidRangeMappingIndex)?[0];
+        if idx == rmi_str.len() - 1 {
+            val &= 0x1f;
+        }
+        res = (res << 5) | (val as usize);
+    }
+
+    Ok(res)
+}
+
 pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut dst_col;
     let mut src_id = 0;
@@ -130,16 +151,14 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
-    let mut range_mappings = rsm.range_mappings.unwrap_or_default();
+    let range_mappings = rsm.range_mappings.unwrap_or_default();
     let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
 
     let mut nums = Vec::with_capacity(6);
-    let mut range_mapping_buf = Vec::new();
-    let mut is_range_mapping;
 
-    for (dst_line, (line, range_mapping_index_str)) in mappings
+    for (dst_line, (line, rmi_str)) in mappings
         .split(';')
         .zip(range_mappings.split(';'))
         .enumerate()
@@ -150,22 +169,14 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
         dst_col = 0;
 
-        let rmi_result =
-            BASE64.decode_mut(range_mapping_index_str.as_bytes(), &mut range_mapping_buf);
-
-        let rmi_result = match rmi_result {
-            Ok(rmi_result) => rmi_result,
-            Err(_) => {
-                fail!(Error::InvalidRangeMappingIndex);
-            }
-        };
+        let rmi = decode_rmi(rmi_str)?;
 
         for (nth, segment) in line.split(',').enumerate() {
             if segment.is_empty() {
                 continue;
             }
 
-            is_range_mapping = nums.clear();
+            nums.clear();
             parse_vlq_segment_into(segment, &mut nums)?;
             dst_col = (i64::from(dst_col) + nums[0]) as u32;
 
