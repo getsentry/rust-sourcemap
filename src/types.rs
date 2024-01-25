@@ -671,9 +671,9 @@ impl SourceMap {
         }
     }
 
-    /// Sets
+    /// Sets range_token indices.
     ///
-    /// `range_tokens` should be sorted
+    /// `range_tokens` should be sorted.
     pub fn set_range_tokens(&mut self, range_tokens: Vec<u32>) {
         self.range_tokens = range_tokens;
     }
