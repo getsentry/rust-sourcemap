@@ -45,6 +45,8 @@ pub enum Error {
     InvalidRamBundleEntry,
     /// Tried to operate on a non RAM bundle file
     NotARamBundle,
+    /// Range mapping index is invalid
+    InvalidRangeMappingIndex,
 }
 
 impl From<io::Error> for Error {
@@ -114,6 +116,7 @@ impl fmt::Display for Error {
             Error::InvalidRamBundleIndex => write!(f, "invalid module index in ram bundle"),
             Error::InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
             Error::NotARamBundle => write!(f, "not a ram bundle"),
+            Error::InvalidRangeMappingIndex => write!(f, "invalid range mapping index"),
         }
     }
 }
