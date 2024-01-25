@@ -287,7 +287,7 @@ impl<'a> Token<'a> {
 
     /// If true, this token is a range token.
     ///
-    /// See https://github.com/tc39/source-map-rfc/blob/main/proposals/range-mappings.md
+    /// See <https://github.com/tc39/source-map-rfc/blob/main/proposals/range-mappings.md>
     pub fn is_range(&self) -> bool {
         self.is_range
     }
