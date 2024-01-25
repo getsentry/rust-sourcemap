@@ -1,6 +1,7 @@
 use std::io;
 use std::io::{BufReader, Read};
 
+use data_encoding::BASE64;
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
@@ -135,8 +136,10 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut tokens = Vec::with_capacity(allocation_size);
 
     let mut nums = Vec::with_capacity(6);
+    let mut range_mapping_buf = Vec::new();
+    let mut is_range_mapping;
 
-    for (dst_line, (line, range_mapping_index)) in mappings
+    for (dst_line, (line, range_mapping_index_str)) in mappings
         .split(';')
         .zip(range_mappings.split(';'))
         .enumerate()
@@ -147,12 +150,22 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
         dst_col = 0;
 
-        for segment in line.split(',') {
+        let rmi_result =
+            BASE64.decode_mut(range_mapping_index_str.as_bytes(), &mut range_mapping_buf);
+
+        let rmi_result = match rmi_result {
+            Ok(rmi_result) => rmi_result,
+            Err(_) => {
+                fail!(Error::InvalidRangeMappingIndex);
+            }
+        };
+
+        for (nth, segment) in line.split(',').enumerate() {
             if segment.is_empty() {
                 continue;
             }
 
-            nums.clear();
+            is_range_mapping = nums.clear();
             parse_vlq_segment_into(segment, &mut nums)?;
             dst_col = (i64::from(dst_col) + nums[0]) as u32;
 
