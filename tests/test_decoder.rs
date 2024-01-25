@@ -158,3 +158,24 @@ fn test_sourcemap_nofiles() {
     assert_eq!(iter.next().unwrap().to_tuple(), ("", 2, 2, Some("alert")));
     assert!(iter.next().is_none());
 }
+
+#[test]
+fn test_sourcemap_range_mappings() {
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": [null],
+        "names": ["console","log","ab"],
+        "mappings": "AACAA,QAAQC,GAAG,CAAC,OAAM,OAAM,QACxBD,QAAQC,GAAG,CAAC,QAEZD,QAAQC,GAAG,CAJD;IAACC,IAAI;AAAI,IAKnBF,QAAQC,GAAG,CAAC,YACZD,QAAQC,GAAG,CAAC",
+        "rangeMappings": "AAB;;g"
+    }"#;
+    let sm = SourceMap::from_reader(input).unwrap();
+    dbg!(&sm);
+    let mut iter = sm.tokens().filter(Token::is_range);
+
+    assert_eq!(sm.tokens().filter(Token::is_range).count(), 2);
+
+    assert_eq!(iter.next().unwrap().to_tuple(), ("", 4, 11, None));
+
+    assert_eq!(iter.next().unwrap().to_tuple(), ("", 6, 0, Some("console")));
+    assert!(iter.next().is_none());
+}
