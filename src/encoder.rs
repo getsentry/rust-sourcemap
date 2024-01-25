@@ -21,6 +21,11 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
+fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
+    // TODO
+    None
+}
+
 fn serialize_mappings(sm: &SourceMap) -> String {
     let mut rv = String::new();
     // dst == minified == generated
@@ -89,6 +94,7 @@ impl Encodable for SourceMap {
             sources_content: if have_contents { Some(contents) } else { None },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
+            range_mappings: serialize_range_mappings(self),
             mappings: Some(serialize_mappings(self)),
             x_facebook_offsets: None,
             x_metro_module_paths: None,
@@ -121,6 +127,7 @@ impl Encodable for SourceMapIndex {
                     .collect(),
             ),
             names: None,
+            range_mappings: None,
             mappings: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
