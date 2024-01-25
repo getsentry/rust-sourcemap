@@ -129,14 +129,18 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
-    let range_mappings = rsm.range_mappings.unwrap_or_default();
+    let mut range_mappings = rsm.range_mappings.unwrap_or_default();
     let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
 
     let mut nums = Vec::with_capacity(6);
 
-    for (dst_line, line) in mappings.split(';').enumerate() {
+    for (dst_line, (line, range_mapping_index)) in mappings
+        .split(';')
+        .zip(range_mappings.split(';'))
+        .enumerate()
+    {
         if line.is_empty() {
             continue;
         }
