@@ -1,14 +1,13 @@
 use std::io;
 use std::io::{BufReader, Read};
 
-use data_encoding::{BASE64, BASE64_NOPAD};
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
 use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
-use crate::vlq::{parse_vlq_segment, parse_vlq_segment_into};
+use crate::vlq::parse_vlq_segment_into;
 
 const DATA_PREAMBLE: &str = "data:application/json;base64,";
 
@@ -122,24 +121,31 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 }
 
 /// Decodes range mappping index string into index
-///
-/// When the bit is set, the mapping is a range mapping, otherwise it is a normal mapping. For every 6 bits a base64 encoded char is emitted. Zero bits can be padded or omitted, to create full base64 chars or make the encoding shorter.
 fn decode_rmi(rmi_str: &str) -> Result<usize> {
-    let mut res = 0;
+    let mut val = 0usize;
 
-    // So A is 6 zero bits. B is 5 zero bits and a 1
-
-    for (idx, byte) in rmi_str.bytes().enumerate() {
-        let mut val = BASE64_NOPAD
-            .decode(&[byte])
-            .map_err(|_| Error::InvalidRangeMappingIndex)?[0];
-        if idx == rmi_str.len() - 1 {
-            val &= 0x1f;
+    for &byte in rmi_str.as_bytes() {
+        // A: 0b000000
+        // B: 0b000001
+        // g: 0b100000
+        if byte == b'A' {
+            val += 6;
+            continue;
         }
-        res = (res << 5) | (val as usize);
+
+        let byte = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            _ => unreachable!("invalid rmi"),
+        };
+
+        let delta = (byte.trailing_zeros() as usize) + 1;
+
+        val += delta;
     }
 
-    Ok(res)
+    Ok(val)
 }
 
 pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
@@ -157,6 +163,8 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut tokens = Vec::with_capacity(allocation_size);
 
     let mut nums = Vec::with_capacity(6);
+
+    // TODO: assert that the mappings are longer than range mappings
 
     for (dst_line, (line, rmi_str)) in mappings
         .split(';')
