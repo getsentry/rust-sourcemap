@@ -165,8 +165,6 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut nums = Vec::with_capacity(6);
 
-    // TODO: assert that the mappings are longer than range mappings
-
     for (dst_line, (line, rmi_str)) in mappings
         .split(';')
         .zip(range_mappings.split(';'))
