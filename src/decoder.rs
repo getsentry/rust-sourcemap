@@ -1,6 +1,10 @@
 use std::io;
 use std::io::{BufReader, Read};
 
+use bitvec::bitvec;
+use bitvec::field::BitField;
+use bitvec::order::Msb0;
+use bitvec::vec::BitVec;
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
@@ -121,18 +125,16 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 }
 
 /// Decodes range mappping bitfield string into index
-fn decode_rmi(rmi_str: &str) -> Result<u32> {
-    let mut val = 0u32;
+fn decode_rmi(rmi_str: &str) -> Result<BitVec<u8, Msb0>> {
+    let mut val = bitvec![u8, Msb0; 0; rmi_str.len() * 6];
 
-    for &byte in rmi_str.as_bytes() {
-        // A: 0b000000
-        // B: 0b000001
-        // g: 0b100000
-        if byte == b'A' {
-            val += 6;
-            continue;
-        }
+    // A: 0b000000
+    // B: 0b000001
 
+    // While,
+    // AAB: 0b000000 0b000000 0b000001 => 13
+    // so we iterate in the reverse order
+    for (idx, &byte) in rmi_str.as_bytes().iter().rev().enumerate() {
         let byte = match byte {
             b'A'..=b'Z' => byte - b'A',
             b'a'..=b'z' => byte - b'a' + 26,
@@ -142,9 +144,7 @@ fn decode_rmi(rmi_str: &str) -> Result<u32> {
             _ => unreachable!("invalid rmi"),
         };
 
-        let delta = byte.trailing_zeros() + 1;
-
-        val += delta;
+        val[6 * idx..6 * (idx + 1)].store::<u8>(byte);
     }
 
     Ok(val)
@@ -179,6 +179,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         dst_col = 0;
 
         let rmi = decode_rmi(rmi_str)?;
+        dbg!(format!("{rmi:b}"));
 
         for (line_index, segment) in line.split(',').enumerate() {
             if segment.is_empty() {
@@ -214,9 +215,9 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
-            if rmi != 0 && (line_index as u32) == rmi - 1 {
-                range_tokens.push(tokens.len() as u32)
-            }
+            // if rmi != 0 && (line_index as u32) == rmi - 1 {
+            //     range_tokens.push(tokens.len() as u32)
+            // }
 
             tokens.push(RawToken {
                 dst_line: dst_line as u32,
