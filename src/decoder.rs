@@ -215,9 +215,9 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
-            // if rmi != 0 && (line_index as u32) == rmi - 1 {
-            //     range_tokens.push(tokens.len() as u32)
-            // }
+            if rmi.trailing_zeros() != 0 && line_index == rmi.trailing_zeros() {
+                range_tokens.push(tokens.len() as u32)
+            }
 
             tokens.push(RawToken {
                 dst_line: dst_line as u32,
