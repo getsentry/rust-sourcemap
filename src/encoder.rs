@@ -24,7 +24,18 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, mut i: usize) {}
+fn encode_rmi(out: &mut Vec<u8>, mut i: usize) {
+    fn encode_byte(b: u8) -> u8 {
+        match b {
+            0..=25 => b + b'A',
+            26..=51 => b + b'a' - 26,
+            52..=61 => b + b'0' - 52,
+            62 => b'+',
+            63 => b'/',
+            _ => panic!("invalid byte"),
+        }
+    }
+}
 
 fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     if sm.range_tokens.is_empty() {
