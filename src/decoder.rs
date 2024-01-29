@@ -130,6 +130,7 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Msb0>) -> Result<()> {
         val.reserve(rmi_str.len() * 6 - val.capacity());
     }
     unsafe {
+        // Safety: we just reserved enough space
         val.set_len(rmi_str.len() * 6);
     };
 
