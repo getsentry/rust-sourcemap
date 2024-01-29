@@ -1,7 +1,6 @@
 use std::io;
 use std::io::{BufReader, Read};
 
-use bitvec::bitvec;
 use bitvec::field::BitField;
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
@@ -125,8 +124,14 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 }
 
 /// Decodes range mappping bitfield string into index
-fn decode_rmi(rmi_str: &str) -> Result<BitVec<u8, Msb0>> {
-    let mut val = bitvec![u8, Msb0; 0; rmi_str.len() * 6];
+fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Msb0>) -> Result<()> {
+    val.clear();
+    if val.capacity() < rmi_str.len() * 6 {
+        val.reserve(rmi_str.len() * 6 - val.capacity());
+    }
+    unsafe {
+        val.set_len(rmi_str.len() * 6);
+    };
 
     // A: 0b000000
     // B: 0b000001
@@ -147,7 +152,7 @@ fn decode_rmi(rmi_str: &str) -> Result<BitVec<u8, Msb0>> {
         val[6 * idx..6 * (idx + 1)].store::<u8>(byte);
     }
 
-    Ok(val)
+    Ok(())
 }
 
 pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
@@ -166,6 +171,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut range_tokens = vec![];
 
     let mut nums = Vec::with_capacity(6);
+    let mut rmi = BitVec::new();
 
     for (dst_line, (line, rmi_str)) in mappings
         .split(';')
@@ -178,8 +184,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
         dst_col = 0;
 
-        let rmi = decode_rmi(rmi_str)?;
-        dbg!(format!("{rmi:b}"));
+        decode_rmi(rmi_str, &mut rmi)?;
 
         for (line_index, segment) in line.split(',').enumerate() {
             if segment.is_empty() {
