@@ -1,8 +1,8 @@
 use std::io::Write;
 
+use bitvec::field::BitField;
 use bitvec::order::Msb0;
 use bitvec::view::BitView;
-use data_encoding::{BASE64, BASE64_NOPAD};
 use serde_json::Value;
 
 use crate::errors::Result;
@@ -24,7 +24,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, mut i: usize) {
+fn encode_rmi(out: &mut Vec<u8>, i: usize) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',
@@ -34,6 +34,31 @@ fn encode_rmi(out: &mut Vec<u8>, mut i: usize) {
             63 => b'/',
             _ => panic!("invalid byte"),
         }
+    }
+
+    let mut data = [0u8; 8];
+
+    let bits = data.view_bits_mut::<Msb0>();
+    bits.set(i - 1, true);
+
+    // trim zero at the end
+
+    let mut last = 0;
+    for (idx, bit) in bits.iter().enumerate() {
+        if *bit {
+            last = idx;
+        }
+    }
+    let bits = &mut bits[..last + 1];
+
+    for byte in bits.chunks_mut(6) {
+        byte.reverse();
+
+        let byte = byte.load::<u8>();
+
+        let encoded = encode_byte(byte);
+
+        out.push(encoded);
     }
 }
 
@@ -65,7 +90,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
 
     Some(unsafe {
         // Safety: We only push ASCII characters to the buffer
-        String::from_utf8(buf).expect("invalid utf8")
+        String::from_utf8_unchecked(buf)
     })
 }
 
