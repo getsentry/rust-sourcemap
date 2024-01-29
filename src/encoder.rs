@@ -1,5 +1,8 @@
 use std::io::Write;
 
+use bitvec::order::Msb0;
+use bitvec::view::BitView;
+use data_encoding::{BASE64, BASE64_NOPAD};
 use serde_json::Value;
 
 use crate::errors::Result;
@@ -21,20 +24,38 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
+fn encode_rmi(out: &mut Vec<u8>, mut i: usize) {}
+
 fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
-    let mut buf = String::new();
+    if sm.range_tokens.is_empty() {
+        return None;
+    }
+
+    let mut buf = Vec::new();
     let mut prev_line = 0;
 
-    for &rt_idx in sm.range_tokens.iter() {
-        let token = sm.tokens.get(rt_idx as usize)?;
+    let mut idx_of_first_in_line = 0;
 
-        while token.dst_line != prev_line {
-            buf.push(';');
+    for (idx, token) in sm.tokens().enumerate() {
+        if token.is_range() {
+            let num = idx - idx_of_first_in_line + 1;
+
+            if num > 0 {
+                encode_rmi(&mut buf, num);
+            }
+        }
+
+        while token.get_dst_line() != prev_line {
+            buf.push(b';');
             prev_line += 1;
+            idx_of_first_in_line = idx;
         }
     }
 
-    None
+    Some(unsafe {
+        // Safety: We only push ASCII characters to the buffer
+        String::from_utf8(buf).expect("invalid utf8")
+    })
 }
 
 fn serialize_mappings(sm: &SourceMap) -> String {
@@ -105,7 +126,7 @@ impl Encodable for SourceMap {
             sources_content: if have_contents { Some(contents) } else { None },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
-            range_mappings: serialize_range_mappings(self),
+            range_mappings: dbg!(serialize_range_mappings(self)),
             mappings: Some(serialize_mappings(self)),
             x_facebook_offsets: None,
             x_metro_module_paths: None,
