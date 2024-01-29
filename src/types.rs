@@ -159,7 +159,7 @@ pub struct Token<'a> {
 
 impl<'a> PartialEq for Token<'a> {
     fn eq(&self, other: &Token<'_>) -> bool {
-        self.raw == other.raw
+        self.raw == other.raw && self.is_range == other.is_range
     }
 }
 
