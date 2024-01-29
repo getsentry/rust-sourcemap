@@ -421,7 +421,13 @@ impl<'a> fmt::Display for Token<'a> {
                 .unwrap_or_default()
         )?;
         if f.alternate() {
-            write!(f, " ({}:{})", self.get_dst_line(), self.get_dst_col())?;
+            write!(
+                f,
+                " ({}:{}){}",
+                self.get_dst_line(),
+                self.get_dst_col(),
+                if self.is_range { " (range)" } else { "" }
+            )?;
         }
         Ok(())
     }
