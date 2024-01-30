@@ -173,7 +173,7 @@ impl Encodable for SourceMap {
             sources_content: if have_contents { Some(contents) } else { None },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
-            range_mappings: dbg!(serialize_range_mappings(self)),
+            range_mappings: serialize_range_mappings(self),
             mappings: Some(serialize_mappings(self)),
             x_facebook_offsets: None,
             x_metro_module_paths: None,
