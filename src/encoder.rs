@@ -24,7 +24,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, i: usize) {
+fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',
@@ -39,7 +39,9 @@ fn encode_rmi(out: &mut Vec<u8>, i: usize) {
     let mut data = [0u8; 8];
 
     let bits = data.view_bits_mut::<Msb0>();
-    bits.set(i - 1, true);
+    for i in indices {
+        bits.set(i - 1, true);
+    }
 
     // trim zero at the end
 
@@ -71,21 +73,30 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     let mut prev_line = 0;
 
     let mut idx_of_first_in_line = 0;
+    let mut indices = vec![];
 
     for (idx, token) in sm.tokens().enumerate() {
         if token.is_range() {
             let num = idx - idx_of_first_in_line + 1;
 
             if num > 0 {
-                encode_rmi(&mut buf, num);
+                indices.push(num);
             }
         }
 
         while token.get_dst_line() != prev_line {
+            if !indices.is_empty() {
+                encode_rmi(&mut buf, &indices);
+                indices.clear();
+            }
+
             buf.push(b';');
             prev_line += 1;
             idx_of_first_in_line = idx;
         }
+    }
+    if !indices.is_empty() {
+        encode_rmi(&mut buf, &indices);
     }
 
     Some(unsafe {
