@@ -2,7 +2,7 @@ use std::io;
 use std::io::{BufReader, Read};
 
 use bitvec::field::BitField;
-use bitvec::order::Msb0;
+use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 use serde_json::Value;
 
@@ -124,7 +124,7 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 }
 
 /// Decodes range mappping bitfield string into index
-fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Msb0>) -> Result<()> {
+fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
     val.clear();
     if val.capacity() < rmi_str.len() * 6 {
         val.reserve(rmi_str.len() * 6 - val.capacity());
@@ -140,7 +140,7 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Msb0>) -> Result<()> {
     // While,
     // AAB: 0b000000 0b000000 0b000001 => 13
     // so we iterate in the reverse order
-    for (idx, &byte) in rmi_str.as_bytes().iter().rev().enumerate() {
+    for (idx, &byte) in rmi_str.as_bytes().iter().enumerate() {
         let byte = match byte {
             b'A'..=b'Z' => byte - b'A',
             b'a'..=b'z' => byte - b'a' + 26,
@@ -221,7 +221,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
-            if rmi.trailing_zeros() != 0 && line_index == rmi.trailing_zeros() {
+            if rmi.get(line_index as usize).map(|v| *v).unwrap_or_default() {
                 range_tokens.push(tokens.len() as u32)
             }
 
