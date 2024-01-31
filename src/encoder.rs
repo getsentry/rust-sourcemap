@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use bitvec::field::BitField;
-use bitvec::order::Msb0;
+use bitvec::order::Lsb0;
 use bitvec::view::BitView;
 use serde_json::Value;
 
@@ -38,7 +38,7 @@ fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
 
     let mut data = [0u8; 8];
 
-    let bits = data.view_bits_mut::<Msb0>();
+    let bits = data.view_bits_mut::<Lsb0>();
     for &i in indices {
         debug_assert!(i > 0, "0th mapping does not exist");
         // -1 to convert to 0-based index
@@ -55,9 +55,7 @@ fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
     }
     let bits = &mut bits[..last + 1];
 
-    for byte in bits.chunks_mut(6) {
-        byte.reverse();
-
+    for byte in bits.chunks(6) {
         let byte = byte.load::<u8>();
 
         let encoded = encode_byte(byte);
