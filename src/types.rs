@@ -690,7 +690,7 @@ impl SourceMap {
             raw,
             i: self,
             idx,
-            is_range: self.range_tokens.contains(&idx),
+            is_range: self.range_tokens.binary_search(&idx).is_ok(),
         })
     }
 
