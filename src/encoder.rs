@@ -39,7 +39,9 @@ fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
     let mut data = [0u8; 8];
 
     let bits = data.view_bits_mut::<Msb0>();
-    for i in indices {
+    for &i in indices {
+        debug_assert!(i > 0, "0th mapping does not exist");
+        // -1 to convert to 0-based index
         bits.set(i - 1, true);
     }
 
@@ -77,11 +79,10 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
 
     for (idx, token) in sm.tokens().enumerate() {
         if token.is_range() {
+            // 0th mapping does not exist, so we use 1-based index
             let num = idx - idx_of_first_in_line + 1;
 
-            if num > 0 {
-                indices.push(num);
-            }
+            indices.push(num);
         }
 
         while token.get_dst_line() != prev_line {
