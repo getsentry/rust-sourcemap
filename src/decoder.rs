@@ -134,12 +134,6 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
         val.set_len(rmi_str.len() * 6);
     };
 
-    // A: 0b000000
-    // B: 0b000001
-
-    // While,
-    // AAB: 0b000000 0b000000 0b000001 => 13
-    // so we iterate in the reverse order
     for (idx, &byte) in rmi_str.as_bytes().iter().enumerate() {
         let byte = match byte {
             b'A'..=b'Z' => byte - b'A',
