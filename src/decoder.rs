@@ -355,3 +355,24 @@ fn test_bad_newline() {
         }
     }
 }
+
+#[test]
+fn test_decode_rmi() {
+    fn decode(rmi_str: &str) -> Vec<usize> {
+        let mut out = bitvec::bitvec![u8, Lsb0; 0; 0];
+        decode_rmi(rmi_str, &mut out).expect("failed to decode");
+
+        let mut res = vec![];
+        for (idx, bit) in out.iter().enumerate() {
+            if *bit {
+                // 0-based index to 1-based index
+                res.push(idx + 1);
+            }
+        }
+        res
+    }
+
+    assert_eq!(decode("AAB"), vec![13]);
+    assert_eq!(decode("g"), vec![6]);
+    assert_eq!(decode("Bg"), vec![1, 12]);
+}

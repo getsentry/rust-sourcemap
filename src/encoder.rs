@@ -224,3 +224,16 @@ impl Encodable for DecodedMap {
         }
     }
 }
+
+#[test]
+fn test_encode_rmi() {
+    fn encode(indices: &[usize]) -> String {
+        let mut out = vec![];
+        encode_rmi(&mut out, indices);
+        String::from_utf8(out).unwrap()
+    }
+
+    assert_eq!(encode(&[13]), "AAB");
+    assert_eq!(encode(&[6]), "g");
+    assert_eq!(encode(&[1, 12]), "Bg");
+}
