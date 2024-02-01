@@ -215,7 +215,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
-            if rmi.get(line_index as usize).map(|v| *v).unwrap_or_default() {
+            if rmi.get(line_index).map(|v| *v).unwrap_or_default() {
                 range_tokens.push(tokens.len() as u32)
             }
 
