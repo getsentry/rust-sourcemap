@@ -365,14 +365,14 @@ fn test_decode_rmi() {
         let mut res = vec![];
         for (idx, bit) in out.iter().enumerate() {
             if *bit {
-                // 0-based index to 1-based index
-                res.push(idx + 1);
+                res.push(idx);
             }
         }
         res
     }
 
-    assert_eq!(decode("AAB"), vec![13]);
-    assert_eq!(decode("g"), vec![6]);
-    assert_eq!(decode("Bg"), vec![1, 12]);
+    // This is 0-based index of the bits
+    assert_eq!(decode("AAB"), vec![12]);
+    assert_eq!(decode("g"), vec![5]);
+    assert_eq!(decode("Bg"), vec![0, 11]);
 }
