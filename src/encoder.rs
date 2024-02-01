@@ -230,7 +230,8 @@ fn test_encode_rmi() {
         String::from_utf8(out).unwrap()
     }
 
-    assert_eq!(encode(&[13]), "AAB");
-    assert_eq!(encode(&[6]), "g");
-    assert_eq!(encode(&[1, 12]), "Bg");
+    // This is 0-based index
+    assert_eq!(encode(&[12]), "AAB");
+    assert_eq!(encode(&[5]), "g");
+    assert_eq!(encode(&[0, 11]), "Bg");
 }
