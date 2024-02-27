@@ -1,5 +1,3 @@
-use unicode_id_start;
-
 /// Returns true if `c` is a valid character for an identifier start.
 fn is_valid_start(c: char) -> bool {
     c == '$' || c == '_' || c.is_ascii_alphabetic() || {
