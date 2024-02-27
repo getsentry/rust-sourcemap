@@ -1,12 +1,10 @@
-use unicode_id::UnicodeID;
-
 /// Returns true if `c` is a valid character for an identifier start.
 fn is_valid_start(c: char) -> bool {
     c == '$' || c == '_' || c.is_ascii_alphabetic() || {
         if c.is_ascii() {
             false
         } else {
-            UnicodeID::is_id_start(c)
+            unicode_id_start::is_id_start_unicode(c)
         }
     }
 }
@@ -21,7 +19,7 @@ fn is_valid_continue(c: char) -> bool {
         if c.is_ascii() {
             false
         } else {
-            UnicodeID::is_id_continue(c)
+            unicode_id_start::is_id_continue_unicode(c)
         }
     }
 }
