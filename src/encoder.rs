@@ -95,10 +95,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
         encode_rmi(&mut buf, &indices);
     }
 
-    Some(unsafe {
-        // Safety: We only push ASCII characters to the buffer
-        String::from_utf8_unchecked(buf)
-    })
+    Some(String::from_utf8(buf).expect("invalid utf8"))
 }
 
 fn serialize_mappings(sm: &SourceMap) -> String {
