@@ -126,13 +126,7 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 /// Decodes range mappping bitfield string into index
 fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
     val.clear();
-    if val.capacity() < rmi_str.len() * 6 {
-        val.reserve(rmi_str.len() * 6 - val.capacity());
-    }
-    unsafe {
-        // Safety: we just reserved enough space
-        val.set_len(rmi_str.len() * 6);
-    };
+    val.resize(rmi_str.len() * 6, false);
 
     for (idx, &byte) in rmi_str.as_bytes().iter().enumerate() {
         let byte = match byte {
