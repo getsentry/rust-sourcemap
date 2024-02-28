@@ -135,7 +135,9 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
             b'0'..=b'9' => byte - b'0' + 52,
             b'+' => 62,
             b'/' => 63,
-            _ => unreachable!("invalid rmi"),
+            _ => {
+                fail!(Error::InvalidBase64(byte as char));
+            }
         };
 
         val[6 * idx..6 * (idx + 1)].store::<u8>(byte);

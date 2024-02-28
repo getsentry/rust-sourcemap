@@ -47,6 +47,8 @@ pub enum Error {
     NotARamBundle,
     /// Range mapping index is invalid
     InvalidRangeMappingIndex(data_encoding::DecodeError),
+
+    InvalidBase64(char),
 }
 
 impl From<io::Error> for Error {
@@ -123,6 +125,7 @@ impl fmt::Display for Error {
             Error::InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
             Error::NotARamBundle => write!(f, "not a ram bundle"),
             Error::InvalidRangeMappingIndex(err) => write!(f, "invalid range mapping index: {err}"),
+            Error::InvalidBase64(c) => write!(f, "invalid base64 character: {}", c),
         }
     }
 }
