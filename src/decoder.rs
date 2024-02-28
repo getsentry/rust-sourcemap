@@ -140,7 +140,7 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
             }
         };
 
-        val[6 * idx..6 * (idx + 1)].store::<u8>(byte);
+        val[6 * idx..6 * (idx + 1)].store_le::<u8>(byte);
     }
 
     Ok(())
