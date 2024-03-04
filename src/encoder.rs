@@ -2,6 +2,7 @@ use std::io::Write;
 
 use bitvec::field::BitField;
 use bitvec::order::Lsb0;
+use bitvec::slice::BitSlice;
 use bitvec::view::BitView;
 use serde_json::Value;
 
@@ -24,7 +25,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
+fn encode_rmi(out: &mut Vec<u8>, bits: &mut BitSlice<u8, Lsb0>) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',
@@ -36,15 +37,7 @@ fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
         }
     }
 
-    let mut data = [0u8; 8];
-
-    let bits = data.view_bits_mut::<Lsb0>();
-    for &i in indices {
-        bits.set(i, true);
-    }
-
     // trim zero at the end
-
     let mut last = 0;
     for (idx, bit) in bits.iter().enumerate() {
         if *bit {
@@ -65,30 +58,34 @@ fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
 fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     let mut buf = Vec::new();
     let mut prev_line = 0;
+    let mut had_rmi = false;
 
     let mut idx_of_first_in_line = 0;
-    let mut indices = vec![];
+
+    let mut rmi_data = Vec::<u8>::new();
+
+    let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
 
     for (idx, token) in sm.tokens().enumerate() {
         if token.is_range() {
             let num = idx - idx_of_first_in_line;
 
-            indices.push(num);
+            rmi_bits.set(num, true);
         }
 
         while token.get_dst_line() != prev_line {
-            if !indices.is_empty() {
-                encode_rmi(&mut buf, &indices);
-                indices.clear();
+            if had_rmi {
+                encode_rmi(&mut buf, rmi_bits);
             }
 
             buf.push(b';');
             prev_line += 1;
+            had_rmi = false;
             idx_of_first_in_line = idx;
         }
     }
-    if !indices.is_empty() {
-        encode_rmi(&mut buf, &indices);
+    if had_rmi {
+        encode_rmi(&mut buf, rmi_bits);
     }
 
     Some(String::from_utf8(buf).expect("invalid utf8"))
@@ -219,7 +216,15 @@ impl Encodable for DecodedMap {
 fn test_encode_rmi() {
     fn encode(indices: &[usize]) -> String {
         let mut out = vec![];
-        encode_rmi(&mut out, indices);
+
+        let mut data = [0u8; 8];
+
+        let bits = data.view_bits_mut::<Lsb0>();
+        for &i in indices {
+            bits.set(i, true);
+        }
+
+        encode_rmi(&mut out, bits);
         String::from_utf8(out).unwrap()
     }
 
