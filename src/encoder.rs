@@ -2,7 +2,6 @@ use std::io::Write;
 
 use bitvec::field::BitField;
 use bitvec::order::Lsb0;
-use bitvec::slice::BitSlice;
 use bitvec::view::BitView;
 use serde_json::Value;
 
@@ -25,7 +24,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, bits: &mut BitSlice<u8, Lsb0>) {
+fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',
@@ -36,6 +35,8 @@ fn encode_rmi(out: &mut Vec<u8>, bits: &mut BitSlice<u8, Lsb0>) {
             _ => panic!("invalid byte"),
         }
     }
+
+    let bits = data.view_bits_mut::<Lsb0>();
 
     // trim zero at the end
     let mut last = 0;
@@ -64,18 +65,19 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
 
     let mut rmi_data = Vec::<u8>::new();
 
-    let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
-
     for (idx, token) in sm.tokens().enumerate() {
         if token.is_range() {
             let num = idx - idx_of_first_in_line;
 
+            rmi_data.reserve(8);
+
+            let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
             rmi_bits.set(num, true);
         }
 
         while token.get_dst_line() != prev_line {
             if had_rmi {
-                encode_rmi(&mut buf, rmi_bits);
+                encode_rmi(&mut buf, &mut rmi_data);
             }
 
             buf.push(b';');
@@ -85,7 +87,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
         }
     }
     if had_rmi {
-        encode_rmi(&mut buf, rmi_bits);
+        encode_rmi(&mut buf, &mut rmi_data);
     }
 
     Some(String::from_utf8(buf).expect("invalid utf8"))
@@ -217,14 +219,16 @@ fn test_encode_rmi() {
     fn encode(indices: &[usize]) -> String {
         let mut out = vec![];
 
-        let mut data = [0u8; 8];
+        let mut data = Vec::with_capacity(256);
+        // Fill with zeros while testing
+        data.resize(256, 0);
 
         let bits = data.view_bits_mut::<Lsb0>();
         for &i in indices {
             bits.set(i, true);
         }
 
-        encode_rmi(&mut out, bits);
+        encode_rmi(&mut out, &mut data);
         String::from_utf8(out).unwrap()
     }
 
