@@ -67,9 +67,11 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
 
     for (idx, token) in sm.tokens().enumerate() {
         if token.is_range() {
+            had_rmi = true;
+
             let num = idx - idx_of_first_in_line;
 
-            rmi_data.resize(rmi_data.len() + 8, 0);
+            rmi_data.resize(rmi_data.len() + 2, 0);
 
             let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
             rmi_bits.set(num, true);
@@ -78,6 +80,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
         while token.get_dst_line() != prev_line {
             if had_rmi {
                 encode_rmi(&mut buf, &mut rmi_data);
+                rmi_data.clear();
             }
 
             buf.push(b';');
