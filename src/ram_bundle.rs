@@ -402,6 +402,7 @@ impl<'a> SplitRamBundleModuleIter<'a> {
                 token.get_src_col(),
                 token.get_source(),
                 token.get_name(),
+                false,
             );
             if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
                 builder.set_source_contents(
