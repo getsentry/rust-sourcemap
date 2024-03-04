@@ -69,7 +69,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
         if token.is_range() {
             let num = idx - idx_of_first_in_line;
 
-            rmi_data.reserve(8);
+            rmi_data.resize(rmi_data.len() + 8, 0);
 
             let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
             rmi_bits.set(num, true);
