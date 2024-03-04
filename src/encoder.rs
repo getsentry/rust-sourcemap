@@ -222,9 +222,8 @@ fn test_encode_rmi() {
     fn encode(indices: &[usize]) -> String {
         let mut out = vec![];
 
-        let mut data = Vec::with_capacity(256);
         // Fill with zeros while testing
-        data.resize(256, 0);
+        let mut data = vec![0; 256];
 
         let bits = data.view_bits_mut::<Lsb0>();
         for &i in indices {

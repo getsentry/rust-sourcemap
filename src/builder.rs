@@ -181,6 +181,7 @@ impl SourceMapBuilder {
     }
 
     /// Adds a new mapping to the builder.
+    #[allow(clippy::too_many_arguments)]
     pub fn add(
         &mut self,
         dst_line: u32,
@@ -230,6 +231,7 @@ impl SourceMapBuilder {
     }
 
     /// Adds a new mapping to the builder.
+    #[allow(clippy::too_many_arguments)]
     pub fn add_raw(
         &mut self,
         dst_line: u32,
