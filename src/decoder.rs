@@ -159,7 +159,6 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
-    let mut range_tokens = vec![];
 
     let mut nums = Vec::with_capacity(6);
     let mut rmi = BitVec::new();
@@ -211,9 +210,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
-            if rmi.get(line_index).map(|v| *v).unwrap_or_default() {
-                range_tokens.push(tokens.len() as u32)
-            }
+            let is_range = rmi.get(line_index).map(|v| *v).unwrap_or_default();
 
             tokens.push(RawToken {
                 dst_line: dst_line as u32,
@@ -222,6 +219,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 src_col,
                 src_id: src,
                 name_id: name,
+                is_range,
             });
         }
     }
@@ -246,7 +244,6 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     });
 
     let mut sm = SourceMap::new(file, tokens, names, sources, rsm.sources_content);
-    sm.set_range_tokens(range_tokens);
     sm.set_source_root(rsm.source_root);
     sm.set_debug_id(rsm.debug_id);
 

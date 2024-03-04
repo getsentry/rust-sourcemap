@@ -145,6 +145,11 @@ pub struct RawToken {
     pub src_id: u32,
     /// name identifier (`!0` in case there is no associated name)
     pub name_id: u32,
+
+    /// If true, this token is a range token.
+    ///
+    /// See <https://github.com/tc39/source-map-rfc/blob/main/proposals/range-mappings.md>
+    pub is_range: bool,
 }
 
 /// Represents a token from a sourcemap
@@ -153,13 +158,11 @@ pub struct Token<'a> {
     raw: &'a RawToken,
     i: &'a SourceMap,
     idx: u32,
-
-    is_range: bool,
 }
 
 impl<'a> PartialEq for Token<'a> {
     fn eq(&self, other: &Token<'_>) -> bool {
-        self.raw == other.raw && self.is_range == other.is_range
+        self.raw == other.raw
     }
 }
 
@@ -289,7 +292,7 @@ impl<'a> Token<'a> {
     ///
     /// See <https://github.com/tc39/source-map-rfc/blob/main/proposals/range-mappings.md>
     pub fn is_range(&self) -> bool {
-        self.is_range
+        self.raw.is_range
     }
 }
 
@@ -426,7 +429,7 @@ impl<'a> fmt::Display for Token<'a> {
                 " ({}:{}){}",
                 self.get_dst_line(),
                 self.get_dst_col(),
-                if self.is_range { " (range)" } else { "" }
+                if self.is_range() { " (range)" } else { "" }
             )?;
         }
         Ok(())
@@ -476,7 +479,6 @@ pub struct SourceMapIndex {
 pub struct SourceMap {
     pub(crate) file: Option<String>,
     pub(crate) tokens: Vec<RawToken>,
-    pub(crate) range_tokens: Vec<u32>,
     pub(crate) index: Vec<(u32, u32, u32)>,
     pub(crate) names: Vec<String>,
     pub(crate) source_root: Option<String>,
@@ -606,7 +608,6 @@ impl SourceMap {
         SourceMap {
             file,
             tokens,
-            range_tokens: vec![],
             index,
             names,
             source_root: None,
@@ -677,21 +678,11 @@ impl SourceMap {
         }
     }
 
-    /// Sets range_token indices.
-    ///
-    /// A token is a range token if the index is element of range_tokens.
-    pub fn set_range_tokens(&mut self, range_tokens: Vec<u32>) {
-        self.range_tokens = range_tokens;
-    }
-
     /// Looks up a token by its index.
     pub fn get_token(&self, idx: u32) -> Option<Token<'_>> {
-        self.tokens.get(idx as usize).map(|raw| Token {
-            raw,
-            i: self,
-            idx,
-            is_range: self.range_tokens.binary_search(&idx).is_ok(),
-        })
+        self.tokens
+            .get(idx as usize)
+            .map(|raw| Token { raw, i: self, idx })
     }
 
     /// Returns the number of tokens in the sourcemap.
@@ -1232,6 +1223,7 @@ impl SourceMapIndex {
                     token.get_src_col(),
                     token.get_source(),
                     token.get_name(),
+                    token.is_range(),
                 );
                 if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
                     builder.set_source_contents(

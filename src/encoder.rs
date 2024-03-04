@@ -63,10 +63,6 @@ fn encode_rmi(out: &mut Vec<u8>, indices: &[usize]) {
 }
 
 fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
-    if sm.range_tokens.is_empty() {
-        return None;
-    }
-
     let mut buf = Vec::new();
     let mut prev_line = 0;
 
