@@ -32,6 +32,7 @@ if_chain = "1.0.0"
 scroll = { version = "0.10.1", features = ["derive"], optional = true }
 data-encoding = "2.3.3"
 debugid = {version = "0.8.0", features = ["serde"] }
+base64-simd = { version = "0.7" }
 
 [build-dependencies]
 rustc_version = "0.2.3"
