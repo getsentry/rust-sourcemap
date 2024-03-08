@@ -2,7 +2,8 @@ use std::borrow::Cow;
 use std::fmt;
 use std::slice;
 use std::str;
-use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
 use if_chain::if_chain;
@@ -140,16 +141,16 @@ impl<'a> Iterator for Lines<'a> {
 /// operations.
 pub struct SourceView<'a> {
     source: Cow<'a, str>,
-    processed_until: Arc<Mutex<usize>>,
-    lines: Arc<Mutex<Vec<(*const u8, usize)>>>,
+    processed_until: AtomicUsize,
+    lines: Mutex<Vec<(*const u8, usize)>>,
 }
 
 impl<'a> Clone for SourceView<'a> {
     fn clone(&self) -> SourceView<'a> {
         SourceView {
             source: self.source.clone(),
-            processed_until: Arc::new(Mutex::new(0)),
-            lines: Arc::new(Mutex::new(vec![])),
+            processed_until: AtomicUsize::new(0),
+            lines: Mutex::new(vec![]),
         }
     }
 }
@@ -172,8 +173,8 @@ impl<'a> SourceView<'a> {
     pub fn new(source: &'a str) -> SourceView<'a> {
         SourceView {
             source: Cow::Borrowed(source),
-            processed_until: Arc::new(Mutex::new(0)),
-            lines: Arc::new(Mutex::new(vec![])),
+            processed_until: AtomicUsize::new(0),
+            lines: Mutex::new(vec![]),
         }
     }
 
@@ -181,8 +182,8 @@ impl<'a> SourceView<'a> {
     pub fn from_string(source: String) -> SourceView<'static> {
         SourceView {
             source: Cow::Owned(source),
-            processed_until: Arc::new(Mutex::new(0)),
-            lines: Arc::new(Mutex::new(vec![])),
+            processed_until: AtomicUsize::new(0),
+            lines: Mutex::new(vec![]),
         }
     }
 
@@ -197,26 +198,26 @@ impl<'a> SourceView<'a> {
         }
 
         // fetched everything
-        if *self.processed_until.lock().unwrap() > self.source.len() {
+        if self.processed_until.load(Ordering::Relaxed) > self.source.len() {
             return None;
         }
 
-        let mut processed_until = self.processed_until.lock().unwrap();
         let mut lines = self.lines.lock().unwrap();
         let mut done = false;
 
         while !done {
-            let rest = &self.source.as_bytes()[*processed_until..];
+            let rest = &self.source.as_bytes()[self.processed_until.load(Ordering::Relaxed)..];
 
             let rv = if let Some(mut idx) = rest.iter().position(|&x| x == b'\n' || x == b'\r') {
                 let rv = &rest[..idx];
                 if rest[idx] == b'\r' && rest.get(idx + 1) == Some(&b'\n') {
                     idx += 1;
                 }
-                *processed_until += idx + 1;
+                self.processed_until.fetch_add(idx + 1, Ordering::Relaxed);
                 rv
             } else {
-                *processed_until += rest.len() + 1;
+                self.processed_until
+                    .fetch_add(rest.len() + 1, Ordering::Relaxed);
                 done = true;
                 rest
             };
