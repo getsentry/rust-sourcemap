@@ -520,6 +520,29 @@ impl SourceMap {
         encode(self, w)
     }
 
+    /// Encode a sourcemap into a data url.
+    ///
+    /// ```rust
+    /// # use sourcemap::SourceMap;
+    /// # let input: &[_] = b"{
+    /// #     \"version\":3,
+    /// #     \"sources\":[\"coolstuff.js\"],
+    /// #     \"names\":[\"x\",\"alert\"],
+    /// #     \"mappings\":\"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM\"
+    /// # }";
+    /// let sm = SourceMap::from_reader(input).unwrap();
+    /// sm.to_data_url().unwrap();
+    /// ```
+    pub fn to_data_url(&self) -> Result<String> {
+        let mut buf = vec![];
+        encode(self, &mut buf)?;
+        let b64 = base64_simd::Base64::STANDARD.encode_to_boxed_str(&buf);
+        Ok(format!(
+            "data:application/json;charset=utf-8;base64,{}",
+            b64
+        ))
+    }
+
     /// Creates a sourcemap from a reader over a JSON byte slice in UTF-8
     /// format.  Optionally a "garbage header" as defined by the
     /// sourcemap draft specification is supported.  In case an indexed
