@@ -1,8 +1,9 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::fmt;
 use std::slice;
 use std::str;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use if_chain::if_chain;
 
@@ -139,16 +140,16 @@ impl<'a> Iterator for Lines<'a> {
 /// operations.
 pub struct SourceView<'a> {
     source: Cow<'a, str>,
-    processed_until: RefCell<usize>,
-    lines: RefCell<Vec<(*const u8, usize)>>,
+    processed_until: Arc<Mutex<usize>>,
+    lines: Arc<Mutex<Vec<(*const u8, usize)>>>,
 }
 
 impl<'a> Clone for SourceView<'a> {
     fn clone(&self) -> SourceView<'a> {
         SourceView {
             source: self.source.clone(),
-            processed_until: RefCell::new(0),
-            lines: RefCell::new(vec![]),
+            processed_until: Arc::new(Mutex::new(0)),
+            lines: Arc::new(Mutex::new(vec![])),
         }
     }
 }
@@ -171,8 +172,8 @@ impl<'a> SourceView<'a> {
     pub fn new(source: &'a str) -> SourceView<'a> {
         SourceView {
             source: Cow::Borrowed(source),
-            processed_until: RefCell::new(0),
-            lines: RefCell::new(vec![]),
+            processed_until: Arc::new(Mutex::new(0)),
+            lines: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -180,8 +181,8 @@ impl<'a> SourceView<'a> {
     pub fn from_string(source: String) -> SourceView<'static> {
         SourceView {
             source: Cow::Owned(source),
-            processed_until: RefCell::new(0),
-            lines: RefCell::new(vec![]),
+            processed_until: Arc::new(Mutex::new(0)),
+            lines: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -189,19 +190,19 @@ impl<'a> SourceView<'a> {
     pub fn get_line(&self, idx: u32) -> Option<&str> {
         let idx = idx as usize;
         {
-            let lines = self.lines.borrow();
+            let lines = self.lines.lock().unwrap();
             if idx < lines.len() {
                 return Some(unsafe { make_str(lines[idx]) });
             }
         }
 
         // fetched everything
-        if *self.processed_until.borrow() > self.source.len() {
+        if *self.processed_until.lock().unwrap() > self.source.len() {
             return None;
         }
 
-        let mut processed_until = self.processed_until.borrow_mut();
-        let mut lines = self.lines.borrow_mut();
+        let mut processed_until = self.processed_until.lock().unwrap();
+        let mut lines = self.lines.lock().unwrap();
         let mut done = false;
 
         while !done {
@@ -320,7 +321,7 @@ impl<'a> SourceView<'a> {
     /// Returns the number of lines.
     pub fn line_count(&self) -> usize {
         self.get_line(!0);
-        self.lines.borrow().len()
+        self.lines.lock().unwrap().len()
     }
 
     /// Returns the source map reference in the source view.
