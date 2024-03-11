@@ -1,5 +1,13 @@
 # Changelog
 
+## 7.1.0
+
+### Various fixes & improvements
+
+- refactor: make SourceView implement Sync (#80) by @underfin
+- feat: add SourceMap::to_data_url (#81) by @underfin
+- feat: Replace `unicode-id` crate with `unicode-id-start` (#78) by @Boshen
+
 ## 7.0.1
 
 ### Various fixes and improvements
