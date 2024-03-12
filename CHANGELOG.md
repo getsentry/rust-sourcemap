@@ -1,5 +1,11 @@
 # Changelog
 
+## 7.1.1
+
+### Various fixes & improvements
+
+- chore: remove unless change (#82) by @underfin
+
 ## 7.1.0
 
 ### Various fixes & improvements
