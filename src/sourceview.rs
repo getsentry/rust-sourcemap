@@ -142,7 +142,7 @@ impl<'a> Iterator for Lines<'a> {
 pub struct SourceView<'a> {
     source: Cow<'a, str>,
     processed_until: AtomicUsize,
-    lines: Mutex<Vec<(*const u8, usize)>>,
+    lines: Mutex<Vec<&'static str>>,
 }
 
 impl<'a> Clone for SourceView<'a> {
@@ -161,11 +161,6 @@ impl<'a> fmt::Debug for SourceView<'a> {
             .field("source", &self.source())
             .finish()
     }
-}
-
-unsafe fn make_str<'a>(tup: (*const u8, usize)) -> &'a str {
-    let (data, len) = tup;
-    str::from_utf8_unchecked(slice::from_raw_parts(data, len))
 }
 
 impl<'a> SourceView<'a> {
@@ -193,7 +188,7 @@ impl<'a> SourceView<'a> {
         {
             let lines = self.lines.lock().unwrap();
             if idx < lines.len() {
-                return Some(unsafe { make_str(lines[idx]) });
+                return Some(lines[idx]);
             }
         }
 
@@ -221,9 +216,12 @@ impl<'a> SourceView<'a> {
                 done = true;
                 rest
             };
-            lines.push((rv.as_ptr(), rv.len()));
+
+            lines.push(unsafe {
+                str::from_utf8_unchecked(slice::from_raw_parts(rv.as_ptr(), rv.len()))
+            });
             if let Some(&line) = lines.get(idx) {
-                return Some(unsafe { make_str(line) });
+                return Some(line);
             }
         }
 
@@ -370,4 +368,9 @@ fn test_minified_source_view() {
     assert_eq!(view.get_line(2), Some("c"));
     assert_eq!(view.get_line(3), Some(""));
     assert_eq!(view.get_line(4), None);
+
+    fn is_send<T: Send>() {}
+    fn is_sync<T: Sync>() {}
+    is_send::<SourceView<'static>>();
+    is_sync::<SourceView<'static>>();
 }
