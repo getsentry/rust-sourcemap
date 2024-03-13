@@ -48,11 +48,11 @@ fn test_basic_range() {
         ("input.js", 2, 2, None)
     );
     assert_eq!(
-        sm.lookup_token(1, 7).unwrap().to_tuple(),
+        sm.lookup_token(1, 8).unwrap().to_tuple(),
         ("input.js", 2, 10, None)
     );
     assert_eq!(
-        sm.lookup_token(1, 11).unwrap().to_tuple(),
+        sm.lookup_token(1, 12).unwrap().to_tuple(),
         ("input.js", 2, 14, None)
     );
 }

@@ -222,7 +222,7 @@ impl<'a> Token<'a> {
 
     /// get the source column number
     pub fn get_src_col(&self) -> u32 {
-        self.raw.src_col.saturating_sub(self.offset)
+        self.raw.src_col.saturating_add(self.offset)
     }
 
     /// get the source line and column
