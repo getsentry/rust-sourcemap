@@ -35,3 +35,28 @@ fn test_basic_sourcemap() {
         ("coolstuff.js", 2, 8, None)
     );
 }
+
+#[test]
+fn test_basic_range() {
+    let input: &[_] = br#"{
+        "version": 3,
+        "sources": ["input.js"],
+        "names": ["console","log","ab"],
+        "mappings": "AACAA,QAAQC,GAAG,CAAC,OAAM,OAAM,QACxBD,QAAQC,GAAG,CAAC,QAEZD,QAAQC,GAAG,CAJD;IAACC,IAAI;AAAI,IAKnBF,QAAQC,GAAG,CAAC,YACZD,QAAQC,GAAG,CAAC",
+        "rangeMappings": "AAB;;g"
+    }"#;
+    let sm = SourceMap::from_reader(input).unwrap();
+
+    assert_eq!(
+        sm.lookup_token(1, 1).unwrap().to_tuple(),
+        ("input.js", 2, 2, None)
+    );
+    assert_eq!(
+        sm.lookup_token(1, 8).unwrap().to_tuple(),
+        ("input.js", 2, 10, None)
+    );
+    assert_eq!(
+        sm.lookup_token(1, 12).unwrap().to_tuple(),
+        ("input.js", 2, 14, None)
+    );
+}
