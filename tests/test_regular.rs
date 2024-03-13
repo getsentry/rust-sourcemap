@@ -1,4 +1,4 @@
-use sourcemap::SourceMap;
+use sourcemap::{SourceMap, SourceMapBuilder};
 
 #[test]
 fn test_basic_sourcemap() {
@@ -38,14 +38,9 @@ fn test_basic_sourcemap() {
 
 #[test]
 fn test_basic_range() {
-    let input: &[_] = br#"{
-        "version": 3,
-        "sources": ["input.js"],
-        "names": ["console","log","ab"],
-        "mappings": "AACAA,QAAQC,GAAG,CAAC,OAAM,OAAM,QACxBD,QAAQC,GAAG,CAAC,QAEZD,QAAQC,GAAG,CAJD;IAACC,IAAI;AAAI,IAKnBF,QAAQC,GAAG,CAAC,YACZD,QAAQC,GAAG,CAAC",
-        "rangeMappings": "AAB;;g"
-    }"#;
-    let sm = SourceMap::from_reader(input).unwrap();
+    let mut b = SourceMapBuilder::new(Some("input.js"));
+    b.add_raw(1, 0, 2, 2, Some(0), None, true);
+    let sm = b.into_sourcemap();
 
     assert_eq!(
         sm.lookup_token(1, 1).unwrap().to_tuple(),
