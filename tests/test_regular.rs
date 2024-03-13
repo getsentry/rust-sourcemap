@@ -38,20 +38,21 @@ fn test_basic_sourcemap() {
 
 #[test]
 fn test_basic_range() {
-    let mut b = SourceMapBuilder::new(Some("input.js"));
-    b.add_raw(1, 0, 2, 2, Some(0), None, true);
+    let mut b = SourceMapBuilder::new(None);
+    let id = b.add_source("input.js");
+    b.add_raw(1, 0, 2, 2, Some(id), None, true);
     let sm = b.into_sourcemap();
 
     assert_eq!(
-        sm.lookup_token(1, 1).unwrap().to_tuple(),
+        sm.lookup_token(1, 0).unwrap().to_tuple(),
         ("input.js", 2, 2, None)
     );
     assert_eq!(
-        sm.lookup_token(1, 8).unwrap().to_tuple(),
+        sm.lookup_token(1, 7).unwrap().to_tuple(),
         ("input.js", 2, 10, None)
     );
     assert_eq!(
-        sm.lookup_token(1, 12).unwrap().to_tuple(),
+        sm.lookup_token(1, 11).unwrap().to_tuple(),
         ("input.js", 2, 14, None)
     );
 }
