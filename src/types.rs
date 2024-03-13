@@ -157,6 +157,7 @@ pub struct RawToken {
 pub struct Token<'a> {
     raw: &'a RawToken,
     i: &'a SourceMap,
+    offset: u32,
     idx: u32,
 }
 
@@ -221,7 +222,7 @@ impl<'a> Token<'a> {
 
     /// get the source column number
     pub fn get_src_col(&self) -> u32 {
-        self.raw.src_col
+        self.raw.src_col - self.offset
     }
 
     /// get the source line and column
@@ -680,9 +681,12 @@ impl SourceMap {
 
     /// Looks up a token by its index.
     pub fn get_token(&self, idx: u32) -> Option<Token<'_>> {
-        self.tokens
-            .get(idx as usize)
-            .map(|raw| Token { raw, i: self, idx })
+        self.tokens.get(idx as usize).map(|raw| Token {
+            raw,
+            i: self,
+            idx,
+            offset: 0,
+        })
     }
 
     /// Returns the number of tokens in the sourcemap.
@@ -701,7 +705,14 @@ impl SourceMap {
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         let ii = greatest_lower_bound(&self.index, &(line, col), |ii| (ii.0, ii.1))?;
-        self.get_token(ii.2)
+
+        let mut token = self.get_token(ii.2)?;
+
+        if token.is_range() {
+            token.offset = col - token.get_dst_col();
+        }
+
+        Some(token)
     }
 
     /// Given a location, name and minified source file resolve a minified
