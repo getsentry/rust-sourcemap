@@ -23,7 +23,7 @@ fn test_basic_sourcemap() {
 fn test_sourcemap_data_url() {
     let input: &[_] = br#"{"version":3,"file":"build/foo.min.js","sources":["src/foo.js"],"names":[],"mappings":"AAAA","sourceRoot":"/"}"#;
     let sm = SourceMap::from_reader(input).unwrap();
-    assert_eq!(sm.to_data_url().unwrap(), "data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVpbGQvZm9vLm1pbi5qcyIsInNvdXJjZXMiOlsic3JjL2Zvby5qcyJdLCJzb3VyY2VSb290IjoiLyIsIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBIn0=");
+    assert_eq!(sm.to_data_url().unwrap(), "data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVpbGQvZm9vLm1pbi5qcyIsInNvdXJjZXMiOlsic3JjL2Zvby5qcyJdLCJzb3VyY2VSb290IjoiLyIsIm5hbWVzIjpbXSwicmFuZ2VNYXBwaW5ncyI6IiIsIm1hcHBpbmdzIjoiQUFBQSJ9");
 }
 
 #[test]
