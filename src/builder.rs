@@ -53,8 +53,8 @@ impl SourceMapBuilder {
     /// Creates a new source map builder and sets the file.
     pub fn new(file: Option<&str>) -> SourceMapBuilder {
         SourceMapBuilder {
-            file: file.map(str::to_owned),
-            name_map: HashMap::new(),
+            file: file.map(Into::into),
+            name_map: FxHashMap::default(),
             names: vec![],
             tokens: vec![],
             source_map: FxHashMap::default(),
