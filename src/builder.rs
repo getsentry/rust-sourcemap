@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use debugid::DebugId;
 use rustc_hash::FxHashMap;
@@ -20,13 +21,13 @@ use crate::types::{RawToken, SourceMap, Token};
 /// type can help.
 pub struct SourceMapBuilder {
     file: Option<String>,
-    name_map: FxHashMap<String, u32>,
-    names: Vec<String>,
+    name_map: FxHashMap<Arc<str>, u32>,
+    names: Vec<Arc<str>>,
     tokens: Vec<RawToken>,
-    source_map: FxHashMap<String, u32>,
+    source_map: FxHashMap<Arc<str>, u32>,
     source_root: Option<String>,
-    sources: Vec<String>,
-    source_contents: Vec<Option<String>>,
+    sources: Vec<Arc<str>>,
+    source_contents: Vec<Option<Arc<str>>>,
     sources_mapping: Vec<u32>,
     debug_id: Option<DebugId>,
 }
@@ -108,7 +109,7 @@ impl SourceMapBuilder {
     /// Changes the source name for an already set source.
     pub fn set_source(&mut self, src_id: u32, src: &str) {
         assert!(src_id != !0, "Cannot set sources for tombstone source id");
-        self.sources[src_id as usize] = src.to_string();
+        self.sources[src_id as usize] = src.into();
     }
 
     /// Looks up a source name for an ID.
@@ -122,7 +123,7 @@ impl SourceMapBuilder {
         if self.sources.len() > self.source_contents.len() {
             self.source_contents.resize(self.sources.len(), None);
         }
-        self.source_contents[src_id as usize] = contents.map(str::to_owned);
+        self.source_contents[src_id as usize] = contents.map(Into::into);
     }
 
     /// Returns the current source contents for a source.
@@ -272,7 +273,7 @@ impl SourceMapBuilder {
                     prefix.push('/');
                 }
                 if source.starts_with(&prefix) {
-                    *source = source[prefix.len()..].to_string();
+                    *source = source[prefix.len()..].into();
                     break;
                 }
             }

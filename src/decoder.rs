@@ -187,18 +187,22 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         }
     }
 
-    let sources = sources.into_iter().map(Option::unwrap_or_default).collect();
+    let sources = sources
+        .into_iter()
+        .map(Option::unwrap_or_default)
+        .map(Into::into)
+        .collect();
 
     // apparently we can encounter some non string types in real world
     // sourcemaps :(
     let names = names
         .into_iter()
         .map(|val| match val {
-            Value::String(s) => s,
-            Value::Number(num) => num.to_string(),
+            Value::String(s) => s.into(),
+            Value::Number(num) => num.to_string().into(),
             _ => "".into(),
         })
-        .collect::<Vec<String>>();
+        .collect::<Vec<_>>();
 
     // file sometimes is not a string for unexplicable reasons
     let file = rsm.file.map(|val| match val {
@@ -206,7 +210,11 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         _ => "<invalid>".into(),
     });
 
-    let mut sm = SourceMap::new(file, tokens, names, sources, rsm.sources_content);
+    let source_content = rsm
+        .sources_content
+        .map(|x| x.into_iter().map(|v| v.map(Into::into)).collect::<Vec<_>>());
+
+    let mut sm = SourceMap::new(file, tokens, names, sources, source_content);
     sm.set_source_root(rsm.source_root);
     sm.set_debug_id(rsm.debug_id);
 

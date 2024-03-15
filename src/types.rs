@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::builder::SourceMapBuilder;
 use crate::decoder::{decode, decode_slice};
@@ -277,7 +278,7 @@ impl<'a> Token<'a> {
     }
 
     /// Returns the referenced source view.
-    pub fn get_source_view(&self) -> Option<&SourceView<'_>> {
+    pub fn get_source_view(&self) -> Option<&SourceView> {
         self.i.get_source_view(self.get_src_id())
     }
 }
@@ -460,11 +461,11 @@ pub struct SourceMap {
     pub(crate) file: Option<String>,
     pub(crate) tokens: Vec<RawToken>,
     pub(crate) index: Vec<(u32, u32, u32)>,
-    pub(crate) names: Vec<String>,
+    pub(crate) names: Vec<Arc<str>>,
     pub(crate) source_root: Option<String>,
-    pub(crate) sources: Vec<String>,
-    pub(crate) sources_prefixed: Option<Vec<String>>,
-    pub(crate) sources_content: Vec<Option<SourceView<'static>>>,
+    pub(crate) sources: Vec<Arc<str>>,
+    pub(crate) sources_prefixed: Option<Vec<Arc<str>>>,
+    pub(crate) sources_content: Vec<Option<SourceView>>,
     pub(crate) debug_id: Option<DebugId>,
 }
 
@@ -575,9 +576,9 @@ impl SourceMap {
     pub fn new(
         file: Option<String>,
         tokens: Vec<RawToken>,
-        names: Vec<String>,
-        sources: Vec<String>,
-        sources_content: Option<Vec<Option<String>>>,
+        names: Vec<Arc<str>>,
+        sources: Vec<Arc<str>>,
+        sources_content: Option<Vec<Option<Arc<str>>>>,
     ) -> SourceMap {
         let mut index: Vec<_> = tokens
             .iter()
@@ -596,7 +597,7 @@ impl SourceMap {
             sources_content: sources_content
                 .unwrap_or_default()
                 .into_iter()
-                .map(|opt| opt.map(SourceView::from_string))
+                .map(|opt| opt.map(SourceView::new))
                 .collect(),
             debug_id: None,
         }
@@ -627,7 +628,7 @@ impl SourceMap {
         self.source_root.as_deref()
     }
 
-    fn prefix_source(source_root: &str, source: &str) -> String {
+    fn prefix_source(source_root: &str, source: &str) -> Arc<str> {
         let source_root = source_root.strip_suffix('/').unwrap_or(source_root);
         let is_valid = !source.is_empty()
             && (source.starts_with('/')
@@ -635,9 +636,9 @@ impl SourceMap {
                 || source.starts_with("https:"));
 
         if is_valid {
-            source.to_string()
+            source.into()
         } else {
-            format!("{source_root}/{source}")
+            format!("{source_root}/{source}").into()
         }
     }
 
@@ -692,12 +693,12 @@ impl SourceMap {
     /// functions that do not have clear function names.  (For instance it's
     /// recommended that dotted function names are not passed to this
     /// function).
-    pub fn get_original_function_name<'a>(
+    pub fn get_original_function_name(
         &self,
         line: u32,
         col: u32,
         minified_name: &str,
-        sv: &'a SourceView<'a>,
+        sv: &SourceView,
     ) -> Option<&str> {
         self.lookup_token(line, col)
             .and_then(|token| sv.get_original_function_name(token, minified_name))
@@ -719,7 +720,7 @@ impl SourceMap {
     ///
     /// This panics if a source is set that does not exist.
     pub fn set_source(&mut self, idx: u32, value: &str) {
-        self.sources[idx as usize] = value.to_string();
+        self.sources[idx as usize] = value.into();
 
         if let Some(sources_prefixed) = self.sources_prefixed.as_mut() {
             // If sources_prefixed is `Some`, we must have a nonempty `source_root`.
@@ -737,7 +738,7 @@ impl SourceMap {
     }
 
     /// Returns the sources content as source view.
-    pub fn get_source_view(&self, idx: u32) -> Option<&SourceView<'_>> {
+    pub fn get_source_view(&self, idx: u32) -> Option<&SourceView> {
         self.sources_content
             .get(idx as usize)
             .and_then(Option::as_ref)
@@ -869,7 +870,7 @@ impl SourceMap {
             }
         }
         if need_common_prefix {
-            if let Some(prefix) = find_common_prefix(self.sources.iter().map(String::as_str)) {
+            if let Some(prefix) = find_common_prefix(self.sources.iter().map(AsRef::as_ref)) {
                 prefixes.push(prefix);
             }
         }
@@ -1141,12 +1142,12 @@ impl SourceMapIndex {
     /// functions that do not have clear function names.  (For instance it's
     /// recommended that dotted function names are not passed to this
     /// function).
-    pub fn get_original_function_name<'a>(
+    pub fn get_original_function_name(
         &self,
         line: u32,
         col: u32,
         minified_name: &str,
-        sv: &'a SourceView<'a>,
+        sv: &SourceView,
     ) -> Option<&str> {
         self.lookup_token(line, col)
             .and_then(|token| sv.get_original_function_name(token, minified_name))

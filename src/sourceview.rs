@@ -1,9 +1,9 @@
-use std::borrow::Cow;
 use std::fmt;
 use std::slice;
 use std::str;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use if_chain::if_chain;
@@ -14,19 +14,13 @@ use crate::js_identifiers::{get_javascript_token, is_valid_javascript_identifier
 use crate::types::{idx_from_token, sourcemap_from_token, Token};
 
 /// An iterator that iterates over tokens in reverse.
-pub struct RevTokenIter<'view, 'viewbase, 'map>
-where
-    'viewbase: 'view,
-{
-    sv: &'view SourceView<'viewbase>,
+pub struct RevTokenIter<'view, 'map> {
+    sv: &'view SourceView,
     token: Option<Token<'map>>,
     source_line: Option<(&'view str, usize, usize, usize)>,
 }
 
-impl<'view, 'viewbase, 'map> Iterator for RevTokenIter<'view, 'viewbase, 'map>
-where
-    'viewbase: 'view,
-{
+impl<'view, 'map> Iterator for RevTokenIter<'view, 'map> {
     type Item = (Token<'map>, Option<&'view str>);
 
     fn next(&mut self) -> Option<(Token<'map>, Option<&'view str>)> {
@@ -118,7 +112,7 @@ where
 }
 
 pub struct Lines<'a> {
-    sv: &'a SourceView<'a>,
+    sv: &'a SourceView,
     idx: u32,
 }
 
@@ -139,14 +133,14 @@ impl<'a> Iterator for Lines<'a> {
 ///
 /// This type is used to implement fairly efficient source mapping
 /// operations.
-pub struct SourceView<'a> {
-    source: Cow<'a, str>,
+pub struct SourceView {
+    source: Arc<str>,
     processed_until: AtomicUsize,
     lines: Mutex<Vec<&'static str>>,
 }
 
-impl<'a> Clone for SourceView<'a> {
-    fn clone(&self) -> SourceView<'a> {
+impl Clone for SourceView {
+    fn clone(&self) -> SourceView {
         SourceView {
             source: self.source.clone(),
             processed_until: AtomicUsize::new(0),
@@ -155,7 +149,7 @@ impl<'a> Clone for SourceView<'a> {
     }
 }
 
-impl<'a> fmt::Debug for SourceView<'a> {
+impl fmt::Debug for SourceView {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SourceView")
             .field("source", &self.source())
@@ -163,20 +157,20 @@ impl<'a> fmt::Debug for SourceView<'a> {
     }
 }
 
-impl<'a> SourceView<'a> {
+impl SourceView {
     /// Creates an optimized view of a given source.
-    pub fn new(source: &'a str) -> SourceView<'a> {
+    pub fn new(source: Arc<str>) -> SourceView {
         SourceView {
-            source: Cow::Borrowed(source),
+            source,
             processed_until: AtomicUsize::new(0),
             lines: Mutex::new(vec![]),
         }
     }
 
     /// Creates an optimized view from a given source string
-    pub fn from_string(source: String) -> SourceView<'static> {
+    pub fn from_string(source: String) -> SourceView {
         SourceView {
-            source: Cow::Owned(source),
+            source: source.into(),
             processed_until: AtomicUsize::new(0),
             lines: Mutex::new(vec![]),
         }
@@ -264,7 +258,7 @@ impl<'a> SourceView<'a> {
     }
 
     /// Returns an iterator over all lines.
-    pub fn lines(&'a self) -> Lines<'a> {
+    pub fn lines(&self) -> Lines {
         Lines { sv: self, idx: 0 }
     }
 
@@ -273,10 +267,7 @@ impl<'a> SourceView<'a> {
         &self.source
     }
 
-    fn rev_token_iter<'this, 'map>(
-        &'this self,
-        token: Token<'map>,
-    ) -> RevTokenIter<'this, 'a, 'map> {
+    fn rev_token_iter<'this, 'map>(&'this self, token: Token<'map>) -> RevTokenIter<'this, 'map> {
         RevTokenIter {
             sv: self,
             token: Some(token),
@@ -332,7 +323,7 @@ impl<'a> SourceView<'a> {
 #[test]
 #[allow(clippy::cognitive_complexity)]
 fn test_minified_source_view() {
-    let view = SourceView::new("a\nb\nc");
+    let view = SourceView::new("a\nb\nc".into());
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(2), Some("c"));
@@ -341,7 +332,7 @@ fn test_minified_source_view() {
 
     assert_eq!(view.line_count(), 3);
 
-    let view = SourceView::new("a\r\nb\r\nc");
+    let view = SourceView::new("a\r\nb\r\nc".into());
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(2), Some("c"));
@@ -350,7 +341,7 @@ fn test_minified_source_view() {
 
     assert_eq!(view.line_count(), 3);
 
-    let view = SourceView::new("abc👌def\nblah");
+    let view = SourceView::new("abc👌def\nblah".into());
     assert_eq!(view.get_line_slice(0, 0, 3), Some("abc"));
     assert_eq!(view.get_line_slice(0, 3, 1), Some("👌"));
     assert_eq!(view.get_line_slice(0, 3, 2), Some("👌"));
@@ -362,7 +353,7 @@ fn test_minified_source_view() {
     assert_eq!(view.get_line_slice(1, 0, 5), None);
     assert_eq!(view.get_line_slice(1, 0, 12), None);
 
-    let view = SourceView::new("a\nb\nc\n");
+    let view = SourceView::new("a\nb\nc\n".into());
     assert_eq!(view.get_line(0), Some("a"));
     assert_eq!(view.get_line(1), Some("b"));
     assert_eq!(view.get_line(2), Some("c"));
@@ -371,6 +362,6 @@ fn test_minified_source_view() {
 
     fn is_send<T: Send>() {}
     fn is_sync<T: Sync>() {}
-    is_send::<SourceView<'static>>();
-    is_sync::<SourceView<'static>>();
+    is_send::<SourceView>();
+    is_sync::<SourceView>();
 }

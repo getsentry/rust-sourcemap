@@ -70,9 +70,9 @@ impl<'a> RamBundleModule<'a> {
     /// Returns a source view of the data.
     ///
     /// This operation fails if the source code is not valid UTF-8.
-    pub fn source_view(&self) -> Result<SourceView<'a>> {
+    pub fn source_view(&self) -> Result<SourceView> {
         match std::str::from_utf8(self.data) {
-            Ok(s) => Ok(SourceView::new(s)),
+            Ok(s) => Ok(SourceView::new(s.into())),
             Err(e) => Err(Error::Utf8(e)),
         }
     }
@@ -361,7 +361,7 @@ impl<'a> SplitRamBundleModuleIter<'a> {
     fn split_module(
         &self,
         module: RamBundleModule<'a>,
-    ) -> Result<Option<(String, SourceView<'a>, SourceMap)>> {
+    ) -> Result<Option<(String, SourceView, SourceMap)>> {
         let module_offset = self
             .offsets
             .get(module.id())
@@ -377,7 +377,7 @@ impl<'a> SplitRamBundleModuleIter<'a> {
             return Err(Error::InvalidRamBundleEntry);
         }
 
-        let source: SourceView<'a> = module.source_view()?;
+        let source: SourceView = module.source_view()?;
         let line_count = source.line_count() as u32;
         let ending_line = starting_line + line_count;
         let last_line_len = source
@@ -416,7 +416,7 @@ impl<'a> SplitRamBundleModuleIter<'a> {
 }
 
 impl<'a> Iterator for SplitRamBundleModuleIter<'a> {
-    type Item = Result<(String, SourceView<'a>, SourceMap)>;
+    type Item = Result<(String, SourceView, SourceMap)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(module_result) = self.ram_bundle_iter.next() {
