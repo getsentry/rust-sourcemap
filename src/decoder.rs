@@ -206,7 +206,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     // file sometimes is not a string for unexplicable reasons
     let file = rsm.file.map(|val| match val {
-        Value::String(s) => s,
+        Value::String(s) => s.into(),
         _ => "<invalid>".into(),
     });
 

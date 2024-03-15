@@ -458,11 +458,11 @@ pub struct SourceMapIndex {
 /// rejected with an error on reading.
 #[derive(Clone, Debug)]
 pub struct SourceMap {
-    pub(crate) file: Option<String>,
+    pub(crate) file: Option<Arc<str>>,
     pub(crate) tokens: Vec<RawToken>,
     pub(crate) index: Vec<(u32, u32, u32)>,
     pub(crate) names: Vec<Arc<str>>,
-    pub(crate) source_root: Option<String>,
+    pub(crate) source_root: Option<Arc<str>>,
     pub(crate) sources: Vec<Arc<str>>,
     pub(crate) sources_prefixed: Option<Vec<Arc<str>>>,
     pub(crate) sources_content: Vec<Option<SourceView>>,
@@ -574,7 +574,7 @@ impl SourceMap {
     /// - `sources` a vector of source filenames
     /// - `sources_content` optional source contents
     pub fn new(
-        file: Option<String>,
+        file: Option<Arc<str>>,
         tokens: Vec<RawToken>,
         names: Vec<Arc<str>>,
         sources: Vec<Arc<str>>,
@@ -619,7 +619,7 @@ impl SourceMap {
     }
 
     /// Sets a new value for the file.
-    pub fn set_file<T: Into<String>>(&mut self, value: Option<T>) {
+    pub fn set_file<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
         self.file = value.map(Into::into);
     }
 
@@ -643,7 +643,7 @@ impl SourceMap {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root<T: Into<String>>(&mut self, value: Option<T>) {
+    pub fn set_source_root<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
         self.source_root = value.map(Into::into);
 
         match self.source_root.as_deref().filter(|rs| !rs.is_empty()) {
