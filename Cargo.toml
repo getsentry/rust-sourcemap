@@ -34,6 +34,7 @@ data-encoding = "2.3.3"
 debugid = {version = "0.8.0", features = ["serde"] }
 base64-simd = { version = "0.7" }
 bitvec = "1.0.1"
+rustc-hash = "1.1.0"
 
 [build-dependencies]
 rustc_version = "0.2.3"
