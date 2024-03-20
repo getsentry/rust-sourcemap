@@ -1,4 +1,4 @@
-use sourcemap::SourceMap;
+use sourcemap::{SourceMap, SourceMapBuilder};
 
 #[test]
 fn test_basic_sourcemap() {
@@ -33,5 +33,26 @@ fn test_basic_sourcemap() {
     assert_eq!(
         sm.lookup_token(1000, 0).unwrap().to_tuple(),
         ("coolstuff.js", 2, 8, None)
+    );
+}
+
+#[test]
+fn test_basic_range() {
+    let mut b = SourceMapBuilder::new(None);
+    let id = b.add_source("input.js");
+    b.add_raw(1, 0, 2, 2, Some(id), None, true);
+    let sm = b.into_sourcemap();
+
+    assert_eq!(
+        sm.lookup_token(1, 0).unwrap().to_tuple(),
+        ("input.js", 2, 2, None)
+    );
+    assert_eq!(
+        sm.lookup_token(1, 8).unwrap().to_tuple(),
+        ("input.js", 2, 10, None)
+    );
+    assert_eq!(
+        sm.lookup_token(1, 12).unwrap().to_tuple(),
+        ("input.js", 2, 14, None)
     );
 }

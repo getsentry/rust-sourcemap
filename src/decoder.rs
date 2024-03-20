@@ -1,6 +1,9 @@
 use std::io;
 use std::io::{BufReader, Read};
 
+use bitvec::field::BitField;
+use bitvec::order::Lsb0;
+use bitvec::vec::BitVec;
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
@@ -120,6 +123,29 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     Ok(&slice[slice.len()..])
 }
 
+/// Decodes range mappping bitfield string into index
+fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
+    val.clear();
+    val.resize(rmi_str.len() * 6, false);
+
+    for (idx, &byte) in rmi_str.as_bytes().iter().enumerate() {
+        let byte = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => {
+                fail!(Error::InvalidBase64(byte as char));
+            }
+        };
+
+        val[6 * idx..6 * (idx + 1)].store_le::<u8>(byte);
+    }
+
+    Ok(())
+}
+
 pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut dst_col;
     let mut src_id = 0;
@@ -129,20 +155,28 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
+    let range_mappings = rsm.range_mappings.unwrap_or_default();
     let mappings = rsm.mappings.unwrap_or_default();
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
 
     let mut nums = Vec::with_capacity(6);
+    let mut rmi = BitVec::new();
 
-    for (dst_line, line) in mappings.split(';').enumerate() {
+    for (dst_line, (line, rmi_str)) in mappings
+        .split(';')
+        .zip(range_mappings.split(';').chain(std::iter::repeat("")))
+        .enumerate()
+    {
         if line.is_empty() {
             continue;
         }
 
         dst_col = 0;
 
-        for segment in line.split(',') {
+        decode_rmi(rmi_str, &mut rmi)?;
+
+        for (line_index, segment) in line.split(',').enumerate() {
             if segment.is_empty() {
                 continue;
             }
@@ -176,6 +210,8 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 }
             }
 
+            let is_range = rmi.get(line_index).map(|v| *v).unwrap_or_default();
+
             tokens.push(RawToken {
                 dst_line: dst_line as u32,
                 dst_col,
@@ -183,6 +219,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 src_col,
                 src_id: src,
                 name_id: name,
+                is_range,
             });
         }
     }
@@ -318,4 +355,25 @@ fn test_bad_newline() {
             panic!("Expected failure");
         }
     }
+}
+
+#[test]
+fn test_decode_rmi() {
+    fn decode(rmi_str: &str) -> Vec<usize> {
+        let mut out = bitvec::bitvec![u8, Lsb0; 0; 0];
+        decode_rmi(rmi_str, &mut out).expect("failed to decode");
+
+        let mut res = vec![];
+        for (idx, bit) in out.iter().enumerate() {
+            if *bit {
+                res.push(idx);
+            }
+        }
+        res
+    }
+
+    // This is 0-based index of the bits
+    assert_eq!(decode("AAB"), vec![12]);
+    assert_eq!(decode("g"), vec![5]);
+    assert_eq!(decode("Bg"), vec![0, 11]);
 }

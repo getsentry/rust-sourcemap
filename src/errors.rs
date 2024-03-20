@@ -45,6 +45,10 @@ pub enum Error {
     InvalidRamBundleEntry,
     /// Tried to operate on a non RAM bundle file
     NotARamBundle,
+    /// Range mapping index is invalid
+    InvalidRangeMappingIndex(data_encoding::DecodeError),
+
+    InvalidBase64(char),
 }
 
 impl From<io::Error> for Error {
@@ -75,6 +79,12 @@ impl From<str::Utf8Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Error {
         Error::BadJson(err)
+    }
+}
+
+impl From<data_encoding::DecodeError> for Error {
+    fn from(err: data_encoding::DecodeError) -> Error {
+        Error::InvalidRangeMappingIndex(err)
     }
 }
 
@@ -114,6 +124,8 @@ impl fmt::Display for Error {
             Error::InvalidRamBundleIndex => write!(f, "invalid module index in ram bundle"),
             Error::InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
             Error::NotARamBundle => write!(f, "not a ram bundle"),
+            Error::InvalidRangeMappingIndex(err) => write!(f, "invalid range mapping index: {err}"),
+            Error::InvalidBase64(c) => write!(f, "invalid base64 character: {}", c),
         }
     }
 }

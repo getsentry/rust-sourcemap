@@ -182,6 +182,7 @@ impl SourceMapBuilder {
     }
 
     /// Adds a new mapping to the builder.
+    #[allow(clippy::too_many_arguments)]
     pub fn add(
         &mut self,
         dst_line: u32,
@@ -190,8 +191,11 @@ impl SourceMapBuilder {
         src_col: u32,
         source: Option<&str>,
         name: Option<&str>,
+        is_range: bool,
     ) -> RawToken {
-        self.add_with_id(dst_line, dst_col, src_line, src_col, source, !0, name)
+        self.add_with_id(
+            dst_line, dst_col, src_line, src_col, source, !0, name, is_range,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -204,6 +208,7 @@ impl SourceMapBuilder {
         source: Option<&str>,
         source_id: u32,
         name: Option<&str>,
+        is_range: bool,
     ) -> RawToken {
         let src_id = match source {
             Some(source) => self.add_source_with_id(source, source_id),
@@ -220,12 +225,14 @@ impl SourceMapBuilder {
             src_col,
             src_id,
             name_id,
+            is_range,
         };
         self.tokens.push(raw);
         raw
     }
 
     /// Adds a new mapping to the builder.
+    #[allow(clippy::too_many_arguments)]
     pub fn add_raw(
         &mut self,
         dst_line: u32,
@@ -234,6 +241,7 @@ impl SourceMapBuilder {
         src_col: u32,
         source: Option<u32>,
         name: Option<u32>,
+        is_range: bool,
     ) -> RawToken {
         let src_id = source.unwrap_or(!0);
         let name_id = name.unwrap_or(!0);
@@ -244,6 +252,7 @@ impl SourceMapBuilder {
             src_col,
             src_id,
             name_id,
+            is_range,
         };
         self.tokens.push(raw);
         raw
@@ -261,6 +270,7 @@ impl SourceMapBuilder {
             token.get_source(),
             token.get_src_id(),
             name,
+            token.is_range(),
         )
     }
 

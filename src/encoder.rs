@@ -1,5 +1,8 @@
 use std::io::Write;
 
+use bitvec::field::BitField;
+use bitvec::order::Lsb0;
+use bitvec::view::BitView;
 use serde_json::Value;
 
 use crate::errors::Result;
@@ -19,6 +22,78 @@ pub fn encode<M: Encodable, W: Write>(sm: &M, mut w: W) -> Result<()> {
 
 fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
+}
+
+fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
+    fn encode_byte(b: u8) -> u8 {
+        match b {
+            0..=25 => b + b'A',
+            26..=51 => b + b'a' - 26,
+            52..=61 => b + b'0' - 52,
+            62 => b'+',
+            63 => b'/',
+            _ => panic!("invalid byte"),
+        }
+    }
+
+    let bits = data.view_bits_mut::<Lsb0>();
+
+    // trim zero at the end
+    let mut last = 0;
+    for (idx, bit) in bits.iter().enumerate() {
+        if *bit {
+            last = idx;
+        }
+    }
+    let bits = &mut bits[..last + 1];
+
+    for byte in bits.chunks(6) {
+        let byte = byte.load::<u8>();
+
+        let encoded = encode_byte(byte);
+
+        out.push(encoded);
+    }
+}
+
+fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
+    let mut buf = Vec::new();
+    let mut prev_line = 0;
+    let mut had_rmi = false;
+
+    let mut idx_of_first_in_line = 0;
+
+    let mut rmi_data = Vec::<u8>::new();
+
+    for (idx, token) in sm.tokens().enumerate() {
+        if token.is_range() {
+            had_rmi = true;
+
+            let num = idx - idx_of_first_in_line;
+
+            rmi_data.resize(rmi_data.len() + 2, 0);
+
+            let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
+            rmi_bits.set(num, true);
+        }
+
+        while token.get_dst_line() != prev_line {
+            if had_rmi {
+                encode_rmi(&mut buf, &mut rmi_data);
+                rmi_data.clear();
+            }
+
+            buf.push(b';');
+            prev_line += 1;
+            had_rmi = false;
+            idx_of_first_in_line = idx;
+        }
+    }
+    if had_rmi {
+        encode_rmi(&mut buf, &mut rmi_data);
+    }
+
+    Some(String::from_utf8(buf).expect("invalid utf8"))
 }
 
 fn serialize_mappings(sm: &SourceMap) -> String {
@@ -89,6 +164,7 @@ impl Encodable for SourceMap {
             sources_content: if have_contents { Some(contents) } else { None },
             sections: None,
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
+            range_mappings: serialize_range_mappings(self),
             mappings: Some(serialize_mappings(self)),
             x_facebook_offsets: None,
             x_metro_module_paths: None,
@@ -121,6 +197,7 @@ impl Encodable for SourceMapIndex {
                     .collect(),
             ),
             names: None,
+            range_mappings: None,
             mappings: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
@@ -138,4 +215,27 @@ impl Encodable for DecodedMap {
             DecodedMap::Hermes(ref smh) => smh.as_raw_sourcemap(),
         }
     }
+}
+
+#[test]
+fn test_encode_rmi() {
+    fn encode(indices: &[usize]) -> String {
+        let mut out = vec![];
+
+        // Fill with zeros while testing
+        let mut data = vec![0; 256];
+
+        let bits = data.view_bits_mut::<Lsb0>();
+        for &i in indices {
+            bits.set(i, true);
+        }
+
+        encode_rmi(&mut out, &mut data);
+        String::from_utf8(out).unwrap()
+    }
+
+    // This is 0-based index
+    assert_eq!(encode(&[12]), "AAB");
+    assert_eq!(encode(&[5]), "g");
+    assert_eq!(encode(&[0, 11]), "Bg");
 }

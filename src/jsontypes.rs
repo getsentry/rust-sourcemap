@@ -42,6 +42,8 @@ pub struct RawSourceMap {
     pub sections: Option<Vec<RawSection>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub names: Option<Vec<Value>>,
+    #[serde(rename = "rangeMappings", skip_serializing_if = "Option::is_none")]
+    pub range_mappings: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mappings: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

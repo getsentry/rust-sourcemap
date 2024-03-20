@@ -146,6 +146,11 @@ pub struct RawToken {
     pub src_id: u32,
     /// name identifier (`!0` in case there is no associated name)
     pub name_id: u32,
+
+    /// If true, this token is a range token.
+    ///
+    /// See <https://github.com/tc39/source-map-rfc/blob/main/proposals/range-mappings.md>
+    pub is_range: bool,
 }
 
 /// Represents a token from a sourcemap
@@ -153,6 +158,7 @@ pub struct RawToken {
 pub struct Token<'a> {
     raw: &'a RawToken,
     i: &'a SourceMap,
+    offset: u32,
     idx: u32,
 }
 
@@ -188,6 +194,8 @@ impl<'a> Ord for Token<'a> {
         try_cmp!(self.get_src_line(), other.get_src_line());
         try_cmp!(self.get_src_col(), other.get_src_col());
         try_cmp!(self.get_name(), other.get_name());
+        try_cmp!(self.is_range(), other.is_range());
+
         Ordering::Equal
     }
 }
@@ -215,7 +223,7 @@ impl<'a> Token<'a> {
 
     /// get the source column number
     pub fn get_src_col(&self) -> u32 {
-        self.raw.src_col
+        self.raw.src_col.saturating_add(self.offset)
     }
 
     /// get the source line and column
@@ -280,6 +288,13 @@ impl<'a> Token<'a> {
     /// Returns the referenced source view.
     pub fn get_source_view(&self) -> Option<&SourceView> {
         self.i.get_source_view(self.get_src_id())
+    }
+
+    /// If true, this token is a range token.
+    ///
+    /// See <https://github.com/tc39/source-map-rfc/blob/main/proposals/range-mappings.md>
+    pub fn is_range(&self) -> bool {
+        self.raw.is_range
     }
 }
 
@@ -411,7 +426,13 @@ impl<'a> fmt::Display for Token<'a> {
                 .unwrap_or_default()
         )?;
         if f.alternate() {
-            write!(f, " ({}:{})", self.get_dst_line(), self.get_dst_col())?;
+            write!(
+                f,
+                " ({}:{}){}",
+                self.get_dst_line(),
+                self.get_dst_col(),
+                if self.is_range() { " (range)" } else { "" }
+            )?;
         }
         Ok(())
     }
@@ -661,9 +682,12 @@ impl SourceMap {
 
     /// Looks up a token by its index.
     pub fn get_token(&self, idx: u32) -> Option<Token<'_>> {
-        self.tokens
-            .get(idx as usize)
-            .map(|raw| Token { raw, i: self, idx })
+        self.tokens.get(idx as usize).map(|raw| Token {
+            raw,
+            i: self,
+            idx,
+            offset: 0,
+        })
     }
 
     /// Returns the number of tokens in the sourcemap.
@@ -682,7 +706,14 @@ impl SourceMap {
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
         let ii = greatest_lower_bound(&self.index, &(line, col), |ii| (ii.0, ii.1))?;
-        self.get_token(ii.2)
+
+        let mut token = self.get_token(ii.2)?;
+
+        if token.is_range() {
+            token.offset = col - token.get_dst_col();
+        }
+
+        Some(token)
     }
 
     /// Given a location, name and minified source file resolve a minified
@@ -1204,6 +1235,7 @@ impl SourceMapIndex {
                     token.get_src_col(),
                     token.get_source(),
                     token.get_name(),
+                    token.is_range(),
                 );
                 if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
                     builder.set_source_contents(
