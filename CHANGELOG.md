@@ -1,5 +1,13 @@
 # Changelog
 
+## 8.0.0
+
+### Various fixes & improvements
+
+- feat: Add support for range mappings proposal (#77) by @kdy1
+- perf: using Arc<str> instead of String (#84) by @underfin
+- perf: using FxHashMap instead of HashMap (#83) by @underfin
+
 ## 7.1.1
 
 ### Various fixes & improvements
