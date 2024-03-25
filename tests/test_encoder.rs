@@ -45,3 +45,23 @@ fn test_basic_range() {
         assert_eq!(tok1, tok2);
     }
 }
+
+#[test]
+fn test_empty_range() {
+    let input = r#"{
+        "version": 3,
+        "sources": [null],
+        "names": ["console","log","ab"],
+        "mappings": "AACAA,QAAQC,GAAG,CAAC,OAAM,OAAM,QACxBD,QAAQC,GAAG,CAAC,QAEZD,QAAQC,GAAG,CAJD;IAACC,IAAI;AAAI,IAKnBF,QAAQC,GAAG,CAAC,YACZD,QAAQC,GAAG,CAAC",
+        "rangeMappings": ""
+    }"#;
+    let sm = SourceMap::from_reader(input.as_bytes()).unwrap();
+    let mut out: Vec<u8> = vec![];
+    sm.to_writer(&mut out).unwrap();
+
+    let out = String::from_utf8(out.clone()).unwrap();
+
+    println!("{}", out);
+
+    assert!(out.contains("\"rangeMappings\":[]"));
+}
