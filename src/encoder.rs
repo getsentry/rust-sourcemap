@@ -60,6 +60,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     let mut buf = Vec::new();
     let mut prev_line = 0;
     let mut had_rmi = false;
+    let mut empty = true;
 
     let mut idx_of_first_in_line = 0;
 
@@ -68,6 +69,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     for (idx, token) in sm.tokens().enumerate() {
         if token.is_range() {
             had_rmi = true;
+            empty = false;
 
             let num = idx - idx_of_first_in_line;
 
@@ -89,6 +91,10 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
             idx_of_first_in_line = idx;
         }
     }
+    if empty {
+        return None;
+    }
+
     if had_rmi {
         encode_rmi(&mut buf, &mut rmi_data);
     }
