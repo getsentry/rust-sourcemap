@@ -59,9 +59,6 @@ fn test_empty_range() {
     let mut out: Vec<u8> = vec![];
     sm.to_writer(&mut out).unwrap();
 
-    let out = String::from_utf8(out.clone()).unwrap();
-
-    println!("{}", out);
-
+    let out = String::from_utf8(out).unwrap();
     assert!(!out.contains("rangeMappings"));
 }
