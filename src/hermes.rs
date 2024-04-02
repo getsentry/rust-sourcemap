@@ -55,7 +55,8 @@ impl Encodable for SourceMapHermes {
     fn as_raw_sourcemap(&self) -> RawSourceMap {
         // TODO: need to serialize the `HermesFunctionMap` mappings
         let mut rsm = self.sm.as_raw_sourcemap();
-        rsm.x_facebook_sources = self.raw_facebook_sources.clone();
+        rsm.x_facebook_sources
+            .clone_from(&self.raw_facebook_sources);
         rsm
     }
 }

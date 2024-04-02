@@ -1,6 +1,5 @@
 #![cfg_attr(not(any(unix, windows, target_os = "redox")), allow(unused_imports))]
 
-use std::convert::AsRef;
 use std::env;
 use std::fs;
 use std::io::Read;
