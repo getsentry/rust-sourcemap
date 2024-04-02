@@ -1,5 +1,11 @@
 # Changelog
 
+## 8.0.1
+
+### Various fixes & improvements
+
+- feat: Skip encoding range mappings if it's empty (#86) by @kdy1
+
 ## 8.0.0
 
 ### Various fixes & improvements
