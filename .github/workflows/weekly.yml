@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - run: |
           rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
