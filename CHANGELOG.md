@@ -5,12 +5,14 @@
 ### Various fixes and improvements
 
 - ref: Tokens within a sourcemap are now always sorted by their position in the
-       minified file. Consequently:
-        - the type `IndexIter` and the functions `get_index_size`, `index_iter`,
-          and `idx_from_token` have been deleted;
-        - the function `sourcemap_from_token` has been turned into the method
-          `sourcemap` on `Token`;
-        - the `idx` parameter of `SourceMap::get_token` now has the type `usize`.
+      minified file (#91) by @loewenheim.
+      Consequently:
+      - the type `IndexIter` and the functions `get_index_size`, `index_iter`,
+        and `idx_from_token` have been deleted;
+      - the function `sourcemap_from_token` has been turned into the method
+        `sourcemap` on `Token`;
+      - the `idx` parameter of `SourceMap::get_token` now has the type `usize`.
+
 
 ## 8.0.1
 
