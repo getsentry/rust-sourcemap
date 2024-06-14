@@ -157,9 +157,16 @@ pub struct RawToken {
 #[derive(Copy, Clone)]
 pub struct Token<'a> {
     raw: &'a RawToken,
-    i: &'a SourceMap,
+    pub(crate) sm: &'a SourceMap,
+    pub(crate) idx: usize,
     offset: u32,
-    idx: u32,
+}
+
+impl<'a> Token<'a> {
+    /// The sourcemap this token is linked to.
+    pub fn sourcemap(&self) -> &'a SourceMap {
+        self.sm
+    }
 }
 
 impl<'a> PartialEq for Token<'a> {
@@ -241,7 +248,7 @@ impl<'a> Token<'a> {
         if self.raw.src_id == !0 {
             None
         } else {
-            self.i.get_source(self.raw.src_id)
+            self.sm.get_source(self.raw.src_id)
         }
     }
 
@@ -255,7 +262,7 @@ impl<'a> Token<'a> {
         if self.raw.name_id == !0 {
             None
         } else {
-            self.i.get_name(self.raw.name_id)
+            self.sm.get_name(self.raw.name_id)
         }
     }
 
@@ -287,7 +294,7 @@ impl<'a> Token<'a> {
 
     /// Returns the referenced source view.
     pub fn get_source_view(&self) -> Option<&SourceView> {
-        self.i.get_source_view(self.get_src_id())
+        self.sm.get_source_view(self.get_src_id())
     }
 
     /// If true, this token is a range token.
@@ -298,18 +305,10 @@ impl<'a> Token<'a> {
     }
 }
 
-pub fn idx_from_token(token: &Token<'_>) -> u32 {
-    token.idx
-}
-
-pub fn sourcemap_from_token<'a>(token: &Token<'a>) -> &'a SourceMap {
-    token.i
-}
-
 /// Iterates over all tokens in a sourcemap
 pub struct TokenIter<'a> {
     i: &'a SourceMap,
-    next_idx: u32,
+    next_idx: usize,
 }
 
 impl<'a> TokenIter<'a> {
@@ -390,23 +389,6 @@ impl<'a> Iterator for NameIter<'a> {
     }
 }
 
-/// Iterates over all index items in a sourcemap
-pub struct IndexIter<'a> {
-    i: &'a SourceMap,
-    next_idx: usize,
-}
-
-impl<'a> Iterator for IndexIter<'a> {
-    type Item = (u32, u32, u32);
-
-    fn next(&mut self) -> Option<(u32, u32, u32)> {
-        self.i.index.get(self.next_idx).map(|idx| {
-            self.next_idx += 1;
-            *idx
-        })
-    }
-}
-
 impl<'a> fmt::Debug for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "<Token {self:#}>")
@@ -481,7 +463,6 @@ pub struct SourceMapIndex {
 pub struct SourceMap {
     pub(crate) file: Option<Arc<str>>,
     pub(crate) tokens: Vec<RawToken>,
-    pub(crate) index: Vec<(u32, u32, u32)>,
     pub(crate) names: Vec<Arc<str>>,
     pub(crate) source_root: Option<Arc<str>>,
     pub(crate) sources: Vec<Arc<str>>,
@@ -596,21 +577,15 @@ impl SourceMap {
     /// - `sources_content` optional source contents
     pub fn new(
         file: Option<Arc<str>>,
-        tokens: Vec<RawToken>,
+        mut tokens: Vec<RawToken>,
         names: Vec<Arc<str>>,
         sources: Vec<Arc<str>>,
         sources_content: Option<Vec<Option<Arc<str>>>>,
     ) -> SourceMap {
-        let mut index: Vec<_> = tokens
-            .iter()
-            .enumerate()
-            .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32))
-            .collect();
-        index.sort_unstable();
+        tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
         SourceMap {
             file,
             tokens,
-            index,
             names,
             source_root: None,
             sources,
@@ -681,10 +656,10 @@ impl SourceMap {
     }
 
     /// Looks up a token by its index.
-    pub fn get_token(&self, idx: u32) -> Option<Token<'_>> {
-        self.tokens.get(idx as usize).map(|raw| Token {
+    pub fn get_token(&self, idx: usize) -> Option<Token<'_>> {
+        self.tokens.get(idx).map(|raw| Token {
             raw,
-            i: self,
+            sm: self,
             idx,
             offset: 0,
         })
@@ -705,9 +680,15 @@ impl SourceMap {
 
     /// Looks up the closest token to a given 0-indexed line and column.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let ii = greatest_lower_bound(&self.index, &(line, col), |ii| (ii.0, ii.1))?;
+        let (idx, raw) =
+            greatest_lower_bound(&self.tokens, &(line, col), |t| (t.dst_line, t.dst_col))?;
 
-        let mut token = self.get_token(ii.2)?;
+        let mut token = Token {
+            raw,
+            sm: self,
+            idx,
+            offset: 0,
+        };
 
         if token.is_range() {
             token.offset = col - token.get_dst_col();
@@ -825,19 +806,6 @@ impl SourceMap {
     /// Removes all names from the sourcemap.
     pub fn remove_names(&mut self) {
         self.names.clear();
-    }
-
-    /// Returns the number of items in the index
-    pub fn get_index_size(&self) -> usize {
-        self.index.len()
-    }
-
-    /// Returns the number of items in the index
-    pub fn index_iter(&self) -> IndexIter<'_> {
-        IndexIter {
-            i: self,
-            next_idx: 0,
-        }
     }
 
     /// This rewrites the sourcemap according to the provided rewrite
@@ -998,7 +966,6 @@ impl SourceMap {
         // the `self` tokens and `src_line/col` for the `adjustment` tokens.
         let self_tokens = std::mem::take(&mut self.tokens);
         let original_ranges = create_ranges(self_tokens, |t| (t.dst_line, t.dst_col));
-        self.index.clear();
         let adjustment_ranges =
             create_ranges(adjustment.tokens.clone(), |t| (t.src_line, t.src_col));
 
@@ -1059,14 +1026,8 @@ impl SourceMap {
             }
         }
 
-        // Regenerate the index
-        self.index.extend(
-            self.tokens
-                .iter()
-                .enumerate()
-                .map(|(idx, token)| (token.dst_line, token.dst_col, idx as u32)),
-        );
-        self.index.sort_unstable();
+        self.tokens
+            .sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
     }
 }
 
@@ -1190,7 +1151,7 @@ impl SourceMapIndex {
     /// If a sourcemap is encountered that is not embedded but just
     /// externally referenced it is silently skipped.
     pub fn lookup_token(&self, line: u32, col: u32) -> Option<Token<'_>> {
-        let section =
+        let (_section_idx, section) =
             greatest_lower_bound(&self.sections, &(line, col), SourceMapSection::get_offset)?;
         let map = section.get_sourcemap()?;
         let (off_line, off_col) = section.get_offset();
