@@ -11,7 +11,7 @@ use if_chain::if_chain;
 use crate::detector::{locate_sourcemap_reference_slice, SourceMapRef};
 use crate::errors::Result;
 use crate::js_identifiers::{get_javascript_token, is_valid_javascript_identifier};
-use crate::types::{idx_from_token, sourcemap_from_token, Token};
+use crate::types::Token;
 
 /// An iterator that iterates over tokens in reverse.
 pub struct RevTokenIter<'view, 'map> {
@@ -24,17 +24,11 @@ impl<'view, 'map> Iterator for RevTokenIter<'view, 'map> {
     type Item = (Token<'map>, Option<&'view str>);
 
     fn next(&mut self) -> Option<(Token<'map>, Option<&'view str>)> {
-        let token = match self.token.take() {
-            None => {
-                return None;
-            }
-            Some(token) => token,
-        };
+        let token = self.token.take()?;
+        let idx = token.idx;
 
-        let idx = idx_from_token(&token);
         if idx > 0 {
-            let sm = sourcemap_from_token(&token);
-            self.token = sm.get_token(idx - 1);
+            self.token = token.sm.get_token(idx - 1);
         }
 
         // if we are going to the same line as we did last iteration, we don't have to scan

@@ -113,8 +113,6 @@ fn serialize_mappings(sm: &SourceMap) -> String {
     let mut prev_src_id = 0;
 
     for (idx, token) in sm.tokens().enumerate() {
-        let idx = idx as u32;
-
         if token.get_dst_line() != prev_dst_line {
             prev_dst_col = 0;
             while token.get_dst_line() != prev_dst_line {
