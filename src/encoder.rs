@@ -83,7 +83,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
             rmi_bits.set(num, true);
         }
 
-        while token.get_dst_line() != prev_line {
+        while token.get_dst_line() > prev_line {
             if had_rmi {
                 encode_rmi(&mut buf, &mut rmi_data);
                 rmi_data.clear();
@@ -121,7 +121,7 @@ fn serialize_mappings(sm: &SourceMap) -> String {
 
         if token.get_dst_line() != prev_dst_line {
             prev_dst_col = 0;
-            while token.get_dst_line() != prev_dst_line {
+            while token.get_dst_line() > prev_dst_line {
                 rv.push(';');
                 prev_dst_line += 1;
             }
