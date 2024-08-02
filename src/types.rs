@@ -892,10 +892,11 @@ impl SourceMap {
     /// * You modify `foo.js` in some way and generate a sourcemap `transform.js.map`
     ///   representing this modification. This can be done using `magic-string`, for example.
     /// * You want a sourcemap that is "like" `foo.js.map`, but takes the changes you made to `foo.js` into account.
+    ///
     /// Then `foo.js.map.adjust_mappings(transform.js.map)` is the desired sourcemap.
     ///
     /// This function assumes that `adjustment` contains no relevant information except for mappings.
-    /// All information about sources and names is copied from `self`.
+    ///  All information about sources and names is copied from `self`.
     ///
     /// Note that the resulting sourcemap will be at most as fine-grained as `self.`.
     pub fn adjust_mappings(&mut self, adjustment: &Self) {
