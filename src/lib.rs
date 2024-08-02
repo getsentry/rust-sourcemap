@@ -58,8 +58,8 @@ pub use crate::errors::{Error, Result};
 pub use crate::hermes::SourceMapHermes;
 pub use crate::sourceview::SourceView;
 pub use crate::types::{
-    DecodedMap, IndexIter, NameIter, RawToken, RewriteOptions, SourceContentsIter, SourceIter,
-    SourceMap, SourceMapIndex, SourceMapSection, SourceMapSectionIter, Token, TokenIter,
+    DecodedMap, NameIter, RawToken, RewriteOptions, SourceContentsIter, SourceIter, SourceMap,
+    SourceMapIndex, SourceMapSection, SourceMapSectionIter, Token, TokenIter,
 };
 pub use crate::utils::make_relative_path;
 
