@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 9.0.0
 
 ### Various fixes and improvements
 
@@ -12,7 +12,6 @@
       - the function `sourcemap_from_token` has been turned into the method
         `sourcemap` on `Token`;
       - the `idx` parameter of `SourceMap::get_token` now has the type `usize`.
-
 
 ## 8.0.1
 
