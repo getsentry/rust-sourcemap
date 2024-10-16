@@ -14,6 +14,7 @@ use crate::sourceview::SourceView;
 use crate::utils::{find_common_prefix, greatest_lower_bound};
 
 use debugid::DebugId;
+use serde::{Deserialize, Serialize};
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -123,6 +124,29 @@ impl DecodedMap {
                 smh.get_original_function_name(col)
             }
         }
+    }
+}
+
+impl Serialize for DecodedMap {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        let mut bytes = vec![];
+        self.to_writer(&mut bytes).map_err(Error::custom)?;
+        serializer.serialize_bytes(bytes.as_slice())
+    }
+}
+
+impl<'de> Deserialize<'de> for DecodedMap {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let bytes = <&[u8]>::deserialize(deserializer)?;
+        DecodedMap::from_reader(bytes).map_err(Error::custom)
     }
 }
 
