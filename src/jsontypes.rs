@@ -46,6 +46,8 @@ pub struct RawSourceMap {
     pub range_mappings: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mappings: Option<String>,
+    #[serde(rename = "ignoreList", skip_serializing_if = "Option::is_none")]
+    pub ignore_list: Option<Vec<u32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x_facebook_offsets: Option<Vec<Option<u32>>>,
     #[serde(skip_serializing_if = "Option::is_none")]

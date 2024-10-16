@@ -251,7 +251,14 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         .sources_content
         .map(|x| x.into_iter().map(|v| v.map(Into::into)).collect::<Vec<_>>());
 
-    let mut sm = SourceMap::new(file, tokens, names, sources, source_content);
+    let mut sm = SourceMap::new(
+        file,
+        tokens,
+        names,
+        sources,
+        source_content,
+        rsm.ignore_list,
+    );
     sm.set_source_root(rsm.source_root);
     sm.set_debug_id(rsm.debug_id);
 
