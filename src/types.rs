@@ -328,9 +328,8 @@ impl<'a> Iterator for TokenIter<'a> {
     type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Token<'a>> {
-        self.i.get_token(self.next_idx).map(|tok| {
+        self.i.get_token(self.next_idx).inspect(|_| {
             self.next_idx += 1;
-            tok
         })
     }
 }
@@ -345,9 +344,8 @@ impl<'a> Iterator for SourceIter<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<&'a str> {
-        self.i.get_source(self.next_idx).map(|source| {
+        self.i.get_source(self.next_idx).inspect(|_| {
             self.next_idx += 1;
-            source
         })
     }
 }
@@ -382,9 +380,8 @@ impl<'a> Iterator for NameIter<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<&'a str> {
-        self.i.get_name(self.next_idx).map(|name| {
+        self.i.get_name(self.next_idx).inspect(|_| {
             self.next_idx += 1;
-            name
         })
     }
 }
@@ -438,9 +435,8 @@ impl<'a> Iterator for SourceMapSectionIter<'a> {
     type Item = &'a SourceMapSection;
 
     fn next(&mut self) -> Option<&'a SourceMapSection> {
-        self.i.get_section(self.next_idx).map(|sec| {
+        self.i.get_section(self.next_idx).inspect(|_| {
             self.next_idx += 1;
-            sec
         })
     }
 }
