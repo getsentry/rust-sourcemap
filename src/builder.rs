@@ -314,7 +314,7 @@ impl SourceMapBuilder {
             self.names,
             self.sources,
             contents,
-            Some(self.ignore_list.iter().cloned().collect()),
+            Some(self.ignore_list.into_iter().collect()),
         );
         sm.set_source_root(self.source_root);
         sm.set_debug_id(self.debug_id);
