@@ -200,7 +200,7 @@ fn test_flatten_indexed_sourcemap_with_ignore_list() {
         ism.flatten()
             .unwrap()
             .ignore_list()
-            .cloned()
+            .copied()
             .collect::<Vec<u32>>(),
         vec![1]
     );

@@ -580,7 +580,6 @@ impl SourceMap {
         names: Vec<Arc<str>>,
         sources: Vec<Arc<str>>,
         sources_content: Option<Vec<Option<Arc<str>>>>,
-        ignore_list: Option<Vec<u32>>,
     ) -> SourceMap {
         tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
         SourceMap {
@@ -595,10 +594,7 @@ impl SourceMap {
                 .into_iter()
                 .map(|opt| opt.map(SourceView::new))
                 .collect(),
-            ignore_list: match ignore_list {
-                Some(ignore_list) => ignore_list.into_iter().collect(),
-                None => BTreeSet::default(),
-            },
+            ignore_list: BTreeSet::default(),
             debug_id: None,
         }
     }
