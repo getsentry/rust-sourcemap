@@ -1319,6 +1319,21 @@ mod tests {
     }
 
     #[test]
+    fn test_debugid_alias() {
+        let input: &[_] = br#"{
+         "version":3,
+         "sources":["coolstuff.js"],
+         "names":["x","alert"],
+         "mappings":"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM",
+         "debugId":"00000000-0000-0000-0000-000000000000"
+     }"#;
+
+        let sm = SourceMap::from_slice(input).unwrap();
+
+        assert_eq!(sm.debug_id, Some(DebugId::default()));
+    }
+
+    #[test]
     fn test_adjust_mappings_injection() {
         // A test that `adjust_mappings` does what it's supposed to for debug id injection.
         //
