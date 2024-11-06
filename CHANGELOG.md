@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Various fixes and improvements
+
+- Debug IDs can be read from the "debugId" field in addition to "debug_id" (#97) by @loewenheim.
+
 ## 9.0.0
 
 ### Various fixes and improvements
