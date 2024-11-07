@@ -1,5 +1,6 @@
 #![cfg_attr(not(any(unix, windows, target_os = "redox")), allow(unused_imports))]
 
+use std::collections::BTreeSet;
 use std::env;
 use std::fs;
 use std::io::Read;
@@ -28,6 +29,7 @@ pub struct SourceMapBuilder {
     sources: Vec<Arc<str>>,
     source_contents: Vec<Option<Arc<str>>>,
     sources_mapping: Vec<u32>,
+    ignore_list: BTreeSet<u32>,
     debug_id: Option<DebugId>,
 }
 
@@ -61,6 +63,7 @@ impl SourceMapBuilder {
             sources: vec![],
             source_contents: vec![],
             sources_mapping: vec![],
+            ignore_list: BTreeSet::default(),
             debug_id: None,
         }
     }
@@ -114,6 +117,10 @@ impl SourceMapBuilder {
     /// Looks up a source name for an ID.
     pub fn get_source(&self, src_id: u32) -> Option<&str> {
         self.sources.get(src_id as usize).map(|x| &x[..])
+    }
+
+    pub fn add_to_ignore_list(&mut self, src_id: u32) {
+        self.ignore_list.insert(src_id);
     }
 
     /// Sets the source contents for an already existing source.
@@ -304,6 +311,9 @@ impl SourceMapBuilder {
         let mut sm = SourceMap::new(self.file, self.tokens, self.names, self.sources, contents);
         sm.set_source_root(self.source_root);
         sm.set_debug_id(self.debug_id);
+        for ignored_src_id in self.ignore_list {
+            sm.add_to_ignore_list(ignored_src_id);
+        }
 
         sm
     }

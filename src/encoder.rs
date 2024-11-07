@@ -170,6 +170,11 @@ impl Encodable for SourceMap {
             names: Some(self.names().map(|x| Value::String(x.to_string())).collect()),
             range_mappings: serialize_range_mappings(self),
             mappings: Some(serialize_mappings(self)),
+            ignore_list: if self.ignore_list.is_empty() {
+                None
+            } else {
+                Some(self.ignore_list.iter().cloned().collect())
+            },
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
@@ -203,6 +208,7 @@ impl Encodable for SourceMapIndex {
             names: None,
             range_mappings: None,
             mappings: None,
+            ignore_list: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
