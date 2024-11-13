@@ -24,7 +24,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
+fn encode_rmi(out: &mut Vec<u8>, data: &[u8]) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',
@@ -36,7 +36,7 @@ fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
         }
     }
 
-    let bits = data.view_bits_mut::<Lsb0>();
+    let bits = data.view_bits::<Lsb0>();
 
     // trim zero at the end
     let mut last = 0;
@@ -45,7 +45,7 @@ fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
             last = idx;
         }
     }
-    let bits = &mut bits[..last + 1];
+    let bits = &bits[..last + 1];
 
     for byte in bits.chunks(6) {
         let byte = byte.load::<u8>();
@@ -81,7 +81,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
 
         while token.get_dst_line() != prev_line {
             if had_rmi {
-                encode_rmi(&mut buf, &mut rmi_data);
+                encode_rmi(&mut buf, &rmi_data);
                 rmi_data.clear();
             }
 
@@ -96,7 +96,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     }
 
     if had_rmi {
-        encode_rmi(&mut buf, &mut rmi_data);
+        encode_rmi(&mut buf, &rmi_data);
     }
 
     Some(String::from_utf8(buf).expect("invalid utf8"))
@@ -240,7 +240,7 @@ fn test_encode_rmi() {
             bits.set(i, true);
         }
 
-        encode_rmi(&mut out, &mut data);
+        encode_rmi(&mut out, &data);
         String::from_utf8(out).unwrap()
     }
 

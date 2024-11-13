@@ -170,21 +170,21 @@ impl<'a> Token<'a> {
     }
 }
 
-impl<'a> PartialEq for Token<'a> {
+impl PartialEq for Token<'_> {
     fn eq(&self, other: &Token<'_>) -> bool {
         self.raw == other.raw
     }
 }
 
-impl<'a> Eq for Token<'a> {}
+impl Eq for Token<'_> {}
 
-impl<'a> PartialOrd for Token<'a> {
+impl PartialOrd for Token<'_> {
     fn partial_cmp(&self, other: &Token<'_>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for Token<'a> {
+impl Ord for Token<'_> {
     fn cmp(&self, other: &Token<'_>) -> Ordering {
         macro_rules! try_cmp {
             ($a:expr, $b:expr) => {
@@ -312,7 +312,7 @@ pub struct TokenIter<'a> {
     next_idx: usize,
 }
 
-impl<'a> TokenIter<'a> {
+impl TokenIter<'_> {
     pub fn seek(&mut self, line: u32, col: u32) -> bool {
         let token = self.i.lookup_token(line, col);
         match token {
@@ -387,13 +387,13 @@ impl<'a> Iterator for NameIter<'a> {
     }
 }
 
-impl<'a> fmt::Debug for Token<'a> {
+impl fmt::Debug for Token<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "<Token {self:#}>")
     }
 }
 
-impl<'a> fmt::Display for Token<'a> {
+impl fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
