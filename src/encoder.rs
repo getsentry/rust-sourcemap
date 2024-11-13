@@ -81,7 +81,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
 
         while token.get_dst_line() != prev_line {
             if had_rmi {
-                encode_rmi(&mut buf, &mut rmi_data);
+                encode_rmi(&mut buf, &rmi_data);
                 rmi_data.clear();
             }
 
@@ -96,7 +96,7 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     }
 
     if had_rmi {
-        encode_rmi(&mut buf, &mut rmi_data);
+        encode_rmi(&mut buf, &rmi_data);
     }
 
     Some(String::from_utf8(buf).expect("invalid utf8"))
@@ -240,7 +240,7 @@ fn test_encode_rmi() {
             bits.set(i, true);
         }
 
-        encode_rmi(&mut out, &mut data);
+        encode_rmi(&mut out, &data);
         String::from_utf8(out).unwrap()
     }
 
