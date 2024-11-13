@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.1.0
+
+### Various fixes & improvements
+
+- Add support for ignoreList property (#93) by @wbinnssmith
+
 ## 9.0.1
 
 ### Various fixes and improvements
