@@ -24,7 +24,7 @@ fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
+fn encode_rmi(out: &mut Vec<u8>, data: &[u8]) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',
@@ -36,7 +36,7 @@ fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
         }
     }
 
-    let bits = data.view_bits_mut::<Lsb0>();
+    let bits = data.view_bits::<Lsb0>();
 
     // trim zero at the end
     let mut last = 0;
@@ -45,7 +45,7 @@ fn encode_rmi(out: &mut Vec<u8>, data: &mut Vec<u8>) {
             last = idx;
         }
     }
-    let bits = &mut bits[..last + 1];
+    let bits = &bits[..last + 1];
 
     for byte in bits.chunks(6) {
         let byte = byte.load::<u8>();
