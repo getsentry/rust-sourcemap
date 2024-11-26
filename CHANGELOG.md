@@ -1,11 +1,10 @@
 # Changelog
 
-## Unreleased
+## 9.1.2
 
 ### Various fixes & improvements
 
 - Prefer `"debug_id"` for sourcemap debug IDs (#101) by @loewenheim
-
 
 ## 9.1.1
 
