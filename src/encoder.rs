@@ -179,7 +179,7 @@ impl Encodable for SourceMap {
             x_metro_module_paths: None,
             x_facebook_sources: None,
             debug_id: self.get_debug_id(),
-            debug_id_old: None,
+            _debug_id_new: None,
         }
     }
 }
@@ -214,7 +214,7 @@ impl Encodable for SourceMapIndex {
             x_metro_module_paths: None,
             x_facebook_sources: None,
             debug_id: None,
-            debug_id_old: None,
+            _debug_id_new: None,
         }
     }
 }

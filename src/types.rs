@@ -1340,8 +1340,8 @@ mod tests {
          "sources":["coolstuff.js"],
          "names":["x","alert"],
          "mappings":"AAAA,GAAIA,GAAI,EACR,IAAIA,GAAK,EAAG,CACVC,MAAM",
-         "debug_id": "11111111-1111-1111-1111-111111111111",
-         "debugId":"00000000-0000-0000-0000-000000000000"
+         "debug_id":"00000000-0000-0000-0000-000000000000",
+         "debugId": "11111111-1111-1111-1111-111111111111"
      }"#;
 
         let sm = SourceMap::from_slice(input).unwrap();
