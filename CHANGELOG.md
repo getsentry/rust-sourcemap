@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Various fixes & improvements
+
+- Fixed an error when deserializing sourcemaps with
+  both `"debugId"` and `"debug_id"` keys (#100) by @loewenheim
+
 ## 9.1.0
 
 ### Various fixes & improvements
