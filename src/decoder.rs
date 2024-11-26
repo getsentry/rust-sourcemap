@@ -253,7 +253,9 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut sm = SourceMap::new(file, tokens, names, sources, source_content);
     sm.set_source_root(rsm.source_root);
-    sm.set_debug_id(rsm.debug_id);
+    // Use debug_id_old (from "debug_id" key) only if debug_id
+    // from ( "debugId" key) is unset
+    sm.set_debug_id(rsm.debug_id.or(rsm.debug_id_old));
     if let Some(ignore_list) = rsm.ignore_list {
         for idx in ignore_list {
             sm.add_to_ignore_list(idx);
