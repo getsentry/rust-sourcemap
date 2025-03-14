@@ -416,7 +416,7 @@ impl<'a> SplitRamBundleModuleIter<'a> {
     }
 }
 
-impl<'a> Iterator for SplitRamBundleModuleIter<'a> {
+impl Iterator for SplitRamBundleModuleIter<'_> {
     type Item = Result<(String, SourceView, SourceMap)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -457,8 +457,7 @@ pub fn split_ram_bundle<'a>(
 pub fn is_ram_bundle_slice(slice: &[u8]) -> bool {
     slice
         .pread_with::<RamBundleHeader>(0, scroll::LE)
-        .ok()
-        .map_or(false, |x| x.is_valid_magic())
+        .ok().is_some_and(|x| x.is_valid_magic())
 }
 
 /// Returns "true" if the given path points to the startup file of a file RAM bundle
