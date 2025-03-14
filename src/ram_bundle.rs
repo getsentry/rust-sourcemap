@@ -457,7 +457,8 @@ pub fn split_ram_bundle<'a>(
 pub fn is_ram_bundle_slice(slice: &[u8]) -> bool {
     slice
         .pread_with::<RamBundleHeader>(0, scroll::LE)
-        .ok().is_some_and(|x| x.is_valid_magic())
+        .ok()
+        .is_some_and(|x| x.is_valid_magic())
 }
 
 /// Returns "true" if the given path points to the startup file of a file RAM bundle
