@@ -108,10 +108,13 @@ impl SourceMapHermes {
 
         // Find the closest mapping, just like here:
         // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L204-L231
-        let (_mapping_idx, mapping) =
-            greatest_lower_bound(&function_map.mappings, &token.get_src(), |o| {
-                (o.line, o.column)
-            })?;
+        // Mappings use 1-based index for lines, and 0-based index for cols, as seen here:
+        // https://github.com/facebook/metro/blob/f2d80cebe66d3c64742f67259f41da26e83a0d8d/packages/metro/src/Server/symbolicate.js#L58-L60
+        let (_mapping_idx, mapping) = greatest_lower_bound(
+            &function_map.mappings,
+            &(token.get_src_line() + 1, token.get_src_col()),
+            |o| (o.line, o.column),
+        )?;
         function_map
             .names
             .get(mapping.name_index as usize)

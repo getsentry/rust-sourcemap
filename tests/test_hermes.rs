@@ -19,6 +19,12 @@ fn test_react_native_hermes() {
         ("input.js", 2, 0, None)
     );
     assert_eq!(sm.get_original_function_name(11857), Some("<global>"));
+
+    assert_eq!(
+        sm.lookup_token(0, 11947).unwrap().to_tuple(),
+        ("module.js", 1, 4, None)
+    );
+    assert_eq!(sm.get_original_function_name(11947), Some("foo"));
 }
 
 #[test]
