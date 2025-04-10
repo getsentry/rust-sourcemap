@@ -28,12 +28,12 @@ serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.48"
 unicode-id-start = "1"
 if_chain = "1.0.0"
-scroll = { version = "0.10.1", features = ["derive"], optional = true }
+scroll = { version = "0.12.0", features = ["derive"], optional = true }
 data-encoding = "2.3.3"
 debugid = {version = "0.8.0", features = ["serde"] }
-base64-simd = { version = "0.7" }
+base64-simd = { version = "0.8" }
 bitvec = "1.0.1"
-rustc-hash = "1.1.0"
+rustc-hash = "2.1.1"
 
 [build-dependencies]
 rustc_version = "0.2.3"

@@ -538,7 +538,7 @@ impl SourceMap {
     pub fn to_data_url(&self) -> Result<String> {
         let mut buf = vec![];
         encode(self, &mut buf)?;
-        let b64 = base64_simd::Base64::STANDARD.encode_to_boxed_str(&buf);
+        let b64 = base64_simd::STANDARD.encode_to_string(&buf);
         Ok(format!(
             "data:application/json;charset=utf-8;base64,{}",
             b64
