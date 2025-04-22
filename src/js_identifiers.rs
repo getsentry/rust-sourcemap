@@ -63,20 +63,23 @@ pub fn get_javascript_token(source_line: &str) -> Option<&str> {
     }
 }
 
-#[test]
-fn test_is_valid_javascript_identifier() {
-    // assert_eq!(is_valid_javascript_identifier("foo 123"));
-    assert!(is_valid_javascript_identifier("foo_$123"));
-    assert!(!is_valid_javascript_identifier(" foo"));
-    assert!(!is_valid_javascript_identifier("foo "));
-    assert!(!is_valid_javascript_identifier("[123]"));
-    assert!(!is_valid_javascript_identifier("foo.bar"));
-    // Should these pass?
-    // assert!(is_valid_javascript_identifier("foo [bar]"));
-    // assert!(is_valid_javascript_identifier("foo[bar]"));
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    assert_eq!(get_javascript_token("foo "), Some("foo"));
-    assert_eq!(get_javascript_token("f _hi"), Some("f"));
-    assert_eq!(get_javascript_token("foo.bar"), Some("foo"));
-    assert_eq!(get_javascript_token("[foo,bar]"), None);
+    #[test]
+    fn test_is_valid_javascript_identifier() {
+        // assert_eq!(is_valid_javascript_identifier("foo 123"));
+        assert!(is_valid_javascript_identifier("foo_$123"));
+        assert!(!is_valid_javascript_identifier(" foo"));
+        assert!(!is_valid_javascript_identifier("foo "));
+        assert!(!is_valid_javascript_identifier("[123]"));
+        assert!(!is_valid_javascript_identifier("foo.bar"));
+        // Should these pass?
+        // assert!(is_valid_javascript_identifier("foo [bar]"));
+        assert_eq!(get_javascript_token("foo "), Some("foo"));
+        assert_eq!(get_javascript_token("f _hi"), Some("f"));
+        assert_eq!(get_javascript_token("foo.bar"), Some("foo"));
+        assert_eq!(get_javascript_token("[foo,bar]"), None);
+    }
 }

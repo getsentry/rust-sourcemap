@@ -229,25 +229,30 @@ impl Encodable for DecodedMap {
     }
 }
 
-#[test]
-fn test_encode_rmi() {
-    fn encode(indices: &[usize]) -> String {
-        let mut out = vec![];
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        // Fill with zeros while testing
-        let mut data = vec![0; 256];
+    #[test]
+    fn test_encode_rmi() {
+        fn encode(indices: &[usize]) -> String {
+            let mut out = vec![];
 
-        let bits = data.view_bits_mut::<Lsb0>();
-        for &i in indices {
-            bits.set(i, true);
+            // Fill with zeros while testing
+            let mut data = vec![0; 256];
+
+            let bits = data.view_bits_mut::<Lsb0>();
+            for &i in indices {
+                bits.set(i, true);
+            }
+
+            encode_rmi(&mut out, &data);
+            String::from_utf8(out).unwrap()
         }
 
-        encode_rmi(&mut out, &data);
-        String::from_utf8(out).unwrap()
+        // This is 0-based index
+        assert_eq!(encode(&[12]), "AAB");
+        assert_eq!(encode(&[5]), "g");
+        assert_eq!(encode(&[0, 11]), "Bg");
     }
-
-    // This is 0-based index
-    assert_eq!(encode(&[12]), "AAB");
-    assert_eq!(encode(&[5]), "g");
-    assert_eq!(encode(&[0, 11]), "Bg");
 }

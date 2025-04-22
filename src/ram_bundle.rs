@@ -491,125 +491,132 @@ pub fn is_unbundle_path(bundle_path: &Path) -> bool {
     bundle_magic == RAM_BUNDLE_MAGIC.to_le_bytes()
 }
 
-#[test]
-fn test_indexed_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let mut bundle_file =
-        File::open("./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle")?;
-    let mut bundle_data = Vec::new();
-    bundle_file.read_to_end(&mut bundle_data)?;
-    assert!(is_ram_bundle_slice(&bundle_data));
-    let ram_bundle = RamBundle::parse_indexed_from_slice(&bundle_data)?;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Read;
 
-    let indexed_ram_bundle = match ram_bundle.repr.clone() {
-        RamBundleImpl::Indexed(bundle) => bundle,
-        _ => {
-            panic!("Invalid RamBundleImpl type");
-        }
-    };
+    #[test]
+    fn test_indexed_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let mut bundle_file =
+            File::open("./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle")?;
+        let mut bundle_data = Vec::new();
+        bundle_file.read_to_end(&mut bundle_data)?;
+        assert!(is_ram_bundle_slice(&bundle_data));
+        let ram_bundle = RamBundle::parse_indexed_from_slice(&bundle_data)?;
 
-    // Header checks
-    assert_eq!(indexed_ram_bundle.startup_code_size, 0x7192);
-    assert_eq!(indexed_ram_bundle.startup_code_offset, 0x34);
+        let indexed_ram_bundle = match ram_bundle.repr.clone() {
+            RamBundleImpl::Indexed(bundle) => bundle,
+            _ => {
+                panic!("Invalid RamBundleImpl type");
+            }
+        };
 
-    assert_eq!(ram_bundle.module_count(), 5);
+        // Header checks
+        assert_eq!(indexed_ram_bundle.startup_code_size, 0x7192);
+        assert_eq!(indexed_ram_bundle.startup_code_offset, 0x34);
 
-    // Check first modules
-    let mut module_iter = ram_bundle.iter_modules();
+        assert_eq!(ram_bundle.module_count(), 5);
 
-    let module_0 = module_iter.next().unwrap()?;
-    let module_0_data = module_0.data();
-    assert_eq!(module_0.id(), 0);
-    assert_eq!(module_0_data.len(), 0xa8 - 1);
-    assert_eq!(
-        &module_0_data[0..60],
-        "__d(function(g,r,i,a,m,e,d){\"use strict\";const o=r(d[0]),s=r".as_bytes()
-    );
+        // Check first modules
+        let mut module_iter = ram_bundle.iter_modules();
 
-    let module_3 = module_iter.next().unwrap()?;
-    let module_3_data = module_3.data();
-    assert_eq!(module_3.id(), 3);
-    assert_eq!(module_3_data.len(), 0x6b - 1);
-    assert_eq!(
-        &module_3_data[0..60],
-        "__d(function(g,r,i,a,m,e,d){\"use strict\";console.log('inside".as_bytes()
-    );
+        let module_0 = module_iter.next().unwrap()?;
+        let module_0_data = module_0.data();
+        assert_eq!(module_0.id(), 0);
+        assert_eq!(module_0_data.len(), 0xa8 - 1);
+        assert_eq!(
+            &module_0_data[0..60],
+            "__d(function(g,r,i,a,m,e,d){\"use strict\";const o=r(d[0]),s=r".as_bytes()
+        );
 
-    let module_1 = ram_bundle.get_module(1)?;
-    assert!(module_1.is_none());
+        let module_3 = module_iter.next().unwrap()?;
+        let module_3_data = module_3.data();
+        assert_eq!(module_3.id(), 3);
+        assert_eq!(module_3_data.len(), 0x6b - 1);
+        assert_eq!(
+            &module_3_data[0..60],
+            "__d(function(g,r,i,a,m,e,d){\"use strict\";console.log('inside".as_bytes()
+        );
 
-    Ok(())
-}
+        let module_1 = ram_bundle.get_module(1)?;
+        assert!(module_1.is_none());
 
-#[test]
-fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let ram_bundle = RamBundle::parse_indexed_from_path(Path::new(
-        "./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle",
-    ))?;
+        Ok(())
+    }
 
-    let sourcemap_file =
-        File::open("./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle.map")?;
-    let ism = SourceMapIndex::from_reader(sourcemap_file)?;
+    #[test]
+    fn test_indexed_ram_bundle_split() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let ram_bundle = RamBundle::parse_indexed_from_path(Path::new(
+            "./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle",
+        ))?;
 
-    assert!(ism.is_for_ram_bundle());
+        let sourcemap_file =
+            File::open("./tests/fixtures/ram_bundle/indexed_bundle_1/basic.jsbundle.map")?;
+        let ism = SourceMapIndex::from_reader(sourcemap_file)?;
 
-    let x_facebook_offsets = ism.x_facebook_offsets().unwrap();
-    assert_eq!(x_facebook_offsets.len(), 5);
+        assert!(ism.is_for_ram_bundle());
 
-    let x_metro_module_paths = ism.x_metro_module_paths().unwrap();
-    assert_eq!(x_metro_module_paths.len(), 7);
+        let x_facebook_offsets = ism.x_facebook_offsets().unwrap();
+        assert_eq!(x_facebook_offsets.len(), 5);
 
-    // Modules 0, 3, 4
-    assert_eq!(split_ram_bundle(&ram_bundle, &ism)?.count(), 3);
+        let x_metro_module_paths = ism.x_metro_module_paths().unwrap();
+        assert_eq!(x_metro_module_paths.len(), 7);
 
-    let mut ram_bundle_iter = split_ram_bundle(&ram_bundle, &ism)?;
+        // Modules 0, 3, 4
+        assert_eq!(split_ram_bundle(&ram_bundle, &ism)?.count(), 3);
 
-    let (name, sourceview, sourcemap) = ram_bundle_iter.next().unwrap()?;
-    assert_eq!(name, "0.js");
-    assert_eq!(
-        &sourceview.source()[0..60],
-        "__d(function(g,r,i,a,m,e,d){\"use strict\";const o=r(d[0]),s=r"
-    );
-    assert_eq!(
-        &sourcemap.get_source_contents(0).unwrap()[0..60],
-        "const f = require(\"./other\");\nconst isWindows = require(\"is-"
-    );
+        let mut ram_bundle_iter = split_ram_bundle(&ram_bundle, &ism)?;
 
-    Ok(())
-}
+        let (name, sourceview, sourcemap) = ram_bundle_iter.next().unwrap()?;
+        assert_eq!(name, "0.js");
+        assert_eq!(
+            &sourceview.source()[0..60],
+            "__d(function(g,r,i,a,m,e,d){\"use strict\";const o=r(d[0]),s=r"
+        );
+        assert_eq!(
+            &sourcemap.get_source_contents(0).unwrap()[0..60],
+            "const f = require(\"./other\");\nconst isWindows = require(\"is-"
+        );
 
-#[test]
-fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let valid_bundle_path = Path::new("./tests/fixtures/ram_bundle/file_bundle_1/basic.bundle");
-    assert!(is_unbundle_path(valid_bundle_path));
+        Ok(())
+    }
 
-    assert!(!is_unbundle_path(Path::new("./tmp/invalid/bundle/path")));
+    #[test]
+    fn test_file_ram_bundle_parse() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let valid_bundle_path = Path::new("./tests/fixtures/ram_bundle/file_bundle_1/basic.bundle");
+        assert!(is_unbundle_path(valid_bundle_path));
 
-    let ram_bundle = RamBundle::parse_unbundle_from_path(valid_bundle_path)?;
+        assert!(!is_unbundle_path(Path::new("./tmp/invalid/bundle/path")));
 
-    match ram_bundle.repr {
-        RamBundleImpl::Unbundle(_) => (),
-        _ => {
-            panic!("Invalid RamBundleImpl type");
-        }
-    };
+        let ram_bundle = RamBundle::parse_unbundle_from_path(valid_bundle_path)?;
 
-    assert_eq!(ram_bundle.module_count(), 4);
+        match ram_bundle.repr {
+            RamBundleImpl::Unbundle(_) => (),
+            _ => {
+                panic!("Invalid RamBundleImpl type");
+            }
+        };
 
-    let startup_code = ram_bundle.startup_code()?;
-    assert_eq!(
-        startup_code[0..60].to_vec(),
-        b"var __DEV__=false,__BUNDLE_START_TIME__=this.nativePerforman".to_vec()
-    );
+        assert_eq!(ram_bundle.module_count(), 4);
 
-    let module_0 = ram_bundle.get_module(0)?.unwrap();
-    let module_0_data = module_0.data();
-    assert_eq!(
-        module_0_data[0..60].to_vec(),
-        b"__d(function(g,r,i,a,m,e,d){'use strict';var t=Date.now();r(".to_vec()
-    );
+        let startup_code = ram_bundle.startup_code()?;
+        assert_eq!(
+            startup_code[0..60].to_vec(),
+            b"var __DEV__=false,__BUNDLE_START_TIME__=this.nativePerforman".to_vec()
+        );
 
-    let module_1 = ram_bundle.get_module(1)?;
-    assert!(module_1.is_none());
+        let module_0 = ram_bundle.get_module(0)?.unwrap();
+        let module_0_data = module_0.data();
+        assert_eq!(
+            module_0_data[0..60].to_vec(),
+            b"__d(function(g,r,i,a,m,e,d){'use strict';var t=Date.now();r(".to_vec()
+        );
 
-    Ok(())
+        let module_1 = ram_bundle.get_module(1)?;
+        assert!(module_1.is_none());
+
+        Ok(())
+    }
 }

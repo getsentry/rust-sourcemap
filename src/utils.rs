@@ -141,87 +141,94 @@ pub fn greatest_lower_bound<'a, T, K: Ord, F: Fn(&'a T) -> K>(
     slice.get(idx).map(|res| (idx, res))
 }
 
-#[test]
-fn test_is_abs_path() {
-    assert!(is_abs_path("C:\\foo.txt"));
-    assert!(is_abs_path("d:/foo.txt"));
-    assert!(!is_abs_path("foo.txt"));
-    assert!(is_abs_path("/foo.txt"));
-    assert!(is_abs_path("/"));
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_split_path() {
-    assert_eq!(split_path("/foo/bar/baz"), &["", "/foo", "/bar", "/baz"]);
-}
+    #[test]
+    fn test_is_abs_path() {
+        assert!(is_abs_path("C:\\foo.txt"));
+        assert!(is_abs_path("d:/foo.txt"));
+        assert!(!is_abs_path("foo.txt"));
+        assert!(is_abs_path("/foo.txt"));
+        assert!(is_abs_path("/"));
+    }
 
-#[test]
-fn test_find_common_prefix() {
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah"].into_iter());
-    assert_eq!(rv, Some("/foo/bar/baz".into()));
+    #[test]
+    fn test_split_path() {
+        assert_eq!(split_path("/foo/bar/baz"), &["", "/foo", "/bar", "/baz"]);
+    }
 
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/meh"].into_iter());
-    assert_eq!(rv, None);
+    #[test]
+    fn test_find_common_prefix() {
+        let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah"].into_iter());
+        assert_eq!(rv, Some("/foo/bar/baz".into()));
 
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/foo"].into_iter());
-    assert_eq!(rv, Some("/foo".into()));
+        let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/meh"].into_iter());
+        assert_eq!(rv, None);
 
-    let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "foo"].into_iter());
-    assert_eq!(rv, Some("/foo/bar/baz".into()));
+        let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/foo"].into_iter());
+        assert_eq!(rv, Some("/foo".into()));
 
-    let rv =
-        find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter());
-    assert_eq!(rv, None);
+        let rv = find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "foo"].into_iter());
+        assert_eq!(rv, Some("/foo/bar/baz".into()));
 
-    let rv =
-        find_common_prefix(vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter());
-    assert_eq!(rv, None);
-}
+        let rv = find_common_prefix(
+            vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter(),
+        );
+        assert_eq!(rv, None);
 
-#[test]
-fn test_make_relative_path() {
-    assert_eq!(
-        &make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map"),
-        "baz.map"
-    );
-    assert_eq!(
-        &make_relative_path("/foo/bar/.", "/foo/bar/baz.map"),
-        "baz.map"
-    );
-    assert_eq!(
-        &make_relative_path("/foo/bar/baz.js", "/foo/baz.map"),
-        "../baz.map"
-    );
-    assert_eq!(&make_relative_path("foo.txt", "foo.js"), "foo.js");
-    assert_eq!(&make_relative_path("blah/foo.txt", "foo.js"), "../foo.js");
-}
+        let rv = find_common_prefix(
+            vec!["/foo/bar/baz", "/foo/bar/baz/blah", "/blah", "foo"].into_iter(),
+        );
+        assert_eq!(rv, None);
+    }
 
-#[test]
-fn test_greatest_lower_bound() {
-    let cmp = |&(i, _id)| i;
+    #[test]
+    fn test_make_relative_path() {
+        assert_eq!(
+            &make_relative_path("/foo/bar/baz.js", "/foo/bar/baz.map"),
+            "baz.map"
+        );
+        assert_eq!(
+            &make_relative_path("/foo/bar/.", "/foo/bar/baz.map"),
+            "baz.map"
+        );
+        assert_eq!(
+            &make_relative_path("/foo/bar/baz.js", "/foo/baz.map"),
+            "../baz.map"
+        );
+        assert_eq!(&make_relative_path("foo.txt", "foo.js"), "foo.js");
+        assert_eq!(&make_relative_path("blah/foo.txt", "foo.js"), "../foo.js");
+    }
 
-    let haystack = vec![(1, 1)];
-    assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
-    assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 1));
-    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+    #[test]
+    fn test_greatest_lower_bound() {
+        let cmp = |&(i, _id)| i;
 
-    let haystack = vec![(1, 1), (1, 2)];
-    assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
-    assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 2));
-    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+        let haystack = vec![(1, 1)];
+        assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
+        assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 1));
+        assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
 
-    let haystack = vec![(1, 1), (1, 2), (1, 3)];
-    assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
-    assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 3));
-    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+        let haystack = vec![(1, 1), (1, 2)];
+        assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
+        assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 2));
+        assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
 
-    let haystack = vec![(1, 1), (1, 2), (1, 3), (1, 4)];
-    assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
-    assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 4));
-    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+        let haystack = vec![(1, 1), (1, 2), (1, 3)];
+        assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
+        assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 3));
+        assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
 
-    let haystack = vec![(1, 1), (1, 2), (1, 3), (1, 4), (1, 5)];
-    assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
-    assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 5));
-    assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+        let haystack = vec![(1, 1), (1, 2), (1, 3), (1, 4)];
+        assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
+        assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 4));
+        assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+
+        let haystack = vec![(1, 1), (1, 2), (1, 3), (1, 4), (1, 5)];
+        assert_eq!(greatest_lower_bound(&haystack, &1, cmp).unwrap().1, &(1, 1));
+        assert_eq!(greatest_lower_bound(&haystack, &2, cmp).unwrap().1, &(1, 5));
+        assert_eq!(greatest_lower_bound(&haystack, &0, cmp), None);
+    }
 }
