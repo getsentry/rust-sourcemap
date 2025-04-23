@@ -314,48 +314,53 @@ impl SourceView {
     }
 }
 
-#[test]
-#[allow(clippy::cognitive_complexity)]
-fn test_minified_source_view() {
-    let view = SourceView::new("a\nb\nc".into());
-    assert_eq!(view.get_line(0), Some("a"));
-    assert_eq!(view.get_line(0), Some("a"));
-    assert_eq!(view.get_line(2), Some("c"));
-    assert_eq!(view.get_line(1), Some("b"));
-    assert_eq!(view.get_line(3), None);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    assert_eq!(view.line_count(), 3);
+    #[test]
+    #[allow(clippy::cognitive_complexity)]
+    fn test_minified_source_view() {
+        let view = SourceView::new("a\nb\nc".into());
+        assert_eq!(view.get_line(0), Some("a"));
+        assert_eq!(view.get_line(0), Some("a"));
+        assert_eq!(view.get_line(2), Some("c"));
+        assert_eq!(view.get_line(1), Some("b"));
+        assert_eq!(view.get_line(3), None);
 
-    let view = SourceView::new("a\r\nb\r\nc".into());
-    assert_eq!(view.get_line(0), Some("a"));
-    assert_eq!(view.get_line(0), Some("a"));
-    assert_eq!(view.get_line(2), Some("c"));
-    assert_eq!(view.get_line(1), Some("b"));
-    assert_eq!(view.get_line(3), None);
+        assert_eq!(view.line_count(), 3);
 
-    assert_eq!(view.line_count(), 3);
+        let view = SourceView::new("a\r\nb\r\nc".into());
+        assert_eq!(view.get_line(0), Some("a"));
+        assert_eq!(view.get_line(0), Some("a"));
+        assert_eq!(view.get_line(2), Some("c"));
+        assert_eq!(view.get_line(1), Some("b"));
+        assert_eq!(view.get_line(3), None);
 
-    let view = SourceView::new("abc👌def\nblah".into());
-    assert_eq!(view.get_line_slice(0, 0, 3), Some("abc"));
-    assert_eq!(view.get_line_slice(0, 3, 1), Some("👌"));
-    assert_eq!(view.get_line_slice(0, 3, 2), Some("👌"));
-    assert_eq!(view.get_line_slice(0, 3, 3), Some("👌d"));
-    assert_eq!(view.get_line_slice(0, 0, 4), Some("abc👌"));
-    assert_eq!(view.get_line_slice(0, 0, 5), Some("abc👌"));
-    assert_eq!(view.get_line_slice(0, 0, 6), Some("abc👌d"));
-    assert_eq!(view.get_line_slice(1, 0, 4), Some("blah"));
-    assert_eq!(view.get_line_slice(1, 0, 5), None);
-    assert_eq!(view.get_line_slice(1, 0, 12), None);
+        assert_eq!(view.line_count(), 3);
 
-    let view = SourceView::new("a\nb\nc\n".into());
-    assert_eq!(view.get_line(0), Some("a"));
-    assert_eq!(view.get_line(1), Some("b"));
-    assert_eq!(view.get_line(2), Some("c"));
-    assert_eq!(view.get_line(3), Some(""));
-    assert_eq!(view.get_line(4), None);
+        let view = SourceView::new("abc👌def\nblah".into());
+        assert_eq!(view.get_line_slice(0, 0, 3), Some("abc"));
+        assert_eq!(view.get_line_slice(0, 3, 1), Some("👌"));
+        assert_eq!(view.get_line_slice(0, 3, 2), Some("👌"));
+        assert_eq!(view.get_line_slice(0, 3, 3), Some("👌d"));
+        assert_eq!(view.get_line_slice(0, 0, 4), Some("abc👌"));
+        assert_eq!(view.get_line_slice(0, 0, 5), Some("abc👌"));
+        assert_eq!(view.get_line_slice(0, 0, 6), Some("abc👌d"));
+        assert_eq!(view.get_line_slice(1, 0, 4), Some("blah"));
+        assert_eq!(view.get_line_slice(1, 0, 5), None);
+        assert_eq!(view.get_line_slice(1, 0, 12), None);
 
-    fn is_send<T: Send>() {}
-    fn is_sync<T: Sync>() {}
-    is_send::<SourceView>();
-    is_sync::<SourceView>();
+        let view = SourceView::new("a\nb\nc\n".into());
+        assert_eq!(view.get_line(0), Some("a"));
+        assert_eq!(view.get_line(1), Some("b"));
+        assert_eq!(view.get_line(2), Some("c"));
+        assert_eq!(view.get_line(3), Some(""));
+        assert_eq!(view.get_line(4), None);
+
+        fn is_send<T: Send>() {}
+        fn is_sync<T: Sync>() {}
+        is_send::<SourceView>();
+        is_sync::<SourceView>();
+    }
 }

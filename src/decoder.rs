@@ -338,49 +338,53 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     decode_slice(&data[..])
 }
 
-#[test]
-fn test_strip_header() {
-    use std::io::BufRead;
-    let input: &[_] = b")]}garbage\r\n[1, 2, 3]";
-    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
-    let mut text = String::new();
-    reader.read_line(&mut text).ok();
-    assert_eq!(text, "[1, 2, 3]");
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{self, BufRead};
 
-#[test]
-fn test_bad_newline() {
-    use std::io::BufRead;
-    let input: &[_] = b")]}'\r[1, 2, 3]";
-    let mut reader = io::BufReader::new(StripHeaderReader::new(input));
-    let mut text = String::new();
-    match reader.read_line(&mut text) {
-        Err(err) => {
-            assert_eq!(err.kind(), io::ErrorKind::InvalidData);
-        }
-        Ok(_) => {
-            panic!("Expected failure");
-        }
+    #[test]
+    fn test_strip_header() {
+        let input: &[_] = b")]}garbage\r\n[1, 2, 3]";
+        let mut reader = io::BufReader::new(StripHeaderReader::new(input));
+        let mut text = String::new();
+        reader.read_line(&mut text).ok();
+        assert_eq!(text, "[1, 2, 3]");
     }
-}
 
-#[test]
-fn test_decode_rmi() {
-    fn decode(rmi_str: &str) -> Vec<usize> {
-        let mut out = bitvec::bitvec![u8, Lsb0; 0; 0];
-        decode_rmi(rmi_str, &mut out).expect("failed to decode");
-
-        let mut res = vec![];
-        for (idx, bit) in out.iter().enumerate() {
-            if *bit {
-                res.push(idx);
+    #[test]
+    fn test_bad_newline() {
+        let input: &[_] = b")]}'\r[1, 2, 3]";
+        let mut reader = io::BufReader::new(StripHeaderReader::new(input));
+        let mut text = String::new();
+        match reader.read_line(&mut text) {
+            Err(err) => {
+                assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+            }
+            Ok(_) => {
+                panic!("Expected failure");
             }
         }
-        res
     }
 
-    // This is 0-based index of the bits
-    assert_eq!(decode("AAB"), vec![12]);
-    assert_eq!(decode("g"), vec![5]);
-    assert_eq!(decode("Bg"), vec![0, 11]);
+    #[test]
+    fn test_decode_rmi() {
+        fn decode(rmi_str: &str) -> Vec<usize> {
+            let mut out = bitvec::bitvec![u8, Lsb0; 0; 0];
+            decode_rmi(rmi_str, &mut out).expect("failed to decode");
+
+            let mut res = vec![];
+            for (idx, bit) in out.iter().enumerate() {
+                if *bit {
+                    res.push(idx);
+                }
+            }
+            res
+        }
+
+        // This is 0-based index of the bits
+        assert_eq!(decode("AAB"), vec![12]);
+        assert_eq!(decode("g"), vec![5]);
+        assert_eq!(decode("Bg"), vec![0, 11]);
+    }
 }

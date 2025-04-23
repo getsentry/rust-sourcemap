@@ -328,28 +328,33 @@ pub(crate) fn encode_vlq(out: &mut String, num: i64) {
     }
 }
 
-#[test]
-fn test_vlq_decode() {
-    let rv = parse_vlq_segment("AAAA").unwrap();
-    assert_eq!(rv, vec![0, 0, 0, 0]);
-    let rv = parse_vlq_segment("GAAIA").unwrap();
-    assert_eq!(rv, vec![3, 0, 0, 4, 0]);
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_vlq_encode() {
-    let rv = generate_vlq_segment(&[0, 0, 0, 0]).unwrap();
-    assert_eq!(rv.as_str(), "AAAA");
-    let rv = generate_vlq_segment(&[3, 0, 0, 4, 0]).unwrap();
-    assert_eq!(rv.as_str(), "GAAIA");
-}
+    #[test]
+    fn test_vlq_decode() {
+        let rv = parse_vlq_segment("AAAA").unwrap();
+        assert_eq!(rv, vec![0, 0, 0, 0]);
+        let rv = parse_vlq_segment("GAAIA").unwrap();
+        assert_eq!(rv, vec![3, 0, 0, 4, 0]);
+    }
 
-#[test]
-fn test_overflow() {
-    match parse_vlq_segment("00000000000000") {
-        Err(Error::VlqOverflow) => {}
-        e => {
-            panic!("Unexpeted result: {:?}", e);
+    #[test]
+    fn test_vlq_encode() {
+        let rv = generate_vlq_segment(&[0, 0, 0, 0]).unwrap();
+        assert_eq!(rv.as_str(), "AAAA");
+        let rv = generate_vlq_segment(&[3, 0, 0, 4, 0]).unwrap();
+        assert_eq!(rv.as_str(), "GAAIA");
+    }
+
+    #[test]
+    fn test_overflow() {
+        match parse_vlq_segment("00000000000000") {
+            Err(Error::VlqOverflow) => {}
+            e => {
+                panic!("Unexpeted result: {:?}", e);
+            }
         }
     }
 }
