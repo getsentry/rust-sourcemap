@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::iter::repeat;
+use std::iter;
 
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;
@@ -105,7 +105,7 @@ pub fn make_relative_path(base: &str, target: &str) -> String {
     let prefix = find_common_prefix_of_sorted_vec(&items)
         .map(|x| x.len())
         .unwrap_or(0);
-    let mut rel_list: Vec<_> = repeat("../").take(base_path.len() - prefix).collect();
+    let mut rel_list: Vec<_> = iter::repeat_n("../", base_path.len() - prefix).collect();
     rel_list.extend_from_slice(&target_path[prefix..]);
     if rel_list.is_empty() {
         ".".into()
