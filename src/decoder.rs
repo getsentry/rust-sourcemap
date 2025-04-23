@@ -292,7 +292,8 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         sections,
         rsm.x_facebook_offsets,
         rsm.x_metro_module_paths,
-    ))
+    )
+    .with_debug_id(rsm._debug_id_new.or(rsm.debug_id)))
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
@@ -386,5 +387,96 @@ mod tests {
         assert_eq!(decode("AAB"), vec![12]);
         assert_eq!(decode("g"), vec![5]);
         assert_eq!(decode("Bg"), vec![0, 11]);
+    }
+
+    #[test]
+    fn test_decode_sourcemap_index_no_debug_id() {
+        let raw = RawSourceMap {
+            version: Some(3),
+            file: Some("test.js".into()),
+            sources: None,
+            source_root: None,
+            sources_content: None,
+            sections: Some(vec![]),
+            names: None,
+            range_mappings: None,
+            mappings: None,
+            ignore_list: None,
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
+            x_facebook_sources: None,
+            debug_id: None,
+            _debug_id_new: None,
+        };
+
+        let decoded = decode_common(raw).expect("should decoded");
+        assert_eq!(
+            decoded,
+            DecodedMap::Index(SourceMapIndex::new(Some("test.js".into()), vec![]))
+        );
+    }
+
+    #[test]
+    fn test_decode_sourcemap_index_debug_id() {
+        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+
+        let raw = RawSourceMap {
+            version: Some(3),
+            file: Some("test.js".into()),
+            sources: None,
+            source_root: None,
+            sources_content: None,
+            sections: Some(vec![]),
+            names: None,
+            range_mappings: None,
+            mappings: None,
+            ignore_list: None,
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
+            x_facebook_sources: None,
+            debug_id: None,
+            _debug_id_new: Some(DEBUG_ID.parse().expect("valid debug id")),
+        };
+
+        let decoded = decode_common(raw).expect("should decode");
+        assert_eq!(
+            decoded,
+            DecodedMap::Index(
+                SourceMapIndex::new(Some("test.js".into()), vec![])
+                    .with_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")))
+            )
+        );
+    }
+
+    #[test]
+    fn test_decode_sourcemap_index_debug_id_from_legacy_key() {
+        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+
+        let raw = RawSourceMap {
+            version: Some(3),
+            file: Some("test.js".into()),
+            sources: None,
+            source_root: None,
+            sources_content: None,
+            sections: Some(vec![]),
+            names: None,
+            range_mappings: None,
+            mappings: None,
+            ignore_list: None,
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
+            x_facebook_sources: None,
+            debug_id: Some(DEBUG_ID.parse().expect("valid debug id")),
+            _debug_id_new: None,
+        };
+
+        let decoded = decode_common(raw).expect("should decode");
+        assert_eq!(
+            decoded,
+            DecodedMap::Index(
+                SourceMapIndex::new(Some("test.js".into()), vec![])
+                    .with_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")))
+            )
+        );
     }
 }

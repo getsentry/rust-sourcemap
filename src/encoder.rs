@@ -214,7 +214,8 @@ impl Encodable for SourceMapIndex {
             x_metro_module_paths: None,
             x_facebook_sources: None,
             debug_id: None,
-            _debug_id_new: None,
+            // Put the debug ID on _debug_id_new to serialize it to the debugId field.
+            _debug_id_new: self.debug_id(),
         }
     }
 }
@@ -254,5 +255,62 @@ mod tests {
         assert_eq!(encode(&[12]), "AAB");
         assert_eq!(encode(&[5]), "g");
         assert_eq!(encode(&[0, 11]), "Bg");
+    }
+
+    #[test]
+    fn test_encode_sourcemap_index_no_debug_id() {
+        let smi = SourceMapIndex::new(Some("test.js".into()), vec![]);
+        let raw = smi.as_raw_sourcemap();
+
+        assert_eq!(
+            raw,
+            RawSourceMap {
+                version: Some(3),
+                file: Some("test.js".into()),
+                sources: None,
+                source_root: None,
+                sources_content: None,
+                sections: Some(vec![]),
+                names: None,
+                range_mappings: None,
+                mappings: None,
+                ignore_list: None,
+                x_facebook_offsets: None,
+                x_metro_module_paths: None,
+                x_facebook_sources: None,
+                debug_id: None,
+                _debug_id_new: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_encode_sourcemap_index_debug_id() {
+        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+
+        let smi = SourceMapIndex::new(Some("test.js".into()), vec![])
+            .with_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")));
+
+        let raw = smi.as_raw_sourcemap();
+        assert_eq!(
+            raw,
+            RawSourceMap {
+                version: Some(3),
+                file: Some("test.js".into()),
+                sources: None,
+                source_root: None,
+                sources_content: None,
+                sections: Some(vec![]),
+                names: None,
+                range_mappings: None,
+                mappings: None,
+                ignore_list: None,
+                x_facebook_offsets: None,
+                x_metro_module_paths: None,
+                x_facebook_sources: None,
+                debug_id: None,
+                _debug_id_new: Some(DEBUG_ID.parse().expect("valid debug id")),
+            }
+        );
     }
 }

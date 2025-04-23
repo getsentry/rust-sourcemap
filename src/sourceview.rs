@@ -151,6 +151,12 @@ impl fmt::Debug for SourceView {
     }
 }
 
+impl PartialEq for SourceView {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+    }
+}
+
 impl SourceView {
     /// Creates an optimized view of a given source.
     pub fn new(source: Arc<str>) -> SourceView {
