@@ -35,9 +35,6 @@ base64-simd = { version = "0.7" }
 bitvec = "1.0.1"
 rustc-hash = "1.1.0"
 
-[build-dependencies]
-rustc_version = "0.2.3"
-
 [features]
 ram_bundle = ["scroll"]
 
