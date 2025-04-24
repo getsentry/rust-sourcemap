@@ -3,20 +3,20 @@ use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct RawSectionOffset {
     pub line: u32,
     pub column: u32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct RawSection {
     pub offset: RawSectionOffset,
     pub url: Option<String>,
     pub map: Option<Box<RawSourceMap>>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct FacebookScopeMapping {
     pub names: Vec<String>,
     pub mappings: String,
@@ -28,7 +28,7 @@ pub struct FacebookScopeMapping {
 // See the decoder in `hermes.rs` for details.
 pub type FacebookSources = Option<Vec<Option<Vec<FacebookScopeMapping>>>>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct RawSourceMap {
     pub version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]

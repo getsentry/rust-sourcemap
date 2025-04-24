@@ -61,7 +61,7 @@ impl<'a> Default for RewriteOptions<'a> {
 /// Usually the two things are too distinct to provide a common
 /// interface however for token lookup and writing back into a writer
 /// general methods are provided.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DecodedMap {
     /// Indicates a regular sourcemap
     Regular(SourceMap),
@@ -419,7 +419,7 @@ impl fmt::Display for Token<'_> {
 }
 
 /// Represents a section in a sourcemap index
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SourceMapSection {
     offset: (u32, u32),
     url: Option<String>,
@@ -443,12 +443,13 @@ impl<'a> Iterator for SourceMapSectionIter<'a> {
 }
 
 /// Represents a sourcemap index in memory
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SourceMapIndex {
     file: Option<String>,
     sections: Vec<SourceMapSection>,
     x_facebook_offsets: Option<Vec<Option<u32>>>,
     x_metro_module_paths: Option<Vec<String>>,
+    debug_id: Option<DebugId>,
 }
 
 /// Represents a sourcemap in memory
@@ -456,7 +457,7 @@ pub struct SourceMapIndex {
 /// This is always represents a regular "non-indexed" sourcemap.  Particularly
 /// in case the `from_reader` method is used an index sourcemap will be
 /// rejected with an error on reading.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SourceMap {
     pub(crate) file: Option<Arc<str>>,
     pub(crate) tokens: Vec<RawToken>,
@@ -1078,6 +1079,7 @@ impl SourceMapIndex {
             sections,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
+            debug_id: None,
         }
     }
 
@@ -1099,7 +1101,19 @@ impl SourceMapIndex {
             sections,
             x_facebook_offsets,
             x_metro_module_paths,
+            debug_id: None,
         }
+    }
+
+    /// Returns the debug ID.
+    pub(crate) fn debug_id(&self) -> Option<DebugId> {
+        self.debug_id
+    }
+
+    /// Adds the given debug id to the sourcemap index.
+    pub(crate) fn with_debug_id(mut self, debug_id: Option<DebugId>) -> Self {
+        self.debug_id = debug_id;
+        self
     }
 
     /// Returns the embedded filename in case there is one.
@@ -1306,7 +1320,7 @@ impl SourceMapSection {
 
 #[cfg(test)]
 mod tests {
-    use super::{RewriteOptions, SourceMap};
+    use super::{RewriteOptions, SourceMap, SourceMapIndex};
     use debugid::DebugId;
 
     #[test]
@@ -1414,6 +1428,25 @@ mod tests {
 
         let sm_new = SourceMap::from_slice(&out).unwrap();
         assert_eq!(sm_new.sources, sm.sources);
+    }
+
+    #[test]
+    fn test_sourcemap_index_default_debug_id() {
+        let sm = SourceMapIndex::new(None, vec![]);
+        assert!(sm.debug_id().is_none());
+    }
+
+    #[test]
+    fn test_sourcemap_index_debug_id() {
+        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+
+        let sm = SourceMapIndex::new(None, vec![])
+            .with_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")));
+
+        assert_eq!(
+            sm.debug_id(),
+            Some(DEBUG_ID.parse().expect("valid debug id"))
+        );
     }
 
     mod prop {
