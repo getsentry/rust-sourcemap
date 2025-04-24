@@ -125,6 +125,24 @@ impl DecodedMap {
             }
         }
     }
+
+    /// Returns the debug ID of the sourcemap, if it exists.
+    pub fn debug_id(&self) -> Option<DebugId> {
+        match self {
+            DecodedMap::Regular(sm) => sm.get_debug_id(),
+            DecodedMap::Index(smi) => smi.debug_id(),
+            DecodedMap::Hermes(smh) => smh.get_debug_id(),
+        }
+    }
+
+    /// Sets the debug ID of the sourcemap.
+    pub fn set_debug_id(&mut self, debug_id: Option<DebugId>) {
+        match self {
+            DecodedMap::Regular(sm) => sm.set_debug_id(debug_id),
+            DecodedMap::Index(smi) => smi.set_debug_id(debug_id),
+            DecodedMap::Hermes(smh) => smh.set_debug_id(debug_id),
+        }
+    }
 }
 
 /// Represents a raw token
@@ -1110,9 +1128,13 @@ impl SourceMapIndex {
         self.debug_id
     }
 
+    fn set_debug_id(&mut self, debug_id: Option<DebugId>) {
+        self.debug_id = debug_id;
+    }
+
     /// Adds the given debug id to the sourcemap index.
     pub(crate) fn with_debug_id(mut self, debug_id: Option<DebugId>) -> Self {
-        self.debug_id = debug_id;
+        self.set_debug_id(debug_id);
         self
     }
 
@@ -1320,7 +1342,9 @@ impl SourceMapSection {
 
 #[cfg(test)]
 mod tests {
-    use super::{RewriteOptions, SourceMap, SourceMapIndex};
+    use std::collections::BTreeSet;
+
+    use super::{DecodedMap, RewriteOptions, SourceMap, SourceMapIndex};
     use debugid::DebugId;
 
     #[test]
@@ -1445,6 +1469,80 @@ mod tests {
 
         assert_eq!(
             sm.debug_id(),
+            Some(DEBUG_ID.parse().expect("valid debug id"))
+        );
+    }
+
+    #[test]
+    fn test_decoded_map_regular_debug_id() {
+        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+
+        let mut decoded_map = DecodedMap::Regular(SourceMap {
+            file: None,
+            tokens: vec![],
+            names: vec![],
+            source_root: None,
+            sources: vec![],
+            sources_prefixed: None,
+            sources_content: vec![],
+            ignore_list: BTreeSet::new(),
+            debug_id: None,
+        });
+
+        assert!(decoded_map.debug_id().is_none());
+
+        decoded_map.set_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")));
+
+        assert_eq!(
+            decoded_map,
+            DecodedMap::Regular(SourceMap {
+                file: None,
+                tokens: vec![],
+                names: vec![],
+                source_root: None,
+                sources: vec![],
+                sources_prefixed: None,
+                sources_content: vec![],
+                ignore_list: BTreeSet::new(),
+                debug_id: Some(DEBUG_ID.parse().expect("valid debug id")),
+            })
+        );
+
+        assert_eq!(
+            decoded_map.debug_id(),
+            Some(DEBUG_ID.parse().expect("valid debug id"))
+        );
+    }
+
+    #[test]
+    fn test_decoded_map_index_debug_id() {
+        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+
+        let mut decoded_map = DecodedMap::Index(SourceMapIndex {
+            file: None,
+            sections: vec![],
+            x_facebook_offsets: None,
+            x_metro_module_paths: None,
+            debug_id: None,
+        });
+
+        assert!(decoded_map.debug_id().is_none());
+
+        decoded_map.set_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")));
+
+        assert_eq!(
+            decoded_map,
+            DecodedMap::Index(SourceMapIndex {
+                file: None,
+                sections: vec![],
+                x_facebook_offsets: None,
+                x_metro_module_paths: None,
+                debug_id: Some(DEBUG_ID.parse().expect("valid debug id")),
+            })
+        );
+
+        assert_eq!(
+            decoded_map.debug_id(),
             Some(DEBUG_ID.parse().expect("valid debug id"))
         );
     }
