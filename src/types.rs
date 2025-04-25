@@ -1279,6 +1279,31 @@ impl SourceMapIndex {
     pub fn x_metro_module_paths(&self) -> Option<&[String]> {
         self.x_metro_module_paths.as_ref().map(|x| &x[..])
     }
+
+    /// Adjusts all of the sections' offset rows by the given amount.
+    /// Returns a boolean indicating whether the adjustment was successful
+    /// (false indicating that not all of the sections could be adjusted
+    /// because we overflowed the u32, true if adjustment was successful).
+    /// If false is returned, then the sourcemap index is unchanged.
+    pub fn adjust_sections_offset_rows(&mut self, amount: u32) -> bool {
+        let adjusted_rows: Vec<_> = self
+            .sections
+            .iter()
+            // Filter map will filter out adjustments that overflow
+            .filter_map(|section| section.offset.0.checked_add(amount))
+            .collect();
+
+        if adjusted_rows.len() != self.sections.len() {
+            // We overflowed at least one section
+            return false;
+        }
+
+        for (section, adjustment) in self.sections.iter_mut().zip(adjusted_rows) {
+            section.offset.0 = adjustment;
+        }
+
+        true
+    }
 }
 
 impl SourceMapSection {
@@ -1344,7 +1369,7 @@ impl SourceMapSection {
 mod tests {
     use std::collections::BTreeSet;
 
-    use super::{DecodedMap, RewriteOptions, SourceMap, SourceMapIndex};
+    use super::{DecodedMap, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection};
     use debugid::DebugId;
 
     #[test]
@@ -1544,6 +1569,197 @@ mod tests {
         assert_eq!(
             decoded_map.debug_id(),
             Some(DEBUG_ID.parse().expect("valid debug id"))
+        );
+    }
+
+    #[test]
+    fn test_adjust_sections_offset_rows_basic() {
+        // Create a sourcemap index with sections starting at (0, 0) and (10, 0)
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((10, 0), None, None),
+            ],
+        );
+
+        // Adjust by 1
+        assert!(smi.adjust_sections_offset_rows(1));
+
+        // Check that the entire SourceMapIndex was adjusted correctly
+        assert_eq!(
+            smi,
+            SourceMapIndex::new(
+                Some("test.js".to_string()),
+                vec![
+                    SourceMapSection::new((1, 0), None, None),
+                    SourceMapSection::new((11, 0), None, None),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn test_adjust_sections_offset_rows_zero() {
+        // Create a sourcemap index with sections starting at (0, 0) and (10, 0)
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((10, 0), None, None),
+            ],
+        );
+
+        // Adjust by zero
+        assert!(smi.adjust_sections_offset_rows(0));
+
+        // Check that the entire SourceMapIndex remained unchanged
+        assert_eq!(
+            smi,
+            SourceMapIndex::new(
+                Some("test.js".to_string()),
+                vec![
+                    SourceMapSection::new((0, 0), None, None),
+                    SourceMapSection::new((10, 0), None, None),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn test_adjust_sections_offset_rows_multiple_sections() {
+        // Create a sourcemap index with multiple sections
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((10, 0), None, None),
+                SourceMapSection::new((20, 10), None, None),
+                SourceMapSection::new((30, 40), None, None),
+            ],
+        );
+
+        // Adjust by 1
+        assert!(smi.adjust_sections_offset_rows(1));
+
+        // Check that the entire SourceMapIndex was adjusted correctly
+        assert_eq!(
+            smi,
+            SourceMapIndex::new(
+                Some("test.js".to_string()),
+                vec![
+                    SourceMapSection::new((1, 0), None, None),
+                    SourceMapSection::new((11, 0), None, None),
+                    SourceMapSection::new((21, 10), None, None),
+                    SourceMapSection::new((31, 40), None, None),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn test_adjust_sections_offset_rows_overflow() {
+        // Create a sourcemap index with a section at u32::MAX
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((u32::MAX, 0), None, None),
+            ],
+        );
+
+        // Store the original state
+        let original_smi = smi.clone();
+
+        // An adjustment of 1 would overflow
+        assert!(!smi.adjust_sections_offset_rows(1));
+
+        // Verify the sourcemap index remains unchanged
+        assert_eq!(smi, original_smi);
+    }
+
+    #[test]
+    fn test_adjust_sections_offset_rows_partial_overflow() {
+        // Create a sourcemap index with multiple sections, one at u32::MAX
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((10, 0), None, None),
+                SourceMapSection::new((20, 0), None, None),
+                SourceMapSection::new((u32::MAX, 0), None, None),
+            ],
+        );
+
+        // Store the original state
+        let original_smi = smi.clone();
+
+        // Try to adjust by an amount that would cause overflow for one section
+        assert!(!smi.adjust_sections_offset_rows(1));
+
+        // Verify the sourcemap index remains unchanged
+        assert_eq!(smi, original_smi);
+    }
+
+    #[test]
+    fn test_adjust_sections_offset_rows_large_amount() {
+        // Create a sourcemap index with sections
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((10, 0), None, None),
+            ],
+        );
+
+        assert!(smi.adjust_sections_offset_rows(1_000_000));
+
+        // Check that the entire SourceMapIndex was adjusted correctly
+        assert_eq!(
+            smi,
+            SourceMapIndex::new(
+                Some("test.js".to_string()),
+                vec![
+                    SourceMapSection::new((1_000_000, 0), None, None),
+                    SourceMapSection::new((1_000_010, 0), None, None),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn adjust_sections_offset_rows_large_amount_overflow() {
+        // Create a sourcemap index with a section at a positive amount
+        let mut smi = SourceMapIndex::new(
+            Some("test.js".to_string()),
+            vec![
+                SourceMapSection::new((0, 0), None, None),
+                SourceMapSection::new((10, 0), None, None),
+            ],
+        );
+
+        // Store the original state
+        let original_smi = smi.clone();
+
+        // An adjustment of u32::MAX would overflow
+        assert!(!smi.adjust_sections_offset_rows(u32::MAX));
+
+        // Verify the sourcemap index remains unchanged
+        assert_eq!(smi, original_smi);
+    }
+
+    #[test]
+    fn adjust_sections_offset_rows_no_sections() {
+        // Create a sourcemap index with no sections
+        let mut smi = SourceMapIndex::new(Some("test.js".to_string()), vec![]);
+
+        // An adjustment by 1 should return true and no-op
+        assert!(smi.adjust_sections_offset_rows(1));
+
+        // The sourcemap index should remain unchanged
+        assert_eq!(
+            smi,
+            SourceMapIndex::new(Some("test.js".to_string()), vec![])
         );
     }
 
