@@ -1,5 +1,18 @@
 # Changelog
 
+## 9.2.0
+
+### Various fixes & improvements
+
+- feat: Add ability to adjust SourceMapIndex offset rows (#119) by @szokeasaurusrex
+- feat: Enable getting/setting debug ID on DecodedMap (#118) by @szokeasaurusrex
+- build: upgrade dependencies (#107) by @paolobarbolini
+- build: drop unused `rustc_version` dependency (#108) by @paolobarbolini
+- feat: Add `debug_id` field to `SourceMapIndex` (#117) by @szokeasaurusrex
+- ref(tests): Move tests under `cfg(test)` (#115) by @szokeasaurusrex
+- ref(utils): Fix clippy lint (#116) by @szokeasaurusrex
+- fix(Hermes): Use 1-based indexing for lines (#106) by @pablomatiasgomez
+
 ## 9.1.2
 
 ### Various fixes & improvements
