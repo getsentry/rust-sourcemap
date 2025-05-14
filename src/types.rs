@@ -1228,6 +1228,14 @@ impl SourceMapIndex {
                 }
             };
 
+            for (source, contents) in map.sources().zip(map.source_contents()) {
+                let src_id = builder.add_source(source);
+
+                if let Some(contents) = contents {
+                    builder.set_source_contents(src_id, Some(contents));
+                }
+            }
+
             for token in map.tokens() {
                 let dst_col = if token.get_dst_line() == 0 {
                     token.get_dst_col() + off_col
@@ -1243,12 +1251,7 @@ impl SourceMapIndex {
                     token.get_name(),
                     token.is_range(),
                 );
-                if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
-                    builder.set_source_contents(
-                        raw.src_id,
-                        map.get_source_contents(token.get_src_id()),
-                    );
-                }
+
                 if map.ignore_list.contains(&token.get_src_id()) {
                     builder.add_to_ignore_list(raw.src_id);
                 }
