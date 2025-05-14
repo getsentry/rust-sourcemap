@@ -15,6 +15,7 @@ use crate::sourceview::SourceView;
 use crate::utils::{find_common_prefix, greatest_lower_bound};
 
 use debugid::DebugId;
+use rustc_hash::FxHashMap;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -1236,6 +1237,9 @@ impl SourceMapIndex {
                 }
             }
 
+            let mut src_id_map = FxHashMap::<u32, u32>::default();
+            let mut name_id_map = FxHashMap::<u32, u32>::default();
+
             for token in map.tokens() {
                 let dst_col = if token.get_dst_line() == 0 {
                     token.get_dst_col() + off_col
@@ -1243,8 +1247,27 @@ impl SourceMapIndex {
                     token.get_dst_col()
                 };
 
-                let src_id = token.get_source().map(|source| builder.add_source(source));
-                let name_id = token.get_name().map(|name| builder.add_name(name));
+                // Use u32 -> u32 map instead of using the hash map in SourceMapBuilder for better performance
+                let original_src_id = token.raw.src_id;
+                let src_id = if original_src_id == !0 {
+                    None
+                } else {
+                    Some(*src_id_map.entry(original_src_id).or_insert_with(|| {
+                        token
+                            .get_source()
+                            .map(|source| builder.add_source(source))
+                            .unwrap()
+                    }))
+                };
+
+                let original_name_id = token.raw.name_id;
+                let name_id = if original_name_id == !0 {
+                    None
+                } else {
+                    Some(*name_id_map.entry(original_name_id).or_insert_with(|| {
+                        token.get_name().map(|name| builder.add_name(name)).unwrap()
+                    }))
+                };
 
                 let raw = builder.add_raw(
                     token.get_dst_line() + off_line,
