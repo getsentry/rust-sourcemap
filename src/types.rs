@@ -1242,13 +1242,17 @@ impl SourceMapIndex {
                 } else {
                     token.get_dst_col()
                 };
-                let raw = builder.add(
+
+                let src_id = token.get_source().map(|source| builder.add_source(source));
+                let name_id = token.get_name().map(|name| builder.add_name(name));
+
+                let raw = builder.add_raw(
                     token.get_dst_line() + off_line,
                     dst_col,
                     token.get_src_line(),
                     token.get_src_col(),
-                    token.get_source(),
-                    token.get_name(),
+                    src_id,
+                    name_id,
                     token.is_range(),
                 );
 
