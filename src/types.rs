@@ -15,6 +15,7 @@ use crate::sourceview::SourceView;
 use crate::utils::{find_common_prefix, greatest_lower_bound};
 
 use debugid::DebugId;
+use rustc_hash::FxHashMap;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -1228,27 +1229,59 @@ impl SourceMapIndex {
                 }
             };
 
+            let mut src_id_map = FxHashMap::<u32, u32>::default();
+
+            for (original_id, (source, contents)) in
+                map.sources().zip(map.source_contents()).enumerate()
+            {
+                let src_id = builder.add_source(source);
+
+                src_id_map.insert(original_id as u32, src_id);
+
+                if let Some(contents) = contents {
+                    builder.set_source_contents(src_id, Some(contents));
+                }
+            }
+
+            let mut name_id_map = FxHashMap::<u32, u32>::default();
+
+            for (original_id, name) in map.names().enumerate() {
+                let name_id = builder.add_name(name);
+                name_id_map.insert(original_id as u32, name_id);
+            }
+
             for token in map.tokens() {
                 let dst_col = if token.get_dst_line() == 0 {
                     token.get_dst_col() + off_col
                 } else {
                     token.get_dst_col()
                 };
-                let raw = builder.add(
+
+                // Use u32 -> u32 map instead of using the hash map in SourceMapBuilder for better performance
+                let original_src_id = token.raw.src_id;
+                let src_id = if original_src_id == !0 {
+                    None
+                } else {
+                    src_id_map.get(&original_src_id).copied()
+                };
+
+                let original_name_id = token.raw.name_id;
+                let name_id = if original_name_id == !0 {
+                    None
+                } else {
+                    name_id_map.get(&original_name_id).copied()
+                };
+
+                let raw = builder.add_raw(
                     token.get_dst_line() + off_line,
                     dst_col,
                     token.get_src_line(),
                     token.get_src_col(),
-                    token.get_source(),
-                    token.get_name(),
+                    src_id,
+                    name_id,
                     token.is_range(),
                 );
-                if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
-                    builder.set_source_contents(
-                        raw.src_id,
-                        map.get_source_contents(token.get_src_id()),
-                    );
-                }
+
                 if map.ignore_list.contains(&token.get_src_id()) {
                     builder.add_to_ignore_list(raw.src_id);
                 }
