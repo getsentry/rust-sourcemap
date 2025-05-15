@@ -1229,16 +1229,26 @@ impl SourceMapIndex {
                 }
             };
 
-            for (source, contents) in map.sources().zip(map.source_contents()) {
+            let mut src_id_map = FxHashMap::<u32, u32>::default();
+
+            for (original_id, (source, contents)) in
+                map.sources().zip(map.source_contents()).enumerate()
+            {
                 let src_id = builder.add_source(source);
+
+                src_id_map.insert(original_id as u32, src_id);
 
                 if let Some(contents) = contents {
                     builder.set_source_contents(src_id, Some(contents));
                 }
             }
 
-            let mut src_id_map = FxHashMap::<u32, u32>::default();
             let mut name_id_map = FxHashMap::<u32, u32>::default();
+
+            for (original_id, name) in map.names().enumerate() {
+                let name_id = builder.add_name(name);
+                name_id_map.insert(original_id as u32, name_id);
+            }
 
             for token in map.tokens() {
                 let dst_col = if token.get_dst_line() == 0 {
@@ -1252,21 +1262,14 @@ impl SourceMapIndex {
                 let src_id = if original_src_id == !0 {
                     None
                 } else {
-                    Some(*src_id_map.entry(original_src_id).or_insert_with(|| {
-                        token
-                            .get_source()
-                            .map(|source| builder.add_source(source))
-                            .unwrap()
-                    }))
+                    src_id_map.get(&original_src_id).copied()
                 };
 
                 let original_name_id = token.raw.name_id;
                 let name_id = if original_name_id == !0 {
                     None
                 } else {
-                    Some(*name_id_map.entry(original_name_id).or_insert_with(|| {
-                        token.get_name().map(|name| builder.add_name(name)).unwrap()
-                    }))
+                    name_id_map.get(&original_name_id).copied()
                 };
 
                 let raw = builder.add_raw(
