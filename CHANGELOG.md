@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.2.1
+
+### Various fixes & improvements
+
+- perf: Make `SourceMapIndex::flatten` more efficient (#121) by @kdy1
+
 ## 9.2.0
 
 ### Various fixes & improvements
