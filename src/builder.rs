@@ -13,6 +13,7 @@ use url::Url;
 
 use crate::errors::Result;
 use crate::types::{RawToken, SourceMap, Token};
+use crate::utils::intern;
 
 /// Helper for sourcemap generation
 ///
@@ -54,7 +55,7 @@ impl SourceMapBuilder {
     /// Creates a new source map builder and sets the file.
     pub fn new(file: Option<&str>) -> SourceMapBuilder {
         SourceMapBuilder {
-            file: file.map(Into::into),
+            file: file.map(intern),
             name_map: FxHashMap::default(),
             names: vec![],
             tokens: vec![],
@@ -74,8 +75,8 @@ impl SourceMapBuilder {
     }
 
     /// Sets the file for the sourcemap (optional)
-    pub fn set_file<T: Into<Atom>>(&mut self, value: Option<T>) {
-        self.file = value.map(Into::into);
+    pub fn set_file(&mut self, value: Option<&str>) {
+        self.file = value.map(intern);
     }
 
     /// Returns the currently set file.
@@ -84,8 +85,8 @@ impl SourceMapBuilder {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root<T: Into<Atom>>(&mut self, value: Option<T>) {
-        self.source_root = value.map(Into::into);
+    pub fn set_source_root(&mut self, value: Option<&str>) {
+        self.source_root = value.map(intern);
     }
 
     /// Returns the embedded source_root in case there is one.
@@ -129,7 +130,7 @@ impl SourceMapBuilder {
         if self.sources.len() > self.source_contents.len() {
             self.source_contents.resize(self.sources.len(), None);
         }
-        self.source_contents[src_id as usize] = contents.map(Into::into);
+        self.source_contents[src_id as usize] = contents.map(intern);
     }
 
     /// Returns the current source contents for a source.
