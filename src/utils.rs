@@ -1,8 +1,29 @@
 use std::borrow::Cow;
 use std::iter;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock, Mutex, Weak};
 
-pub(crate) fn intern(s: &str) -> Arc<str> {}
+use weak_table::WeakHashSet;
+
+#[derive(Debug, Default)]
+pub struct SymbolTable(WeakHashSet<Weak<str>>);
+
+impl SymbolTable {
+    pub fn intern(&mut self, name: &str) -> Arc<str> {
+        if let Some(rc) = self.0.get(name) {
+            rc
+        } else {
+            let rc = Arc::<str>::from(name);
+            self.0.insert(Arc::clone(&rc));
+            rc
+        }
+    }
+}
+
+pub(crate) fn intern(s: &str) -> Arc<str> {
+    static POOL: LazyLock<Mutex<SymbolTable>> = LazyLock::new(Default::default);
+    let mut lock = POOL.lock().unwrap();
+    lock.intern(s)
+}
 
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;
