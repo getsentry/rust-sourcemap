@@ -35,6 +35,7 @@ base64-simd = { version = "0.8" }
 bitvec = "1.0.1"
 rustc-hash = "2.1.1"
 hstr = "1"
+weak-table = "0.3.2"
 
 [features]
 ram_bundle = ["scroll"]
