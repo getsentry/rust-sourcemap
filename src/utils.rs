@@ -1,5 +1,14 @@
 use std::borrow::Cow;
 use std::iter;
+use std::sync::{LazyLock, Mutex};
+
+use hstr::{AlwaysInterningAtomStore, Atom};
+
+pub(crate) fn intern(s: &str) -> Atom {
+    static ATOMS: LazyLock<Mutex<AlwaysInterningAtomStore>> = LazyLock::new(Default::default);
+    let mut atoms = ATOMS.lock().unwrap();
+    atoms.atom(s)
+}
 
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;

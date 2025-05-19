@@ -5,9 +5,9 @@ use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use debugid::DebugId;
+use hstr::Atom;
 use rustc_hash::FxHashMap;
 use url::Url;
 
@@ -20,14 +20,14 @@ use crate::types::{RawToken, SourceMap, Token};
 /// objects is generally not very comfortable.  As a general aid this
 /// type can help.
 pub struct SourceMapBuilder {
-    file: Option<Arc<str>>,
-    name_map: FxHashMap<Arc<str>, u32>,
-    names: Vec<Arc<str>>,
+    file: Option<Atom>,
+    name_map: FxHashMap<Atom, u32>,
+    names: Vec<Atom>,
     tokens: Vec<RawToken>,
-    source_map: FxHashMap<Arc<str>, u32>,
-    source_root: Option<Arc<str>>,
-    sources: Vec<Arc<str>>,
-    source_contents: Vec<Option<Arc<str>>>,
+    source_map: FxHashMap<Atom, u32>,
+    source_root: Option<Atom>,
+    sources: Vec<Atom>,
+    source_contents: Vec<Option<Atom>>,
     sources_mapping: Vec<u32>,
     ignore_list: BTreeSet<u32>,
     debug_id: Option<DebugId>,
@@ -74,7 +74,7 @@ impl SourceMapBuilder {
     }
 
     /// Sets the file for the sourcemap (optional)
-    pub fn set_file<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
+    pub fn set_file<T: Into<Atom>>(&mut self, value: Option<T>) {
         self.file = value.map(Into::into);
     }
 
@@ -84,7 +84,7 @@ impl SourceMapBuilder {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
+    pub fn set_source_root<T: Into<Atom>>(&mut self, value: Option<T>) {
         self.source_root = value.map(Into::into);
     }
 
@@ -309,7 +309,7 @@ impl SourceMapBuilder {
         };
 
         let mut sm = SourceMap::new(self.file, self.tokens, self.names, self.sources, contents);
-        sm.set_source_root(self.source_root);
+        sm.set_source_root(self.source_root.as_deref());
         sm.set_debug_id(self.debug_id);
         for ignored_src_id in self.ignore_list {
             sm.add_to_ignore_list(ignored_src_id);

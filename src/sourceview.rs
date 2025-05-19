@@ -3,9 +3,9 @@ use std::slice;
 use std::str;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::sync::Mutex;
 
+use hstr::Atom;
 use if_chain::if_chain;
 
 use crate::detector::{locate_sourcemap_reference_slice, SourceMapRef};
@@ -128,7 +128,7 @@ impl<'a> Iterator for Lines<'a> {
 /// This type is used to implement fairly efficient source mapping
 /// operations.
 pub struct SourceView {
-    source: Arc<str>,
+    source: Atom,
     processed_until: AtomicUsize,
     lines: Mutex<Vec<&'static str>>,
 }
@@ -159,18 +159,9 @@ impl PartialEq for SourceView {
 
 impl SourceView {
     /// Creates an optimized view of a given source.
-    pub fn new(source: Arc<str>) -> SourceView {
+    pub fn new(source: Atom) -> SourceView {
         SourceView {
             source,
-            processed_until: AtomicUsize::new(0),
-            lines: Mutex::new(vec![]),
-        }
-    }
-
-    /// Creates an optimized view from a given source string
-    pub fn from_string(source: String) -> SourceView {
-        SourceView {
-            source: source.into(),
             processed_until: AtomicUsize::new(0),
             lines: Mutex::new(vec![]),
         }

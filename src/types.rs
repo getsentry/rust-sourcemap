@@ -4,7 +4,6 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::Path;
-use std::sync::Arc;
 
 use crate::builder::SourceMapBuilder;
 use crate::decoder::{decode, decode_slice};
@@ -12,9 +11,10 @@ use crate::encoder::encode;
 use crate::errors::{Error, Result};
 use crate::hermes::SourceMapHermes;
 use crate::sourceview::SourceView;
-use crate::utils::{find_common_prefix, greatest_lower_bound};
+use crate::utils::{find_common_prefix, greatest_lower_bound, intern};
 
 use debugid::DebugId;
+use hstr::Atom;
 use rustc_hash::FxHashMap;
 
 /// Controls the `SourceMap::rewrite` behavior
@@ -478,12 +478,12 @@ pub struct SourceMapIndex {
 /// rejected with an error on reading.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceMap {
-    pub(crate) file: Option<Arc<str>>,
+    pub(crate) file: Option<Atom>,
     pub(crate) tokens: Vec<RawToken>,
-    pub(crate) names: Vec<Arc<str>>,
-    pub(crate) source_root: Option<Arc<str>>,
-    pub(crate) sources: Vec<Arc<str>>,
-    pub(crate) sources_prefixed: Option<Vec<Arc<str>>>,
+    pub(crate) names: Vec<Atom>,
+    pub(crate) source_root: Option<Atom>,
+    pub(crate) sources: Vec<Atom>,
+    pub(crate) sources_prefixed: Option<Vec<Atom>>,
     pub(crate) sources_content: Vec<Option<SourceView>>,
     pub(crate) ignore_list: BTreeSet<u32>,
     pub(crate) debug_id: Option<DebugId>,
@@ -595,11 +595,11 @@ impl SourceMap {
     /// - `sources_content` optional source contents
     /// - `ignore_list` optional list of source indexes for devtools to ignore
     pub fn new(
-        file: Option<Arc<str>>,
+        file: Option<Atom>,
         mut tokens: Vec<RawToken>,
-        names: Vec<Arc<str>>,
-        sources: Vec<Arc<str>>,
-        sources_content: Option<Vec<Option<Arc<str>>>>,
+        names: Vec<Atom>,
+        sources: Vec<Atom>,
+        sources_content: Option<Vec<Option<Atom>>>,
     ) -> SourceMap {
         tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
         SourceMap {
@@ -635,8 +635,8 @@ impl SourceMap {
     }
 
     /// Sets a new value for the file.
-    pub fn set_file<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
-        self.file = value.map(Into::into);
+    pub fn set_file(&mut self, value: Option<&str>) {
+        self.file = value.map(intern);
     }
 
     /// Returns the embedded source_root in case there is one.
@@ -644,7 +644,7 @@ impl SourceMap {
         self.source_root.as_deref()
     }
 
-    fn prefix_source(source_root: &str, source: &str) -> Arc<str> {
+    fn prefix_source(source_root: &str, source: &str) -> Atom {
         let source_root = source_root.strip_suffix('/').unwrap_or(source_root);
         let is_valid = !source.is_empty()
             && (source.starts_with('/')
@@ -659,8 +659,8 @@ impl SourceMap {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
-        self.source_root = value.map(Into::into);
+    pub fn set_source_root(&mut self, value: Option<&str>) {
+        self.source_root = value.map(intern);
 
         match self.source_root.as_deref().filter(|rs| !rs.is_empty()) {
             Some(source_root) => {
@@ -797,7 +797,7 @@ impl SourceMap {
         if self.sources_content.len() != self.sources.len() {
             self.sources_content.resize(self.sources.len(), None);
         }
-        self.sources_content[idx as usize] = value.map(|x| SourceView::from_string(x.to_string()));
+        self.sources_content[idx as usize] = value.map(|x| SourceView::new(intern(x)));
     }
 
     /// Iterates over all source contents
