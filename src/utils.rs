@@ -6,17 +6,10 @@ use rustc_hash::FxBuildHasher;
 use weak_table::WeakHashSet;
 
 #[derive(Debug, Default)]
-pub struct SymbolTable(WeakHashSet<Weak<str>, FxBuildHasher>, u16);
+pub struct SymbolTable(WeakHashSet<Weak<str>, FxBuildHasher>);
 
 impl SymbolTable {
     pub fn intern(&mut self, name: &str) -> Arc<str> {
-        if self.1 == 1024 {
-            self.0.remove_expired();
-            self.1 = 0;
-        }
-
-        self.1 += 1;
-
         if let Some(rc) = self.0.get(name) {
             rc
         } else {
