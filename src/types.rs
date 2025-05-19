@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::Arc;
 
 use crate::builder::SourceMapBuilder;
 use crate::decoder::{decode, decode_slice};
@@ -14,7 +15,6 @@ use crate::sourceview::SourceView;
 use crate::utils::{find_common_prefix, greatest_lower_bound, intern};
 
 use debugid::DebugId;
-use hstr::Atom;
 use rustc_hash::FxHashMap;
 
 /// Controls the `SourceMap::rewrite` behavior
@@ -478,12 +478,12 @@ pub struct SourceMapIndex {
 /// rejected with an error on reading.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceMap {
-    pub(crate) file: Option<Atom>,
+    pub(crate) file: Option<Arc<str>>,
     pub(crate) tokens: Vec<RawToken>,
-    pub(crate) names: Vec<Atom>,
-    pub(crate) source_root: Option<Atom>,
-    pub(crate) sources: Vec<Atom>,
-    pub(crate) sources_prefixed: Option<Vec<Atom>>,
+    pub(crate) names: Vec<Arc<str>>,
+    pub(crate) source_root: Option<Arc<str>>,
+    pub(crate) sources: Vec<Arc<str>>,
+    pub(crate) sources_prefixed: Option<Vec<Arc<str>>>,
     pub(crate) sources_content: Vec<Option<SourceView>>,
     pub(crate) ignore_list: BTreeSet<u32>,
     pub(crate) debug_id: Option<DebugId>,
@@ -595,11 +595,11 @@ impl SourceMap {
     /// - `sources_content` optional source contents
     /// - `ignore_list` optional list of source indexes for devtools to ignore
     pub fn new(
-        file: Option<Atom>,
+        file: Option<Arc<str>>,
         mut tokens: Vec<RawToken>,
-        names: Vec<Atom>,
-        sources: Vec<Atom>,
-        sources_content: Option<Vec<Option<Atom>>>,
+        names: Vec<Arc<str>>,
+        sources: Vec<Arc<str>>,
+        sources_content: Option<Vec<Option<Arc<str>>>>,
     ) -> SourceMap {
         tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
         SourceMap {
@@ -644,7 +644,7 @@ impl SourceMap {
         self.source_root.as_deref()
     }
 
-    fn prefix_source(source_root: &str, source: &str) -> Atom {
+    fn prefix_source(source_root: &str, source: &str) -> Arc<str> {
         let source_root = source_root.strip_suffix('/').unwrap_or(source_root);
         let is_valid = !source.is_empty()
             && (source.starts_with('/')

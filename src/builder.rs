@@ -5,9 +5,9 @@ use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use debugid::DebugId;
-use hstr::Atom;
 use rustc_hash::FxHashMap;
 use url::Url;
 
@@ -21,14 +21,14 @@ use crate::utils::intern;
 /// objects is generally not very comfortable.  As a general aid this
 /// type can help.
 pub struct SourceMapBuilder {
-    file: Option<Atom>,
-    name_map: FxHashMap<Atom, u32>,
-    names: Vec<Atom>,
+    file: Option<Arc<str>>,
+    name_map: FxHashMap<Arc<str>, u32>,
+    names: Vec<Arc<str>>,
     tokens: Vec<RawToken>,
-    source_map: FxHashMap<Atom, u32>,
-    source_root: Option<Atom>,
-    sources: Vec<Atom>,
-    source_contents: Vec<Option<Atom>>,
+    source_map: FxHashMap<Arc<str>, u32>,
+    source_root: Option<Arc<str>>,
+    sources: Vec<Arc<str>>,
+    source_contents: Vec<Option<Arc<str>>>,
     sources_mapping: Vec<u32>,
     ignore_list: BTreeSet<u32>,
     debug_id: Option<DebugId>,
