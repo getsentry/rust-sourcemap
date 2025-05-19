@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
 use debugid::DebugId;
 use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::utils::intern;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct RawSectionOffset {
@@ -28,16 +32,49 @@ pub struct FacebookScopeMapping {
 // See the decoder in `hermes.rs` for details.
 pub type FacebookSources = Option<Vec<Option<Vec<FacebookScopeMapping>>>>;
 
+#[derive(Default, Clone, PartialEq, Debug)]
+pub struct InterningArc(pub(crate) Arc<str>);
+
+impl From<InterningArc> for Arc<str> {
+    fn from(value: InterningArc) -> Self {
+        value.0
+    }
+}
+
+impl From<Arc<str>> for InterningArc {
+    fn from(value: Arc<str>) -> Self {
+        InterningArc(value)
+    }
+}
+
+impl<'de> Deserialize<'de> for InterningArc {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Ok(InterningArc(intern(s)))
+    }
+}
+
+impl Serialize for InterningArc {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.0.as_ref())
+    }
+}
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct RawSourceMap {
     pub version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file: Option<Value>,
-    pub sources: Option<Vec<Option<String>>>,
+    pub sources: Option<Vec<Option<InterningArc>>>,
     #[serde(rename = "sourceRoot", skip_serializing_if = "Option::is_none")]
     pub source_root: Option<String>,
     #[serde(rename = "sourcesContent", skip_serializing_if = "Option::is_none")]
-    pub sources_content: Option<Vec<Option<String>>>,
+    pub sources_content: Option<Vec<Option<InterningArc>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sections: Option<Vec<RawSection>>,
     #[serde(skip_serializing_if = "Option::is_none")]

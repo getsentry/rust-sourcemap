@@ -8,6 +8,7 @@ use serde_json::Value;
 use crate::errors::Result;
 use crate::jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
 use crate::types::{DecodedMap, SourceMap, SourceMapIndex};
+use crate::utils::intern;
 use crate::vlq::encode_vlq;
 
 pub trait Encodable {
@@ -154,7 +155,7 @@ impl Encodable for SourceMap {
             .map(|contents| {
                 if let Some(contents) = contents {
                     have_contents = true;
-                    Some(contents.to_string())
+                    Some(intern(contents).into())
                 } else {
                     None
                 }
@@ -163,7 +164,12 @@ impl Encodable for SourceMap {
         RawSourceMap {
             version: Some(3),
             file: self.get_file().map(|x| Value::String(x.to_string())),
-            sources: Some(self.sources.iter().map(|x| Some(x.to_string())).collect()),
+            sources: Some(
+                self.sources
+                    .iter()
+                    .map(|x| Some(x.clone().into()))
+                    .collect(),
+            ),
             source_root: self.get_source_root().map(|x| x.to_string()),
             sources_content: if have_contents { Some(contents) } else { None },
             sections: None,

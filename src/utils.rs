@@ -9,18 +9,18 @@ use weak_table::WeakHashSet;
 pub struct SymbolTable(WeakHashSet<Weak<str>, FxBuildHasher>);
 
 impl SymbolTable {
-    pub fn intern(&mut self, name: &str) -> Arc<str> {
-        if let Some(rc) = self.0.get(name) {
+    pub fn intern<T: Into<Arc<str>> + AsRef<str>>(&mut self, name: T) -> Arc<str> {
+        if let Some(rc) = self.0.get(name.as_ref()) {
             rc
         } else {
-            let rc = Arc::<str>::from(name);
+            let rc: Arc<str> = name.into();
             self.0.insert(Arc::clone(&rc));
             rc
         }
     }
 }
 
-pub(crate) fn intern(s: &str) -> Arc<str> {
+pub(crate) fn intern<T: Into<Arc<str>> + AsRef<str>>(s: T) -> Arc<str> {
     static POOL: LazyLock<Mutex<SymbolTable>> = LazyLock::new(Default::default);
     let mut lock = POOL.lock().unwrap();
     lock.intern(s)
