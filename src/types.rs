@@ -15,7 +15,6 @@ use crate::sourceview::SourceView;
 use crate::utils::{find_common_prefix, greatest_lower_bound};
 
 use debugid::DebugId;
-use rustc_hash::FxHashMap;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -1229,25 +1228,27 @@ impl SourceMapIndex {
                 }
             };
 
-            let mut src_id_map = FxHashMap::<u32, u32>::default();
+            let mut src_id_map = Vec::<u32>::with_capacity(map.sources().count());
 
             for (original_id, (source, contents)) in
                 map.sources().zip(map.source_contents()).enumerate()
             {
+                debug_assert_eq!(original_id, src_id_map.len());
                 let src_id = builder.add_source(source);
 
-                src_id_map.insert(original_id as u32, src_id);
+                src_id_map.push(src_id);
 
                 if let Some(contents) = contents {
                     builder.set_source_contents(src_id, Some(contents));
                 }
             }
 
-            let mut name_id_map = FxHashMap::<u32, u32>::default();
+            let mut name_id_map = Vec::<u32>::with_capacity(map.names().count());
 
             for (original_id, name) in map.names().enumerate() {
+                debug_assert_eq!(original_id, name_id_map.len());
                 let name_id = builder.add_name(name);
-                name_id_map.insert(original_id as u32, name_id);
+                name_id_map.push(name_id);
             }
 
             for token in map.tokens() {
@@ -1262,14 +1263,14 @@ impl SourceMapIndex {
                 let src_id = if original_src_id == !0 {
                     None
                 } else {
-                    src_id_map.get(&original_src_id).copied()
+                    src_id_map.get(original_src_id as usize).copied()
                 };
 
                 let original_name_id = token.raw.name_id;
                 let name_id = if original_name_id == !0 {
                     None
                 } else {
-                    name_id_map.get(&original_name_id).copied()
+                    name_id_map.get(original_name_id as usize).copied()
                 };
 
                 let raw = builder.add_raw(
