@@ -75,7 +75,7 @@ impl SourceMapBuilder {
     }
 
     /// Sets the file for the sourcemap (optional)
-    pub fn set_file(&mut self, value: Option<&str>) {
+    pub fn set_file<T: Into<Arc<str>> + AsRef<str>>(&mut self, value: Option<T>) {
         self.file = value.map(intern);
     }
 
@@ -85,7 +85,7 @@ impl SourceMapBuilder {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root(&mut self, value: Option<&str>) {
+    pub fn set_source_root<T: Into<Arc<str>> + AsRef<str>>(&mut self, value: Option<T>) {
         self.source_root = value.map(intern);
     }
 
@@ -310,7 +310,7 @@ impl SourceMapBuilder {
         };
 
         let mut sm = SourceMap::new(self.file, self.tokens, self.names, self.sources, contents);
-        sm.set_source_root(self.source_root.as_deref());
+        sm.set_source_root(self.source_root);
         sm.set_debug_id(self.debug_id);
         for ignored_src_id in self.ignore_list {
             sm.add_to_ignore_list(ignored_src_id);

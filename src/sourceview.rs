@@ -167,6 +167,15 @@ impl SourceView {
         }
     }
 
+    /// Creates an optimized view from a given source string
+    pub fn from_string(source: String) -> SourceView {
+        SourceView {
+            source: source.into(),
+            processed_until: AtomicUsize::new(0),
+            lines: Mutex::new(vec![]),
+        }
+    }
+
     /// Returns a requested minified line.
     pub fn get_line(&self, idx: u32) -> Option<&str> {
         let idx = idx as usize;

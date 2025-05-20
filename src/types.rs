@@ -635,7 +635,7 @@ impl SourceMap {
     }
 
     /// Sets a new value for the file.
-    pub fn set_file(&mut self, value: Option<&str>) {
+    pub fn set_file<T: Into<Arc<str>> + AsRef<str>>(&mut self, value: Option<T>) {
         self.file = value.map(intern);
     }
 
@@ -659,7 +659,7 @@ impl SourceMap {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root(&mut self, value: Option<&str>) {
+    pub fn set_source_root<T: Into<Arc<str>> + AsRef<str>>(&mut self, value: Option<T>) {
         self.source_root = value.map(intern);
 
         match self.source_root.as_deref().filter(|rs| !rs.is_empty()) {
