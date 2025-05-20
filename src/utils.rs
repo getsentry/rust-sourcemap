@@ -6,10 +6,10 @@ use rustc_hash::FxBuildHasher;
 use weak_table::WeakHashSet;
 
 #[derive(Debug, Default)]
-pub struct SymbolTable(WeakHashSet<Weak<str>, FxBuildHasher>);
+struct SymbolTable(WeakHashSet<Weak<str>, FxBuildHasher>);
 
 impl SymbolTable {
-    pub fn intern<T: Into<Arc<str>> + AsRef<str>>(&mut self, name: T) -> Arc<str> {
+    fn intern<T: Into<Arc<str>> + AsRef<str>>(&mut self, name: T) -> Arc<str> {
         if let Some(rc) = self.0.get(name.as_ref()) {
             rc
         } else {
