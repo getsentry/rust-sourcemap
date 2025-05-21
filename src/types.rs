@@ -956,25 +956,26 @@ impl SourceMap {
         // Helper struct that makes it easier to compare tokens by the start and end
         // of the range they cover.
         #[derive(Debug, Clone, Copy)]
-        struct Range {
+        struct Range<'a> {
             start: (u32, u32),
             end: (u32, u32),
-            value: RawToken,
+            value: &'a RawToken,
         }
 
         /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
+        #[allow(clippy::ptr_arg)]
         fn create_ranges(
-            mut tokens: Vec<RawToken>,
+            tokens: &mut Vec<RawToken>,
             key: fn(&RawToken) -> (u32, u32),
-        ) -> Vec<Range> {
+        ) -> Vec<Range<'_>> {
             tokens.sort_unstable_by_key(key);
 
-            let mut token_iter = tokens.into_iter().peekable();
+            let mut token_iter = tokens.iter_mut().peekable();
             let mut ranges = Vec::new();
 
             while let Some(t) = token_iter.next() {
-                let start = key(&t);
-                let next_start = token_iter.peek().map_or((u32::MAX, u32::MAX), key);
+                let start = key(t);
+                let next_start = token_iter.peek().map_or((u32::MAX, u32::MAX), |t| key(t));
                 // A token extends either to the start of the next token or the end of the line, whichever comes sooner
                 let end = std::cmp::min(next_start, (start.0, u32::MAX));
                 ranges.push(Range {
@@ -992,10 +993,10 @@ impl SourceMap {
         // We want to compare `self` and `adjustment` tokens by line/column numbers in the "original source" file.
         // These line/column numbers are the `dst_line/col` for
         // the `self` tokens and `src_line/col` for the `adjustment` tokens.
-        let self_tokens = std::mem::take(&mut self.tokens);
-        let original_ranges = create_ranges(self_tokens, |t| (t.dst_line, t.dst_col));
-        let adjustment_ranges =
-            create_ranges(adjustment.tokens.clone(), |t| (t.src_line, t.src_col));
+        let mut self_tokens = std::mem::take(&mut self.tokens);
+        let original_ranges = create_ranges(&mut self_tokens, |t| (t.dst_line, t.dst_col));
+        let mut adjustment_tokens = adjustment.tokens.clone();
+        let adjustment_ranges = create_ranges(&mut adjustment_tokens, |t| (t.src_line, t.src_col));
 
         let mut original_ranges_iter = original_ranges.iter();
 
@@ -1032,7 +1033,7 @@ impl SourceMap {
                 let mut token = RawToken {
                     dst_line,
                     dst_col,
-                    ..original_range.value
+                    ..*original_range.value
                 };
 
                 token.dst_line = (token.dst_line as i32 + line_diff) as u32;
