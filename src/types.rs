@@ -987,18 +987,19 @@ impl SourceMap {
         // We want to compare `self` and `adjustment` tokens by line/column numbers in the "original source" file.
         // These line/column numbers are the `dst_line/col` for
         // the `self` tokens and `src_line/col` for the `adjustment` tokens.
-        let mut self_tokens = std::mem::take(&mut self.tokens);
-        self_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
-        let original_ranges = create_ranges(&self_tokens, |t| (t.dst_line, t.dst_col));
+        fn key(t: &RawToken) -> (u32, u32) {
+            (t.dst_line, t.dst_col)
+        }
 
-        let adjustment_tokens = if adjustment
-            .tokens
-            .is_sorted_by_key(|t| (t.src_line, t.src_col))
-        {
+        let mut self_tokens = std::mem::take(&mut self.tokens);
+        self_tokens.sort_unstable_by_key(key);
+        let original_ranges = create_ranges(&self_tokens, key);
+
+        let adjustment_tokens = if adjustment.tokens.is_sorted_by_key(key) {
             Cow::Borrowed(&adjustment.tokens)
         } else {
             let mut adjustment_tokens = adjustment.tokens.clone();
-            adjustment_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
+            adjustment_tokens.sort_unstable_by_key(key);
             Cow::Owned(adjustment_tokens)
         };
         let adjustment_ranges = create_ranges(&adjustment_tokens, |t| (t.src_line, t.src_col));
