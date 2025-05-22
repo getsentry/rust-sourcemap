@@ -154,7 +154,7 @@ impl Encodable for SourceMap {
             .map(|contents| {
                 if let Some(contents) = contents {
                     have_contents = true;
-                    Some(contents.to_string())
+                    Some(contents.into())
                 } else {
                     None
                 }

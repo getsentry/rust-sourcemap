@@ -12,7 +12,7 @@ use crate::encoder::encode;
 use crate::errors::{Error, Result};
 use crate::hermes::SourceMapHermes;
 use crate::sourceview::SourceView;
-use crate::utils::{find_common_prefix, greatest_lower_bound};
+use crate::utils::{find_common_prefix, greatest_lower_bound, intern};
 
 use debugid::DebugId;
 
@@ -634,8 +634,8 @@ impl SourceMap {
     }
 
     /// Sets a new value for the file.
-    pub fn set_file<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
-        self.file = value.map(Into::into);
+    pub fn set_file<T: Into<Arc<str>> + AsRef<str>>(&mut self, value: Option<T>) {
+        self.file = value.map(intern);
     }
 
     /// Returns the embedded source_root in case there is one.
@@ -658,8 +658,8 @@ impl SourceMap {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
-        self.source_root = value.map(Into::into);
+    pub fn set_source_root<T: Into<Arc<str>> + AsRef<str>>(&mut self, value: Option<T>) {
+        self.source_root = value.map(intern);
 
         match self.source_root.as_deref().filter(|rs| !rs.is_empty()) {
             Some(source_root) => {
@@ -796,7 +796,7 @@ impl SourceMap {
         if self.sources_content.len() != self.sources.len() {
             self.sources_content.resize(self.sources.len(), None);
         }
-        self.sources_content[idx as usize] = value.map(|x| SourceView::from_string(x.to_string()));
+        self.sources_content[idx as usize] = value.map(|x| SourceView::new(intern(x)));
     }
 
     /// Iterates over all source contents

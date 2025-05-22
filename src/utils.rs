@@ -1,5 +1,30 @@
 use std::borrow::Cow;
 use std::iter;
+use std::sync::{Arc, LazyLock, Mutex, Weak};
+
+use rustc_hash::FxBuildHasher;
+use weak_table::WeakHashSet;
+
+#[derive(Debug, Default)]
+struct SymbolTable(WeakHashSet<Weak<str>, FxBuildHasher>);
+
+impl SymbolTable {
+    fn intern<T: Into<Arc<str>> + AsRef<str>>(&mut self, name: T) -> Arc<str> {
+        if let Some(rc) = self.0.get(name.as_ref()) {
+            rc
+        } else {
+            let rc: Arc<str> = name.into();
+            self.0.insert(Arc::clone(&rc));
+            rc
+        }
+    }
+}
+
+pub(crate) fn intern<T: Into<Arc<str>> + AsRef<str>>(s: T) -> Arc<str> {
+    static POOL: LazyLock<Mutex<SymbolTable>> = LazyLock::new(Default::default);
+    let mut lock = POOL.lock().unwrap();
+    lock.intern(s)
+}
 
 fn split_path(path: &str) -> Vec<&str> {
     let mut last_idx = 0;

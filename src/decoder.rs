@@ -10,6 +10,7 @@ use crate::errors::{Error, Result};
 use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
+use crate::utils::intern;
 use crate::vlq::parse_vlq_segment_into;
 
 const DATA_PREAMBLE: &str = "data:application/json;base64,";
@@ -227,7 +228,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let sources = sources
         .into_iter()
         .map(Option::unwrap_or_default)
-        .map(Into::into)
+        .map(intern)
         .collect();
 
     // apparently we can encounter some non string types in real world
