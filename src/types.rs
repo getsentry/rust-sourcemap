@@ -970,7 +970,7 @@ impl SourceMap {
         ) -> Vec<Range<'_>> {
             tokens.sort_unstable_by_key(key);
 
-            let mut token_iter = tokens.iter_mut().peekable();
+            let mut token_iter = tokens.iter().peekable();
             let mut ranges = Vec::new();
 
             while let Some(t) = token_iter.next() {
