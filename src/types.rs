@@ -963,12 +963,7 @@ impl SourceMap {
         }
 
         /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
-        fn create_ranges(
-            tokens: &mut [RawToken],
-            key: fn(&RawToken) -> (u32, u32),
-        ) -> Vec<Range<'_>> {
-            tokens.sort_unstable_by_key(key);
-
+        fn create_ranges(tokens: &[RawToken], key: fn(&RawToken) -> (u32, u32)) -> Vec<Range<'_>> {
             let mut token_iter = tokens.iter().peekable();
             let mut ranges = Vec::new();
 
@@ -993,9 +988,20 @@ impl SourceMap {
         // These line/column numbers are the `dst_line/col` for
         // the `self` tokens and `src_line/col` for the `adjustment` tokens.
         let mut self_tokens = std::mem::take(&mut self.tokens);
-        let original_ranges = create_ranges(&mut self_tokens, |t| (t.dst_line, t.dst_col));
-        let mut adjustment_tokens = adjustment.tokens.clone();
-        let adjustment_ranges = create_ranges(&mut adjustment_tokens, |t| (t.src_line, t.src_col));
+        self_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+        let original_ranges = create_ranges(&self_tokens, |t| (t.dst_line, t.dst_col));
+
+        let adjustment_tokens = if adjustment
+            .tokens
+            .is_sorted_by_key(|t| (t.src_line, t.src_col))
+        {
+            Cow::Borrowed(&adjustment.tokens)
+        } else {
+            let mut adjustment_tokens = adjustment.tokens.clone();
+            adjustment_tokens.sort_unstable_by_key(|t| (t.src_line, t.src_col));
+            Cow::Owned(adjustment_tokens)
+        };
+        let adjustment_ranges = create_ranges(&adjustment_tokens, |t| (t.src_line, t.src_col));
 
         let mut original_ranges_iter = original_ranges.iter();
 
