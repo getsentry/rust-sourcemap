@@ -965,7 +965,7 @@ impl SourceMap {
         /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
         #[allow(clippy::ptr_arg)]
         fn create_ranges(
-            tokens: &mut Vec<RawToken>,
+            tokens: &mut [RawToken],
             key: fn(&RawToken) -> (u32, u32),
         ) -> Vec<Range<'_>> {
             tokens.sort_unstable_by_key(key);
