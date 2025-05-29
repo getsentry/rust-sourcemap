@@ -10,7 +10,7 @@ fn test_basic_name_mapping() {
     let name = sm.get_original_function_name(0, 107, "e", &sv);
     assert_eq!(name, Some("onFailure"));
 
-    // a stacktrae
+    // a stacktrace
     let locs = &[
         (0, 107, "e", "onFailure"),
         (0, 179, "i", "invoke"),
@@ -41,5 +41,25 @@ fn test_unicode_mapping() {
     for &(line, col, minified_name, original_name_match) in locs {
         let name = sm.get_original_function_name(line, col, minified_name, &sv);
         assert_eq!(name, original_name_match);
+    }
+}
+
+#[test]
+fn test_lambda_function_name_mapping() {
+    let input: &[_] = br#"{"version":3,"sources":["source.js"],"sourcesContent":["const SOME_CONST = 3;\n\nfunction outer() {\n    const aFunctionAsConst = function() {\n        console.log(\"A function as const\");\n        aFunctionAsConst();\n    };\n\n    const aLambdaAsConst = () => {\n        console.log(\"A lambda as const\");\n        aLambdaAsConst();\n    };\n\n    function aRegularFunction() {\n        console.log(\"A regular function\");\n        aRegularFunction();\n    }\n\n    aFunctionAsConst();\n    aLambdaAsConst();\n    aRegularFunction();\n}\n\nouter();\n"],"names":["SOME_CONST","outer","aFunctionAsConst","console","log","aLambdaAsConst","aRegularFunction"],"mappings":"AAAA,IAAMA,WAAa,EAEnB,SAASC,QACoB,SAAnBC,IACFC,QAAQC,IAAI,qBAAqB,EACjCF,EAAiB,CACrB,CAHA,IAKMG,EAAiB,KACnBF,QAAQC,IAAI,mBAAmB,EAC/BC,EAAe,CACnB,EAOAH,EAAiB,EACjBG,EAAe,EANf,SAASC,IACLH,QAAQC,IAAI,oBAAoB,EAChCE,EAAiB,CACrB,EAIiB,CACrB,CAEAL,MAAM"}"#;
+    let minified_file = r#"let SOME_CONST=3;function outer(){function o(){console.log("A function as const"),o()}let n=()=>{console.log("A lambda as const"),n()};o(),n(),function o(){console.log("A regular function"),o()}()}outer();"#;
+    let sv = SourceView::new(minified_file.into());
+    let sm = SourceMap::from_reader(input).unwrap();
+
+    // a stacktrace
+    let locs = &[
+        (0, 56, "o", "aFunctionAsConst"),
+        (0, 106, "n", "aLambdaAsConst"),
+        (0, 165, "o", "aRegularFunction"),
+    ];
+
+    for &(line, col, minified_name, original_name) in locs {
+        let name = sm.get_original_function_name(line, col, minified_name, &sv);
+        assert_eq!(name, Some(original_name));
     }
 }
