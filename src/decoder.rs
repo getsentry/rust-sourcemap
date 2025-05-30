@@ -186,22 +186,24 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
             nums.clear();
             parse_vlq_segment_into(segment, &mut nums)?;
+            match nums.len() {
+                1 | 4 | 5 => {}
+                _ => return Err(Error::BadSegmentSize(nums.len() as u32)),
+            }
+
             dst_col = (i64::from(dst_col) + nums[0]) as u32;
 
             // The source file , source line, source column, and name
             // may not be present in the current token. We use `u32::MAX`
             // as the placeholder for missing values.
-            let mut current_src = !0;
-            let mut current_name = !0;
+            let mut current_src_id = !0;
             let mut current_src_line = !0;
             let mut current_src_col = !0;
+            let mut current_name = !0;
 
             if nums.len() > 1 {
-                if nums.len() != 4 && nums.len() != 5 {
-                    return Err(Error::BadSegmentSize(nums.len() as u32));
-                }
-
                 running_src_id = (i64::from(running_src_id) + nums[1]) as u32;
+
                 if running_src_id >= sources.len() as u32 {
                     return Err(Error::BadSourceReference(running_src_id));
                 }
@@ -209,7 +211,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 running_src_line = (i64::from(running_src_line) + nums[2]) as u32;
                 running_src_col = (i64::from(running_src_col) + nums[3]) as u32;
 
-                current_src = running_src_id;
+                current_src_id = running_src_id;
                 current_src_line = running_src_line;
                 current_src_col = running_src_col;
 
@@ -229,7 +231,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 dst_col,
                 src_line: current_src_line,
                 src_col: current_src_col,
-                src_id: current_src,
+                src_id: current_src_id,
                 name_id: current_name,
                 is_range,
             });
