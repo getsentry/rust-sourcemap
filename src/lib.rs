@@ -45,9 +45,6 @@
 //!
 //! * `ram_bundle`: turns on RAM bundle support
 //!
-#[warn(missing_docs)]
-mod macros;
-
 pub use crate::builder::SourceMapBuilder;
 pub use crate::decoder::{decode, decode_data_url, decode_slice};
 pub use crate::detector::{
