@@ -84,10 +84,10 @@ impl<R: Read> StripHeaderReader<R> {
                         if byte == b'\n' {
                             HeaderState::PastHeader
                         } else {
-                            fail!(io::Error::new(
+                            Err(io::Error::new(
                                 io::ErrorKind::InvalidData,
-                                "expected newline"
-                            ));
+                                "expected newline",
+                            ))?
                         }
                     }
                     HeaderState::PastHeader => {
@@ -108,10 +108,10 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
     let mut need_newline = false;
     for (idx, &byte) in slice.iter().enumerate() {
         if need_newline && byte != b'\n' {
-            fail!(io::Error::new(
+            Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "expected newline"
-            ));
+                "expected newline",
+            ))?
         } else if is_junk_json(byte) {
             continue;
         } else if byte == b'\r' {
@@ -136,7 +136,7 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
             b'+' => 62,
             b'/' => 63,
             _ => {
-                fail!(Error::InvalidBase64(byte as char));
+                return Err(Error::InvalidBase64(byte as char));
             }
         };
 
@@ -190,11 +190,11 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
             if nums.len() > 1 {
                 if nums.len() != 4 && nums.len() != 5 {
-                    fail!(Error::BadSegmentSize(nums.len() as u32));
+                    return Err(Error::BadSegmentSize(nums.len() as u32));
                 }
                 src_id = (i64::from(src_id) + nums[1]) as u32;
                 if src_id >= sources.len() as u32 {
-                    fail!(Error::BadSourceReference(src_id));
+                    return Err(Error::BadSourceReference(src_id));
                 }
 
                 src = src_id;
@@ -204,7 +204,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 if nums.len() > 4 {
                     name_id = (i64::from(name_id) + nums[4]) as u32;
                     if name_id >= names.len() as u32 {
-                        fail!(Error::BadNameReference(name_id));
+                        return Err(Error::BadNameReference(name_id));
                     }
                     name = name_id;
                 }
@@ -330,7 +330,7 @@ pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
 /// Loads a sourcemap from a data URL
 pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
     if !url.starts_with(DATA_PREAMBLE) {
-        fail!(Error::InvalidDataUrl);
+        return Err(Error::InvalidDataUrl);
     }
     let data_b64 = &url[DATA_PREAMBLE.len()..];
     let data = data_encoding::BASE64
