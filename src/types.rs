@@ -242,12 +242,18 @@ impl<'a> Token<'a> {
         (self.get_dst_line(), self.get_dst_col())
     }
 
-    /// get the source line number
+    /// Get the source line number.
+    ///
+    /// `u32::MAX` is a sentinel value meaning
+    /// this token is unmapped.
     pub fn get_src_line(&self) -> u32 {
         self.raw.src_line
     }
 
-    /// get the source column number
+    /// Get the source column number.
+    ///
+    /// `u32::MAX` is a sentinel value meaning
+    /// this token is unmapped.
     pub fn get_src_col(&self) -> u32 {
         self.raw.src_col.saturating_add(self.offset)
     }
