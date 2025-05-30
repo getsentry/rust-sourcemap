@@ -199,7 +199,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             let mut current_src_id = !0;
             let mut current_src_line = !0;
             let mut current_src_col = !0;
-            let mut current_name = !0;
+            let mut current_name_id = !0;
 
             if nums.len() > 1 {
                 running_src_id = (i64::from(running_src_id) + nums[1]) as u32;
@@ -220,7 +220,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                     if running_name_id >= names.len() as u32 {
                         return Err(Error::BadNameReference(running_name_id));
                     }
-                    current_name = running_name_id;
+                    current_name_id = running_name_id;
                 }
             }
 
@@ -232,7 +232,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 src_line: current_src_line,
                 src_col: current_src_col,
                 src_id: current_src_id,
-                name_id: current_name,
+                name_id: current_name_id,
                 is_range,
             });
         }
