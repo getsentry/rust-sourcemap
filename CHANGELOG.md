@@ -1,5 +1,14 @@
 # Changelog
 
+## 9.2.2
+
+### Various fixes & improvements
+
+- fix: Correctly interpret missing line/column numbers (#129) by @loewenheim
+- ref: Remove fail macro (#128) by @loewenheim
+- perf: Make `adjust_mappings` faster by reducing the type size (#124) by @kdy1
+- perf: Optimize `flatten()` even more (#122) by @kdy1
+
 ## 9.2.1
 
 ### Various fixes & improvements
