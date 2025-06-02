@@ -148,10 +148,13 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
 
 pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let mut dst_col;
-    let mut src_id = 0;
-    let mut src_line = 0;
-    let mut src_col = 0;
-    let mut name_id = 0;
+
+    // Source IDs, lines, columns, and names are "running" values.
+    // Each token (except the first) contains the delta from the previous value.
+    let mut running_src_id = 0;
+    let mut running_src_line = 0;
+    let mut running_src_col = 0;
+    let mut running_name_id = 0;
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
@@ -183,30 +186,41 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
             nums.clear();
             parse_vlq_segment_into(segment, &mut nums)?;
+            match nums.len() {
+                1 | 4 | 5 => {}
+                _ => return Err(Error::BadSegmentSize(nums.len() as u32)),
+            }
+
             dst_col = (i64::from(dst_col) + nums[0]) as u32;
 
-            let mut src = !0;
-            let mut name = !0;
+            // The source file , source line, source column, and name
+            // may not be present in the current token. We use `u32::MAX`
+            // as the placeholder for missing values.
+            let mut current_src_id = !0;
+            let mut current_src_line = !0;
+            let mut current_src_col = !0;
+            let mut current_name_id = !0;
 
             if nums.len() > 1 {
-                if nums.len() != 4 && nums.len() != 5 {
-                    return Err(Error::BadSegmentSize(nums.len() as u32));
-                }
-                src_id = (i64::from(src_id) + nums[1]) as u32;
-                if src_id >= sources.len() as u32 {
-                    return Err(Error::BadSourceReference(src_id));
+                running_src_id = (i64::from(running_src_id) + nums[1]) as u32;
+
+                if running_src_id >= sources.len() as u32 {
+                    return Err(Error::BadSourceReference(running_src_id));
                 }
 
-                src = src_id;
-                src_line = (i64::from(src_line) + nums[2]) as u32;
-                src_col = (i64::from(src_col) + nums[3]) as u32;
+                running_src_line = (i64::from(running_src_line) + nums[2]) as u32;
+                running_src_col = (i64::from(running_src_col) + nums[3]) as u32;
+
+                current_src_id = running_src_id;
+                current_src_line = running_src_line;
+                current_src_col = running_src_col;
 
                 if nums.len() > 4 {
-                    name_id = (i64::from(name_id) + nums[4]) as u32;
-                    if name_id >= names.len() as u32 {
-                        return Err(Error::BadNameReference(name_id));
+                    running_name_id = (i64::from(running_name_id) + nums[4]) as u32;
+                    if running_name_id >= names.len() as u32 {
+                        return Err(Error::BadNameReference(running_name_id));
                     }
-                    name = name_id;
+                    current_name_id = running_name_id;
                 }
             }
 
@@ -215,10 +229,10 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             tokens.push(RawToken {
                 dst_line: dst_line as u32,
                 dst_col,
-                src_line,
-                src_col,
-                src_id: src,
-                name_id: name,
+                src_line: current_src_line,
+                src_col: current_src_col,
+                src_id: current_src_id,
+                name_id: current_name_id,
                 is_range,
             });
         }
