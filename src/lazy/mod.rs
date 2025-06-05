@@ -20,24 +20,25 @@ use serde_json::value::RawValue;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RawSourceMap<'a> {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) version: Option<u32>,
-    #[serde(default, borrow)]
+    #[serde(default, borrow, skip_serializing_if = "Option::is_none")]
     pub(crate) file: Option<MaybeRawValue<'a, Str>>,
-    #[serde(borrow)]
+    #[serde(borrow, skip_serializing_if = "MaybeRawValue::is_empty")]
     pub(crate) sources: MaybeRawValue<'a, Vec<StrValue<'a>>>,
-    #[serde(default, borrow)]
+    #[serde(default, borrow, skip_serializing_if = "Option::is_none")]
     pub(crate) source_root: Option<StrValue<'a>>,
-    #[serde(default, borrow)]
+    #[serde(default, borrow, skip_serializing_if = "MaybeRawValue::is_empty")]
     pub(crate) sources_content: MaybeRawValue<'a, Vec<Option<StrValue<'a>>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) sections: Option<Vec<RawSection<'a>>>,
-    #[serde(default, borrow)]
+    #[serde(default, borrow, skip_serializing_if = "MaybeRawValue::is_empty")]
     pub(crate) names: MaybeRawValue<'a, Vec<StrValue<'a>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) range_mappings: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) mappings: Option<String>,
-    #[serde(default, borrow)]
+    #[serde(default, borrow, skip_serializing_if = "Option::is_none")]
     pub(crate) ignore_list: Option<MaybeRawValue<'a, BTreeSet<u32>>>,
 }
 
@@ -76,6 +77,15 @@ impl<'a> DecodedMap<'a> {
 pub(crate) enum MaybeRawValue<'a, T> {
     RawValue(#[serde(borrow)] &'a RawValue),
     Data(T),
+}
+
+impl<T> MaybeRawValue<'_, Vec<T>> {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            MaybeRawValue::Data(vec) => vec.is_empty(),
+            MaybeRawValue::RawValue(_) => false,
+        }
+    }
 }
 
 impl<'a, 'de, T> Deserialize<'de> for MaybeRawValue<'a, T>
