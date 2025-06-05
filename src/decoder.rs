@@ -124,7 +124,7 @@ pub fn strip_junk_header(slice: &[u8]) -> io::Result<&[u8]> {
 }
 
 /// Decodes range mappping bitfield string into index
-fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
+pub(crate) fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
     val.clear();
     val.resize(rmi_str.len() * 6, false);
 

@@ -20,11 +20,11 @@ pub fn encode<M: Encodable, W: Write>(sm: &M, mut w: W) -> Result<()> {
     Ok(())
 }
 
-fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
+pub(crate) fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
     encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
-fn encode_rmi(out: &mut Vec<u8>, data: &[u8]) {
+pub(crate) fn encode_rmi(out: &mut Vec<u8>, data: &[u8]) {
     fn encode_byte(b: u8) -> u8 {
         match b {
             0..=25 => b + b'A',

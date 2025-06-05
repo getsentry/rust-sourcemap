@@ -68,6 +68,7 @@ mod errors;
 mod hermes;
 mod js_identifiers;
 mod jsontypes;
+pub mod lazy;
 mod sourceview;
 mod types;
 mod utils;

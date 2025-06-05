@@ -933,137 +933,145 @@ impl SourceMap {
     ///
     /// Note that the resulting sourcemap will be at most as fine-grained as `self.`.
     pub fn adjust_mappings(&mut self, adjustment: &Self) {
-        // The algorithm works by going through the tokens in `self` in order and adjusting
-        // them depending on the token in `adjustment` they're "covered" by.
-        // For example:
-        // Let `l` be a token in `adjustment` mapping `(17, 23)` to `(8, 30)` and let
-        // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
-        // `r₃ : (9, 10) -> (103, 12)` be the tokens in `self` that fall in the range of `l`.
-        // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
-        // amount. Thus, the adjusted sourcemap will contain the tokens
-        // `c₁ : (17, 23) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
-        // `c3 : (18, 3) -> (103, 12)`.
-        //
-        // Or, in diagram form:
-        //
-        //    (17, 23)                                    (position in the edited source file)
-        //    ↓ l
-        //    (8, 30)
-        // (8, 28)        (8, 40)        (9, 10)          (positions in the original source file)
-        // ↓ r₁           ↓ r₂           ↓ r₃
-        // (102, 35)      (102, 50)      (103, 12)        (positions in the target file)
-        //
-        // becomes
-        //
-        //    (17, 23)       (17, 33)       (18, 3)       (positions in the edited source file)
-        //    ↓ c₁           ↓ c₂           ↓ c₃
-        //    (102, 35)      (102, 50)      (103, 12)     (positions in the target file)
+        self.tokens = adjust_mappings(
+            std::mem::take(&mut self.tokens),
+            Cow::Borrowed(&adjustment.tokens),
+        );
+    }
+}
 
-        // Helper struct that makes it easier to compare tokens by the start and end
-        // of the range they cover.
-        #[derive(Debug, Clone, Copy)]
-        struct Range<'a> {
-            start: (u32, u32),
-            end: (u32, u32),
-            value: &'a RawToken,
+pub(crate) fn adjust_mappings(
+    mut self_tokens: Vec<RawToken>,
+    adjustments: Cow<[RawToken]>,
+) -> Vec<RawToken> {
+    // The algorithm works by going through the tokens in `self` in order and adjusting
+    // them depending on the token in `adjustment` they're "covered" by.
+    // For example:
+    // Let `l` be a token in `adjustment` mapping `(17, 23)` to `(8, 30)` and let
+    // `r₁ : (8, 28) -> (102, 35)`, `r₂ : (8, 40) -> (102, 50)`, and
+    // `r₃ : (9, 10) -> (103, 12)` be the tokens in `self` that fall in the range of `l`.
+    // `l` offsets these tokens by `(+9, -7)`, so `r₁, … , r₃` must be offset by the same
+    // amount. Thus, the adjusted sourcemap will contain the tokens
+    // `c₁ : (17, 23) -> (102, 35)`, `c₂ : (17, 33) -> (102, 50)`, and
+    // `c3 : (18, 3) -> (103, 12)`.
+    //
+    // Or, in diagram form:
+    //
+    //    (17, 23)                                    (position in the edited source file)
+    //    ↓ l
+    //    (8, 30)
+    // (8, 28)        (8, 40)        (9, 10)          (positions in the original source file)
+    // ↓ r₁           ↓ r₂           ↓ r₃
+    // (102, 35)      (102, 50)      (103, 12)        (positions in the target file)
+    //
+    // becomes
+    //
+    //    (17, 23)       (17, 33)       (18, 3)       (positions in the edited source file)
+    //    ↓ c₁           ↓ c₂           ↓ c₃
+    //    (102, 35)      (102, 50)      (103, 12)     (positions in the target file)
+
+    // Helper struct that makes it easier to compare tokens by the start and end
+    // of the range they cover.
+    #[derive(Debug, Clone, Copy)]
+    struct Range<'a> {
+        start: (u32, u32),
+        end: (u32, u32),
+        value: &'a RawToken,
+    }
+
+    /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
+    #[allow(clippy::ptr_arg)]
+    fn create_ranges(tokens: &mut [RawToken], key: fn(&RawToken) -> (u32, u32)) -> Vec<Range<'_>> {
+        tokens.sort_unstable_by_key(key);
+
+        let mut token_iter = tokens.iter().peekable();
+        let mut ranges = Vec::new();
+
+        while let Some(t) = token_iter.next() {
+            let start = key(t);
+            let next_start = token_iter.peek().map_or((u32::MAX, u32::MAX), |t| key(t));
+            // A token extends either to the start of the next token or the end of the line, whichever comes sooner
+            let end = std::cmp::min(next_start, (start.0, u32::MAX));
+            ranges.push(Range {
+                start,
+                end,
+                value: t,
+            });
         }
 
-        /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
-        #[allow(clippy::ptr_arg)]
-        fn create_ranges(
-            tokens: &mut [RawToken],
-            key: fn(&RawToken) -> (u32, u32),
-        ) -> Vec<Range<'_>> {
-            tokens.sort_unstable_by_key(key);
+        ranges
+    }
 
-            let mut token_iter = tokens.iter().peekable();
-            let mut ranges = Vec::new();
+    let mut new_tokens = Vec::with_capacity(self_tokens.len());
 
-            while let Some(t) = token_iter.next() {
-                let start = key(t);
-                let next_start = token_iter.peek().map_or((u32::MAX, u32::MAX), |t| key(t));
-                // A token extends either to the start of the next token or the end of the line, whichever comes sooner
-                let end = std::cmp::min(next_start, (start.0, u32::MAX));
-                ranges.push(Range {
-                    start,
-                    end,
-                    value: t,
-                });
+    // Turn `self.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
+    // both start and end.
+    // We want to compare `self` and `adjustment` tokens by line/column numbers in the "original source" file.
+    // These line/column numbers are the `dst_line/col` for
+    // the `self` tokens and `src_line/col` for the `adjustment` tokens.
+    let original_ranges = create_ranges(&mut self_tokens, |t| (t.dst_line, t.dst_col));
+    let mut adjustment_tokens = adjustments.into_owned();
+    let adjustment_ranges = create_ranges(&mut adjustment_tokens, |t| (t.src_line, t.src_col));
+
+    let mut original_ranges_iter = original_ranges.iter();
+
+    let mut original_range = match original_ranges_iter.next() {
+        Some(r) => r,
+        None => return self_tokens,
+    };
+
+    // Iterate over `adjustment_ranges` (sorted by `src_line/col`). For each such range, consider
+    // all `original_ranges` which overlap with it.
+    'outer: for &adjustment_range in &adjustment_ranges {
+        // The `adjustment_range` offsets lines and columns by a certain amount. All `original_ranges`
+        // it covers will get the same offset.
+        let (line_diff, col_diff) = (
+            adjustment_range.value.dst_line as i32 - adjustment_range.value.src_line as i32,
+            adjustment_range.value.dst_col as i32 - adjustment_range.value.src_col as i32,
+        );
+
+        // Skip `original_ranges` that are entirely before the `adjustment_range`.
+        while original_range.end <= adjustment_range.start {
+            match original_ranges_iter.next() {
+                Some(r) => original_range = r,
+                None => break 'outer,
             }
-
-            ranges
         }
 
-        // Turn `self.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
-        // both start and end.
-        // We want to compare `self` and `adjustment` tokens by line/column numbers in the "original source" file.
-        // These line/column numbers are the `dst_line/col` for
-        // the `self` tokens and `src_line/col` for the `adjustment` tokens.
-        let mut self_tokens = std::mem::take(&mut self.tokens);
-        let original_ranges = create_ranges(&mut self_tokens, |t| (t.dst_line, t.dst_col));
-        let mut adjustment_tokens = adjustment.tokens.clone();
-        let adjustment_ranges = create_ranges(&mut adjustment_tokens, |t| (t.src_line, t.src_col));
+        // At this point `original_range.end` > `adjustment_range.start`
 
-        let mut original_ranges_iter = original_ranges.iter();
+        // Iterate over `original_ranges` that fall at least partially within the `adjustment_range`.
+        while original_range.start < adjustment_range.end {
+            // If `original_range` started before `adjustment_range`, cut off the token's start.
+            let (dst_line, dst_col) = std::cmp::max(original_range.start, adjustment_range.start);
+            let mut token = RawToken {
+                dst_line,
+                dst_col,
+                ..*original_range.value
+            };
 
-        let mut original_range = match original_ranges_iter.next() {
-            Some(r) => r,
-            None => return,
-        };
+            token.dst_line = (token.dst_line as i32 + line_diff) as u32;
+            token.dst_col = (token.dst_col as i32 + col_diff) as u32;
 
-        // Iterate over `adjustment_ranges` (sorted by `src_line/col`). For each such range, consider
-        // all `original_ranges` which overlap with it.
-        'outer: for &adjustment_range in &adjustment_ranges {
-            // The `adjustment_range` offsets lines and columns by a certain amount. All `original_ranges`
-            // it covers will get the same offset.
-            let (line_diff, col_diff) = (
-                adjustment_range.value.dst_line as i32 - adjustment_range.value.src_line as i32,
-                adjustment_range.value.dst_col as i32 - adjustment_range.value.src_col as i32,
-            );
+            new_tokens.push(token);
 
-            // Skip `original_ranges` that are entirely before the `adjustment_range`.
-            while original_range.end <= adjustment_range.start {
+            if original_range.end >= adjustment_range.end {
+                // There are surely no more `original_ranges` for this `adjustment_range`.
+                // Break the loop without advancing the `original_range`.
+                break;
+            } else {
+                //  Advance the `original_range`.
                 match original_ranges_iter.next() {
                     Some(r) => original_range = r,
                     None => break 'outer,
                 }
             }
-
-            // At this point `original_range.end` > `adjustment_range.start`
-
-            // Iterate over `original_ranges` that fall at least partially within the `adjustment_range`.
-            while original_range.start < adjustment_range.end {
-                // If `original_range` started before `adjustment_range`, cut off the token's start.
-                let (dst_line, dst_col) =
-                    std::cmp::max(original_range.start, adjustment_range.start);
-                let mut token = RawToken {
-                    dst_line,
-                    dst_col,
-                    ..*original_range.value
-                };
-
-                token.dst_line = (token.dst_line as i32 + line_diff) as u32;
-                token.dst_col = (token.dst_col as i32 + col_diff) as u32;
-
-                self.tokens.push(token);
-
-                if original_range.end >= adjustment_range.end {
-                    // There are surely no more `original_ranges` for this `adjustment_range`.
-                    // Break the loop without advancing the `original_range`.
-                    break;
-                } else {
-                    //  Advance the `original_range`.
-                    match original_ranges_iter.next() {
-                        Some(r) => original_range = r,
-                        None => break 'outer,
-                    }
-                }
-            }
         }
-
-        self.tokens
-            .sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
     }
+
+    new_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+
+    new_tokens
 }
 
 impl SourceMapIndex {
