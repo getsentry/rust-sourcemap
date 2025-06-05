@@ -32,7 +32,7 @@ pub struct RawSourceMap<'a> {
     pub(crate) sources_content: MaybeRawValue<'a, Vec<Option<StrValue<'a>>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) sections: Option<Vec<RawSection<'a>>>,
-    #[serde(default, borrow, skip_serializing_if = "MaybeRawValue::is_empty")]
+    #[serde(default, borrow)]
     pub(crate) names: MaybeRawValue<'a, Vec<StrValue<'a>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) range_mappings: Option<String>,
