@@ -26,7 +26,7 @@
 //! Usage:
 //!
 //! ```rust
-//! use sourcemap::SourceMap;
+//! use swc_sourcemap::SourceMap;
 //! let input: &[_] = b"{
 //!     \"version\":3,
 //!     \"sources\":[\"coolstuff.js\"],

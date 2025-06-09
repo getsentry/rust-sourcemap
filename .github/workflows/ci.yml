@@ -1,11 +1,13 @@
 name: CI
 
+
 on:
+  merge_group:
+  pull_request:
+    types: ["opened", "reopened", "synchronize"]
   push:
     branches:
-      - master
-      - "release/**"
-  pull_request:
+      - main
 
 env:
   RUSTFLAGS: -Dwarnings

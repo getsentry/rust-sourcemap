@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::io::Read;
 
-use sourcemap::{decode, DecodedMap, RewriteOptions, SourceMap};
+use swc_sourcemap::{decode, DecodedMap, RewriteOptions, SourceMap};
 
 fn load_from_reader<R: Read>(mut rdr: R) -> SourceMap {
     match decode(&mut rdr).unwrap() {

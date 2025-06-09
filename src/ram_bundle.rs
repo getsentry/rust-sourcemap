@@ -1,4 +1,5 @@
 //! RAM bundle operations
+use bytes_str::BytesStr;
 use scroll::Pread;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -71,8 +72,8 @@ impl<'a> RamBundleModule<'a> {
     ///
     /// This operation fails if the source code is not valid UTF-8.
     pub fn source_view(&self) -> Result<SourceView> {
-        match std::str::from_utf8(self.data) {
-            Ok(s) => Ok(SourceView::new(s.into())),
+        match BytesStr::from_utf8_slice(self.data) {
+            Ok(s) => Ok(SourceView::new(s)),
             Err(e) => Err(Error::Utf8(e)),
         }
     }
@@ -386,7 +387,7 @@ impl<'a> SplitRamBundleModuleIter<'a> {
             as u32;
 
         let filename = format!("{}.js", module.id);
-        let mut builder = SourceMapBuilder::new(Some(&filename));
+        let mut builder = SourceMapBuilder::new(Some(filename.clone().into()));
         for token in token_iter {
             let dst_line = token.get_dst_line();
             let dst_col = token.get_dst_col();
@@ -400,14 +401,14 @@ impl<'a> SplitRamBundleModuleIter<'a> {
                 dst_col,
                 token.get_src_line(),
                 token.get_src_col(),
-                token.get_source(),
-                token.get_name(),
+                token.get_source().cloned(),
+                token.get_name().cloned(),
                 false,
             );
             if token.get_source().is_some() && !builder.has_source_contents(raw.src_id) {
                 builder.set_source_contents(
                     raw.src_id,
-                    self.sm.get_source_contents(token.get_src_id()),
+                    self.sm.get_source_contents(token.get_src_id()).cloned(),
                 );
             }
         }

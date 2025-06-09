@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process;
 
 use argh::FromArgs;
-use sourcemap::{DecodedMap, SourceView, Token};
+use swc_sourcemap::{DecodedMap, SourceView, Token};
 
 /// Utility for working with source maps.
 #[derive(FromArgs, Debug)]

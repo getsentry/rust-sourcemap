@@ -1,5 +1,5 @@
-use sourcemap::{DecodedMap, SourceMapIndex};
 use std::collections::HashMap;
+use swc_sourcemap::{DecodedMap, SourceMapIndex};
 
 #[test]
 fn test_basic_indexed_sourcemap() {
@@ -61,9 +61,9 @@ fn test_basic_indexed_sourcemap() {
         };
         let contents = {
             let filename = map.get_source(0).unwrap();
-            raw_files[filename]
+            raw_files[&**filename]
         };
-        map.set_source_contents(0, Some(contents));
+        map.set_source_contents(0, Some(contents.into()));
     }
     let flat_map = ism.flatten().unwrap();
 
@@ -72,7 +72,7 @@ fn test_basic_indexed_sourcemap() {
     println!("{}", String::from_utf8(out).unwrap());
 
     for token in flat_map.tokens() {
-        let src = &files[token.get_source().unwrap()];
+        let src = &files[&**token.get_source().unwrap()];
         if let Some(name) = token.get_name() {
             let line = src[token.get_src_line() as usize];
             let idx = token.get_src_col() as usize;
@@ -82,7 +82,7 @@ fn test_basic_indexed_sourcemap() {
     }
 
     for (src_id, filename) in flat_map.sources().enumerate() {
-        let ref_contents = &files[filename];
+        let ref_contents = &files[&**filename];
         let contents: Vec<_> = flat_map
             .get_source_contents(src_id as u32)
             .unwrap_or_else(|| panic!("no source for {}", filename))

@@ -1,3 +1,4 @@
+use bytes_str::BytesStr;
 use debugid::DebugId;
 use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,7 @@ pub struct RawSection {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct FacebookScopeMapping {
-    pub names: Vec<String>,
+    pub names: Vec<BytesStr>,
     pub mappings: String,
 }
 

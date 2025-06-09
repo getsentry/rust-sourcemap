@@ -81,7 +81,7 @@ pub fn find_common_prefix<'a, I: Iterator<Item = &'a str>>(iter: I) -> Option<St
 /// Example:
 ///
 /// ```
-/// # use sourcemap::make_relative_path;
+/// # use swc_sourcemap::make_relative_path;
 /// assert_eq!(&make_relative_path(
 ///     "/foo/bar/baz.js", "/foo/baz.map"), "../baz.map");
 /// ```

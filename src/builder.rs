@@ -5,8 +5,8 @@ use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
+use bytes_str::BytesStr;
 use debugid::DebugId;
 use rustc_hash::FxHashMap;
 use url::Url;
@@ -20,14 +20,14 @@ use crate::types::{RawToken, SourceMap, Token};
 /// objects is generally not very comfortable.  As a general aid this
 /// type can help.
 pub struct SourceMapBuilder {
-    file: Option<Arc<str>>,
-    name_map: FxHashMap<Arc<str>, u32>,
-    names: Vec<Arc<str>>,
+    file: Option<BytesStr>,
+    name_map: FxHashMap<BytesStr, u32>,
+    names: Vec<BytesStr>,
     tokens: Vec<RawToken>,
-    source_map: FxHashMap<Arc<str>, u32>,
-    source_root: Option<Arc<str>>,
-    sources: Vec<Arc<str>>,
-    source_contents: Vec<Option<Arc<str>>>,
+    source_map: FxHashMap<BytesStr, u32>,
+    source_root: Option<BytesStr>,
+    sources: Vec<BytesStr>,
+    source_contents: Vec<Option<BytesStr>>,
     sources_mapping: Vec<u32>,
     ignore_list: BTreeSet<u32>,
     debug_id: Option<DebugId>,
@@ -52,9 +52,9 @@ fn resolve_local_reference(base: &Url, reference: &str) -> Option<PathBuf> {
 
 impl SourceMapBuilder {
     /// Creates a new source map builder and sets the file.
-    pub fn new(file: Option<&str>) -> SourceMapBuilder {
+    pub fn new(file: Option<BytesStr>) -> SourceMapBuilder {
         SourceMapBuilder {
-            file: file.map(Into::into),
+            file,
             name_map: FxHashMap::default(),
             names: vec![],
             tokens: vec![],
@@ -74,7 +74,7 @@ impl SourceMapBuilder {
     }
 
     /// Sets the file for the sourcemap (optional)
-    pub fn set_file<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
+    pub fn set_file<T: Into<BytesStr>>(&mut self, value: Option<T>) {
         self.file = value.map(Into::into);
     }
 
@@ -84,7 +84,7 @@ impl SourceMapBuilder {
     }
 
     /// Sets a new value for the source_root.
-    pub fn set_source_root<T: Into<Arc<str>>>(&mut self, value: Option<T>) {
+    pub fn set_source_root<T: Into<BytesStr>>(&mut self, value: Option<T>) {
         self.source_root = value.map(Into::into);
     }
 
@@ -94,24 +94,24 @@ impl SourceMapBuilder {
     }
 
     /// Registers a new source with the builder and returns the source ID.
-    pub fn add_source(&mut self, src: &str) -> u32 {
+    pub fn add_source(&mut self, src: BytesStr) -> u32 {
         self.add_source_with_id(src, !0)
     }
 
-    fn add_source_with_id(&mut self, src: &str, old_id: u32) -> u32 {
+    fn add_source_with_id(&mut self, src: BytesStr, old_id: u32) -> u32 {
         let count = self.sources.len() as u32;
-        let id = *self.source_map.entry(src.into()).or_insert(count);
+        let id = *self.source_map.entry(src.clone()).or_insert(count);
         if id == count {
-            self.sources.push(src.into());
+            self.sources.push(src);
             self.sources_mapping.push(old_id);
         }
         id
     }
 
     /// Changes the source name for an already set source.
-    pub fn set_source(&mut self, src_id: u32, src: &str) {
+    pub fn set_source(&mut self, src_id: u32, src: BytesStr) {
         assert!(src_id != !0, "Cannot set sources for tombstone source id");
-        self.sources[src_id as usize] = src.into();
+        self.sources[src_id as usize] = src;
     }
 
     /// Looks up a source name for an ID.
@@ -124,12 +124,12 @@ impl SourceMapBuilder {
     }
 
     /// Sets the source contents for an already existing source.
-    pub fn set_source_contents(&mut self, src_id: u32, contents: Option<&str>) {
+    pub fn set_source_contents(&mut self, src_id: u32, contents: Option<BytesStr>) {
         assert!(src_id != !0, "Cannot set sources for tombstone source id");
         if self.sources.len() > self.source_contents.len() {
             self.source_contents.resize(self.sources.len(), None);
         }
-        self.source_contents[src_id as usize] = contents.map(Into::into);
+        self.source_contents[src_id as usize] = contents;
     }
 
     /// Returns the current source contents for a source.
@@ -169,7 +169,7 @@ impl SourceMapBuilder {
             if let Ok(mut f) = fs::File::open(path) {
                 let mut contents = String::new();
                 if f.read_to_string(&mut contents).is_ok() {
-                    self.set_source_contents(src_id, Some(&contents));
+                    self.set_source_contents(src_id, Some(contents.into()));
                 }
             }
         }
@@ -178,11 +178,11 @@ impl SourceMapBuilder {
     }
 
     /// Registers a name with the builder and returns the name ID.
-    pub fn add_name(&mut self, name: &str) -> u32 {
+    pub fn add_name(&mut self, name: BytesStr) -> u32 {
         let count = self.names.len() as u32;
-        let id = *self.name_map.entry(name.into()).or_insert(count);
+        let id = *self.name_map.entry(name.clone()).or_insert(count);
         if id == count {
-            self.names.push(name.into());
+            self.names.push(name);
         }
         id
     }
@@ -195,8 +195,8 @@ impl SourceMapBuilder {
         dst_col: u32,
         src_line: u32,
         src_col: u32,
-        source: Option<&str>,
-        name: Option<&str>,
+        source: Option<BytesStr>,
+        name: Option<BytesStr>,
         is_range: bool,
     ) -> RawToken {
         self.add_with_id(
@@ -211,9 +211,9 @@ impl SourceMapBuilder {
         dst_col: u32,
         src_line: u32,
         src_col: u32,
-        source: Option<&str>,
+        source: Option<BytesStr>,
         source_id: u32,
-        name: Option<&str>,
+        name: Option<BytesStr>,
         is_range: bool,
     ) -> RawToken {
         let src_id = match source {
@@ -273,9 +273,9 @@ impl SourceMapBuilder {
             token.get_dst_col(),
             token.get_src_line(),
             token.get_src_col(),
-            token.get_source(),
+            token.get_source().cloned(),
             token.get_src_id(),
-            name,
+            name.cloned(),
             token.is_range(),
         )
     }
@@ -289,7 +289,7 @@ impl SourceMapBuilder {
                     prefix.push('/');
                 }
                 if source.starts_with(&prefix) {
-                    *source = source[prefix.len()..].into();
+                    source.advance(prefix.len());
                     break;
                 }
             }

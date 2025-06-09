@@ -1,4 +1,4 @@
-use sourcemap::{SourceMap, SourceView};
+use swc_sourcemap::{SourceMap, SourceView};
 
 #[test]
 fn test_basic_name_mapping() {
@@ -8,7 +8,7 @@ fn test_basic_name_mapping() {
     let sm = SourceMap::from_reader(input).unwrap();
 
     let name = sm.get_original_function_name(0, 107, "e", &sv);
-    assert_eq!(name, Some("onFailure"));
+    assert_eq!(name.map(|v| &**v), Some("onFailure"));
 
     // a stacktrae
     let locs = &[
@@ -19,7 +19,7 @@ fn test_basic_name_mapping() {
 
     for &(line, col, minified_name, original_name) in locs {
         let name = sm.get_original_function_name(line, col, minified_name, &sv);
-        assert_eq!(name, Some(original_name));
+        assert_eq!(name.map(|v| &**v), Some(original_name));
     }
 }
 
@@ -40,6 +40,6 @@ fn test_unicode_mapping() {
 
     for &(line, col, minified_name, original_name_match) in locs {
         let name = sm.get_original_function_name(line, col, minified_name, &sv);
-        assert_eq!(name, original_name_match);
+        assert_eq!(name.map(|v| &**v), original_name_match);
     }
 }

@@ -1,3 +1,5 @@
+use bytes_str::BytesStr;
+
 use crate::decoder::{decode, decode_regular, decode_slice};
 use crate::encoder::{encode, Encodable};
 use crate::errors::{Error, Result};
@@ -21,7 +23,7 @@ pub struct HermesScopeOffset {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HermesFunctionMap {
-    names: Vec<String>,
+    names: Vec<BytesStr>,
     mappings: Vec<HermesScopeOffset>,
 }
 
@@ -93,14 +95,14 @@ impl SourceMapHermes {
 
     /// Given a bytecode offset, this will find the enclosing scopes function
     /// name.
-    pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&str> {
+    pub fn get_original_function_name(&self, bytecode_offset: u32) -> Option<&BytesStr> {
         let token = self.sm.lookup_token(0, bytecode_offset)?;
 
         self.get_scope_for_token(token)
     }
 
     /// Resolves the name of the enclosing function for the given [`Token`].
-    pub fn get_scope_for_token(&self, token: Token) -> Option<&str> {
+    pub fn get_scope_for_token(&self, token: Token) -> Option<&BytesStr> {
         let function_map = self
             .function_maps
             .get(token.get_src_id() as usize)?
@@ -115,10 +117,7 @@ impl SourceMapHermes {
             &(token.get_src_line() + 1, token.get_src_col()),
             |o| (o.line, o.column),
         )?;
-        function_map
-            .names
-            .get(mapping.name_index as usize)
-            .map(|n| n.as_str())
+        function_map.names.get(mapping.name_index as usize)
     }
 
     /// This rewrites the sourcemap according to the provided rewrite

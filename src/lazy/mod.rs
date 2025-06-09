@@ -10,10 +10,10 @@ use crate::{
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashMap},
-    sync::Arc,
 };
 
 use bitvec::{order::Lsb0, vec::BitVec, view::BitView};
+use bytes_str::BytesStr;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::value::RawValue;
 
@@ -132,7 +132,7 @@ where
     }
 }
 
-type Str = Arc<str>;
+type Str = BytesStr;
 
 type StrValue<'a> = MaybeRawValue<'a, Str>;
 

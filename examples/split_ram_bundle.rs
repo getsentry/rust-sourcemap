@@ -3,8 +3,8 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 
-use sourcemap::ram_bundle::{split_ram_bundle, RamBundle, RamBundleType};
-use sourcemap::SourceMapIndex;
+use swc_sourcemap::ram_bundle::{split_ram_bundle, RamBundle, RamBundleType};
+use swc_sourcemap::SourceMapIndex;
 
 const USAGE: &str = "
 Usage:

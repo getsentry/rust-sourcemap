@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 
-use sourcemap::{decode, DecodedMap, RewriteOptions, SourceMap};
+use swc_sourcemap::{decode, DecodedMap, RewriteOptions, SourceMap};
 
 fn test(sm: &SourceMap) {
     for (src_id, source) in sm.sources().enumerate() {
@@ -14,7 +14,7 @@ fn test(sm: &SourceMap) {
             if f.read_to_string(&mut contents).ok().is_none() {
                 continue;
             }
-            if Some(contents.as_str()) != sm.get_source_contents(src_id as u32) {
+            if Some(contents.as_str()) != sm.get_source_contents(src_id as u32).map(|v| &**v) {
                 println!("  !!! {source}");
             }
         }

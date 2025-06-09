@@ -1,11 +1,11 @@
 [package]
-name = "sourcemap"
-version = "9.2.2"
-authors = ["Sentry <hello@sentry.io>"]
+name = "swc_sourcemap"
+version = "9.3.0"
+authors = ["Sentry <hello@sentry.io>", "swc-project <https://swc.rs>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
-description = "Basic sourcemap handling for Rust"
-homepage = "https://github.com/getsentry/rust-sourcemap"
-repository = "https://github.com/getsentry/rust-sourcemap"
+description = "Forked from https://github.com/getsentry/rust-sourcemap"
+homepage = "https://github.com/swc-project/swc-sourcemap"
+repository = "https://github.com/swc-project/swc-sourcemap"
 license = "BSD-3-Clause"
 readme = "README.md"
 edition = "2018"
@@ -34,6 +34,7 @@ debugid = {version = "0.8.0", features = ["serde"] }
 base64-simd = { version = "0.8" }
 bitvec = "1.0.1"
 rustc-hash = "2.1.1"
+bytes-str = { version = "0.2.4", features = ["serde"] }
 
 [features]
 ram_bundle = ["scroll"]

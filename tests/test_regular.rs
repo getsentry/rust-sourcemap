@@ -1,4 +1,4 @@
-use sourcemap::{SourceMap, SourceMapBuilder};
+use swc_sourcemap::{SourceMap, SourceMapBuilder};
 
 #[test]
 fn test_basic_sourcemap() {
@@ -39,7 +39,7 @@ fn test_basic_sourcemap() {
 #[test]
 fn test_basic_range() {
     let mut b = SourceMapBuilder::new(None);
-    let id = b.add_source("input.js");
+    let id = b.add_source("input.js".into());
     b.add_raw(1, 0, 2, 2, Some(id), None, true);
     let sm = b.into_sourcemap();
 
