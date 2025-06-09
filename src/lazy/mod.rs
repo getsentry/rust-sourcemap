@@ -24,7 +24,7 @@ pub struct RawSourceMap<'a> {
     pub(crate) version: Option<u32>,
     #[serde(default, borrow, skip_serializing_if = "Option::is_none")]
     pub(crate) file: Option<MaybeRawValue<'a, Str>>,
-    #[serde(borrow, skip_serializing_if = "MaybeRawValue::is_empty")]
+    #[serde(borrow)]
     pub(crate) sources: MaybeRawValue<'a, Vec<StrValue<'a>>>,
     #[serde(default, borrow, skip_serializing_if = "Option::is_none")]
     pub(crate) source_root: Option<StrValue<'a>>,
