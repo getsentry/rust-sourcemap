@@ -132,19 +132,41 @@ where
     }
 }
 
+impl<'a, T> MaybeRawValue<'a, T>
+where
+    T: Deserialize<'a>,
+    T: Default,
+{
+    pub fn as_data(&mut self) -> &mut T {
+        match self {
+            MaybeRawValue::RawValue(s) => {
+                *self = MaybeRawValue::Data(
+                    serde_json::from_str(s.get()).expect("Failed to convert RawValue to Data"),
+                );
+                if let MaybeRawValue::Data(data) = self {
+                    data
+                } else {
+                    unreachable!()
+                }
+            }
+            MaybeRawValue::Data(data) => data,
+        }
+    }
+}
+
 type Str = BytesStr;
 
 type StrValue<'a> = MaybeRawValue<'a, Str>;
 
 #[derive(Debug)]
 pub struct SourceMap<'a> {
-    file: Option<StrValue<'a>>,
-    tokens: Vec<RawToken>,
-    names: MaybeRawValue<'a, Vec<StrValue<'a>>>,
-    source_root: Option<StrValue<'a>>,
-    sources: MaybeRawValue<'a, Vec<StrValue<'a>>>,
-    sources_content: MaybeRawValue<'a, Vec<Option<StrValue<'a>>>>,
-    ignore_list: Option<MaybeRawValue<'a, BTreeSet<u32>>>,
+    pub(crate) file: Option<StrValue<'a>>,
+    pub(crate) tokens: Vec<RawToken>,
+    pub(crate) names: MaybeRawValue<'a, Vec<StrValue<'a>>>,
+    pub(crate) source_root: Option<StrValue<'a>>,
+    pub(crate) sources: MaybeRawValue<'a, Vec<StrValue<'a>>>,
+    pub(crate) sources_content: MaybeRawValue<'a, Vec<Option<StrValue<'a>>>>,
+    pub(crate) ignore_list: Option<MaybeRawValue<'a, BTreeSet<u32>>>,
 }
 
 #[derive(Debug)]
@@ -443,6 +465,35 @@ impl<'a> SourceMap<'a> {
             names: self.names,
             ignore_list: self.ignore_list,
         }
+    }
+
+    pub fn file(&mut self) -> Option<&BytesStr> {
+        self.file.as_mut().map(|f| &*f.as_data())
+    }
+
+    pub fn sources(&mut self) -> impl Iterator<Item = &'_ BytesStr> + use<'_, 'a> {
+        self.sources.as_data().iter_mut().map(|d| &*d.as_data())
+    }
+
+    pub fn get_source(&mut self, src_id: u32) -> Option<&BytesStr> {
+        self.sources
+            .as_data()
+            .get_mut(src_id as usize)
+            .map(|d| &*d.as_data())
+    }
+
+    pub fn get_name(&mut self, src_id: u32) -> Option<&BytesStr> {
+        self.names
+            .as_data()
+            .get_mut(src_id as usize)
+            .map(|d| &*d.as_data())
+    }
+
+    pub fn get_source_contents(&mut self, src_id: u32) -> Option<&BytesStr> {
+        self.sources_content
+            .as_data()
+            .get_mut(src_id as usize)
+            .and_then(|d| d.as_mut().map(|d| &*d.as_data()))
     }
 }
 

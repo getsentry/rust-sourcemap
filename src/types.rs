@@ -15,6 +15,7 @@ use crate::utils::{find_common_prefix, greatest_lower_bound};
 
 use bytes_str::BytesStr;
 use debugid::DebugId;
+use rustc_hash::FxHashSet;
 
 /// Controls the `SourceMap::rewrite` behavior
 ///
@@ -940,6 +941,14 @@ impl SourceMap {
             Cow::Borrowed(&adjustment.tokens),
         );
     }
+
+    /// Perform a similar operation as [`Self::adjust_mappings`], but by rewriting the last
+    /// sourcemap as opposed to the input source map:
+    ///
+    /// `transform.js.map.adjust_mappings_from_multiple([foo.js.map, bar.js.map])`
+    pub fn adjust_mappings_from_multiple(self, adjustments: Vec<crate::lazy::SourceMap>) -> Self {
+        adjust_mappings_from_multiple(self, adjustments)
+    }
 }
 
 pub(crate) fn adjust_mappings(
@@ -1074,6 +1083,207 @@ pub(crate) fn adjust_mappings(
     new_tokens.sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
 
     new_tokens
+}
+
+pub fn adjust_mappings_from_multiple(
+    mut this: SourceMap,
+    mut input_maps: Vec<crate::lazy::SourceMap>,
+) -> SourceMap {
+    // Helper struct that makes it easier to compare tokens by the start and end
+    // of the range they cover.
+    #[derive(Debug, Clone, Copy)]
+    struct Range<'a> {
+        start: (u32, u32),
+        end: (u32, u32),
+        value: &'a RawToken,
+        map_idx: u32,
+    }
+
+    /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
+    #[allow(clippy::ptr_arg)]
+    fn create_ranges(
+        tokens: &mut [(u32, RawToken)],
+        key: fn(&RawToken) -> (u32, u32),
+    ) -> Vec<Range<'_>> {
+        tokens.sort_unstable_by_key(|(_, t)| key(t));
+
+        let mut token_iter = tokens.iter().peekable();
+        let mut ranges = Vec::new();
+
+        while let Some((map_idx, t)) = token_iter.next() {
+            let start = key(t);
+            let next_start = token_iter
+                .peek()
+                .map_or((u32::MAX, u32::MAX), |(_, t)| key(t));
+            // A token extends either to the start of the next token or the end of the line, whichever comes sooner
+            let end = std::cmp::min(next_start, (start.0, u32::MAX));
+            ranges.push(Range {
+                start,
+                end,
+                value: t,
+                map_idx: *map_idx,
+            });
+        }
+
+        ranges
+    }
+
+    // Turn `self.tokens` and `adjustment.tokens` into vectors of ranges so we have easy access to
+    // both start and end.
+    // We want to compare `self` and `adjustment` tokens by line/column numbers in the "original source" file.
+    // These line/column numbers are the `dst_line/col` for
+    // the `self` tokens and `src_line/col` for the `adjustment` tokens.
+    let mut input_tokens = input_maps
+        .iter_mut()
+        .enumerate()
+        .flat_map(|(i, map)| {
+            std::mem::take(&mut map.tokens)
+                .into_iter()
+                .map(move |t| ((i + 1) as u32, t))
+        })
+        .collect::<Vec<_>>();
+    let input_ranges = create_ranges(&mut input_tokens[..], |t| (t.dst_line, t.dst_col));
+    let mut self_tokens = std::mem::take(&mut this.tokens)
+        .into_iter()
+        .map(|t| (0u32, t))
+        .collect::<Vec<_>>();
+    let self_ranges = create_ranges(&mut self_tokens[..], |t| (t.src_line, t.src_col));
+
+    let mut input_ranges_iter = input_ranges.iter();
+    let mut input_range = match input_ranges_iter.next() {
+        Some(r) => Some(r),
+        None => return this,
+    };
+
+    let covered_input_files = input_maps
+        .iter_mut()
+        .flat_map(|m| m.file().cloned())
+        .collect::<FxHashSet<_>>();
+
+    let mut new_map = SourceMapBuilder::new(None);
+    let mut add_mapping = |input_maps: &mut Vec<crate::lazy::SourceMap<'_>>,
+                           map_idx: u32,
+                           dst_line: u32,
+                           dst_col: u32,
+                           src_line: u32,
+                           src_col: u32,
+                           src_id: u32,
+                           name_id: u32,
+                           is_range: bool| {
+        let (src_id, name) = if map_idx == 0 {
+            let src = this.get_source(src_id).cloned();
+            (
+                src.map(|src| {
+                    let src_id = new_map.add_source(src);
+                    new_map.set_source_contents(src_id, this.get_source_contents(src_id).cloned());
+                    src_id
+                }),
+                this.get_name(name_id).cloned(),
+            )
+        } else {
+            let this = &mut input_maps[(map_idx - 1) as usize];
+            let src = this.get_source(src_id).cloned();
+            (
+                src.map(|src| {
+                    let src_id = new_map.add_source(src);
+                    new_map.set_source_contents(src_id, this.get_source_contents(src_id).cloned());
+                    src_id
+                }),
+                this.get_name(name_id).cloned(),
+            )
+        };
+        let name_id = name.map(|name| new_map.add_source(name));
+        new_map.add_raw(
+            dst_line, dst_col, src_line, src_col, src_id, name_id, is_range,
+        );
+    };
+
+    // Iterate over `self_ranges` (sorted by `src_line/col`). For each such range, consider
+    // all `self_ranges` which overlap with it.
+    for &self_range in &self_ranges {
+        // The `self_range` offsets lines and columns by a certain amount. All `input_ranges`
+        // it covers will get the same offset.
+        let (line_diff, col_diff) = (
+            self_range.value.dst_line as i32 - self_range.value.src_line as i32,
+            self_range.value.dst_col as i32 - self_range.value.src_col as i32,
+        );
+
+        // Skip `input_ranges` that are entirely before the `_range`.
+        while input_range.is_some_and(|input_range| input_range.end <= self_range.start) {
+            input_range = input_ranges_iter.next();
+        }
+        // At this point `self_range.end` > `input_range.start`
+
+        if input_range.is_none_or(|input_range| {
+            self_range.start >= input_range.end
+                || this.get_source(self_range.value.src_id).is_none_or(|src| {
+                    Some(src) != input_maps[(input_range.map_idx - 1) as usize].file()
+                })
+        }) {
+            // No input range matches this range, keep the mapping though if this file isn't covered
+            // by any input sourcemap
+            if this
+                .get_source(self_range.value.src_id)
+                .is_none_or(|f| !covered_input_files.contains(f))
+            {
+                add_mapping(
+                    &mut input_maps,
+                    0,
+                    self_range.value.dst_line,
+                    self_range.value.dst_col,
+                    self_range.value.src_line,
+                    self_range.value.src_col,
+                    self_range.value.src_id,
+                    self_range.value.name_id,
+                    self_range.value.is_range,
+                );
+            }
+        } else {
+            let mut input_range_value = input_range.unwrap();
+            // Iterate over `input_range` that fall at least partially within the `self_ranges`.
+            while input_range_value.start < self_range.end {
+                // If `input_range` started before `self_range`, cut off the token's start.
+                let (dst_line, dst_col) = std::cmp::max(input_range_value.start, self_range.start);
+                add_mapping(
+                    &mut input_maps,
+                    input_range_value.map_idx,
+                    (dst_line as i32 + line_diff) as u32,
+                    (dst_col as i32 + col_diff) as u32,
+                    input_range_value.value.src_line,
+                    input_range_value.value.src_col,
+                    input_range_value.value.src_id,
+                    input_range_value.value.name_id,
+                    input_range_value.value.is_range,
+                );
+
+                if input_range_value.end >= self_range.end {
+                    // There are surely no more `input_ranges` for this `self_range`.
+                    // Break the loop without advancing the `input_range`.
+                    break;
+                } else {
+                    //  Advance the `input_range`.
+                    match input_ranges_iter.next() {
+                        Some(r) => {
+                            input_range_value = r;
+                            input_range = Some(r);
+                        }
+                        None => {
+                            input_range = None;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut new_map = new_map.into_sourcemap();
+
+    new_map
+        .tokens
+        .sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+
+    new_map
 }
 
 impl SourceMapIndex {
@@ -1420,6 +1630,8 @@ impl SourceMapSection {
 mod tests {
     use std::collections::BTreeSet;
 
+    use crate::lazy::MaybeRawValue;
+
     use super::{DecodedMap, RewriteOptions, SourceMap, SourceMapIndex, SourceMapSection};
     use debugid::DebugId;
 
@@ -1505,6 +1717,43 @@ mod tests {
                 "bundler = {bundler}"
             );
         }
+    }
+
+    #[test]
+    fn adjust_mappings_from_multiple() {
+        let original_map_file = std::fs::read_to_string(
+            "tests/fixtures/adjust_mappings_from_multiple/sourcemapped.js.map",
+        )
+        .unwrap();
+
+        let bundled_map_file =
+            std::fs::read_to_string("tests/fixtures/adjust_mappings_from_multiple/bundle.js.map")
+                .unwrap();
+
+        let mut original_map = crate::lazy::decode(original_map_file.as_bytes())
+            .unwrap()
+            .into_source_map()
+            .unwrap();
+        original_map.file = Some(MaybeRawValue::Data("turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/sourcemapped.js".into()));
+
+        let bundled_map = match crate::decode(bundled_map_file.as_bytes()).unwrap() {
+            DecodedMap::Regular(source_map) => source_map,
+            DecodedMap::Index(source_map_index) => source_map_index.flatten().unwrap(),
+            DecodedMap::Hermes(_) => unimplemented!(),
+        };
+        // original_map.adjust_mappings(&bundled_map);
+        let bundled_map = bundled_map.adjust_mappings_from_multiple(vec![original_map]);
+
+        let mut result = vec![];
+        bundled_map.to_writer(&mut result).unwrap();
+        let result = String::from_utf8(result).unwrap();
+        // std::fs::write("tests/fixtures/adjust_mappings_from_multiple/merged.js.map", result).unwrap();
+
+        let bundled_map_file =
+            std::fs::read_to_string("tests/fixtures/adjust_mappings_from_multiple/merged.js.map")
+                .unwrap();
+
+        assert_eq!(bundled_map_file, result)
     }
 
     #[test]
