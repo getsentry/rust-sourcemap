@@ -564,8 +564,7 @@ impl SourceMap {
         encode(self, &mut buf)?;
         let b64 = base64_simd::STANDARD.encode_to_string(&buf);
         Ok(format!(
-            "data:application/json;charset=utf-8;base64,{}",
-            b64
+            "data:application/json;charset=utf-8;base64,{b64}"
         ))
     }
 
