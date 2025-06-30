@@ -125,7 +125,7 @@ impl fmt::Display for Error {
             Error::InvalidRamBundleEntry => write!(f, "invalid ram bundle module entry"),
             Error::NotARamBundle => write!(f, "not a ram bundle"),
             Error::InvalidRangeMappingIndex(err) => write!(f, "invalid range mapping index: {err}"),
-            Error::InvalidBase64(c) => write!(f, "invalid base64 character: {}", c),
+            Error::InvalidBase64(c) => write!(f, "invalid base64 character: {c}"),
         }
     }
 }
