@@ -1189,7 +1189,7 @@ pub fn adjust_mappings_from_multiple(
                 this.get_name(name_id).cloned(),
             )
         };
-        let name_id = name.map(|name| new_map.add_source(name));
+        let name_id = name.map(|name| new_map.add_name(name));
         new_map.add_raw(
             dst_line, dst_col, src_line, src_col, src_id, name_id, is_range,
         );
