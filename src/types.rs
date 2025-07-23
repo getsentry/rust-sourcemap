@@ -564,10 +564,7 @@ impl SourceMap {
         let mut buf = vec![];
         encode(self, &mut buf)?;
         let b64 = base64_simd::STANDARD.encode_to_string(&buf);
-        Ok(format!(
-            "data:application/json;charset=utf-8;base64,{}",
-            b64
-        ))
+        Ok(format!("data:application/json;charset=utf-8;base64,{b64}"))
     }
 
     /// Creates a sourcemap from a reader over a JSON byte slice in UTF-8
