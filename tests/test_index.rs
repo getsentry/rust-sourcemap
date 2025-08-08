@@ -100,10 +100,11 @@ fn test_basic_indexed_sourcemap() {
         ism.lookup_token(0, 0).unwrap().to_tuple(),
         ("file1.js", 0, 0, None)
     );
-    assert_eq!(
-        ism.lookup_token(1, 0).unwrap().to_tuple(),
-        ("file1.js", 2, 12, Some("b"))
-    );
+
+    // Line 1, column 0 (zero-based) falls into the first section,
+    // but there are no mappings for line 1 there.
+    assert!(ism.lookup_token(1, 0).is_none());
+
     assert_eq!(
         ism.lookup_token(1, 1).unwrap().to_tuple(),
         ("file2.js", 0, 0, None)

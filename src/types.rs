@@ -713,6 +713,13 @@ impl SourceMap {
         let (idx, raw) =
             greatest_lower_bound(&self.tokens, &(line, col), |t| (t.dst_line, t.dst_col))?;
 
+        // If the token has a lower minified line number,
+        // it actually belongs to the previous line. That means it should
+        // not match.
+        if raw.dst_line < line {
+            return None;
+        }
+
         let mut token = Token {
             raw,
             sm: self,
