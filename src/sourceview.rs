@@ -258,7 +258,7 @@ impl SourceView {
     }
 
     /// Returns an iterator over all lines.
-    pub fn lines(&self) -> Lines {
+    pub fn lines(&self) -> Lines<'_> {
         Lines { sv: self, idx: 0 }
     }
 

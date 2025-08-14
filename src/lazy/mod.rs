@@ -313,7 +313,7 @@ pub struct SourceMapIndex<'a> {
     sections: Vec<SourceMapSection<'a>>,
 }
 
-pub fn decode(slice: &[u8]) -> Result<DecodedMap> {
+pub fn decode(slice: &[u8]) -> Result<DecodedMap<'_>> {
     let content = strip_junk_header(slice)?;
     let rsm: RawSourceMap = serde_json::from_slice(content)?;
 

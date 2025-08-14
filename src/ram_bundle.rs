@@ -162,7 +162,7 @@ impl<'a> RamBundle<'a> {
     }
 
     /// Looks up a module by ID in the bundle
-    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule>> {
+    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule<'_>>> {
         match self.repr {
             RamBundleImpl::Indexed(ref indexed) => indexed.get_module(id),
             RamBundleImpl::Unbundle(ref file) => file.get_module(id),
@@ -185,7 +185,7 @@ impl<'a> RamBundle<'a> {
         }
     }
     /// Returns an iterator over all modules in the bundle
-    pub fn iter_modules(&self) -> RamBundleModuleIter {
+    pub fn iter_modules(&self) -> RamBundleModuleIter<'_> {
         RamBundleModuleIter {
             range: 0..self.module_count(),
             ram_bundle: self,
@@ -268,7 +268,7 @@ impl UnbundleRamBundle {
     }
 
     /// Looks up a module by ID in the bundle
-    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule>> {
+    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule<'_>>> {
         match self.modules.get(&id) {
             Some(data) => Ok(Some(RamBundleModule { id, data })),
             None => Ok(None),
@@ -321,7 +321,7 @@ impl<'a> IndexedRamBundle<'a> {
     }
 
     /// Looks up a module by ID in the bundle
-    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule>> {
+    pub fn get_module(&self, id: usize) -> Result<Option<RamBundleModule<'_>>> {
         if id >= self.module_count {
             return Err(Error::InvalidRamBundleIndex);
         }
