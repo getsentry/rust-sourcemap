@@ -1171,9 +1171,10 @@ pub fn adjust_mappings_from_multiple(
             let src = this.get_source(src_id).cloned();
             (
                 src.map(|src| {
-                    let src_id = new_map.add_source(src);
-                    new_map.set_source_contents(src_id, this.get_source_contents(src_id).cloned());
-                    src_id
+                    let new_src_id = new_map.add_source(src);
+                    new_map
+                        .set_source_contents(new_src_id, this.get_source_contents(src_id).cloned());
+                    new_src_id
                 }),
                 this.get_name(name_id).cloned(),
             )
@@ -1182,9 +1183,10 @@ pub fn adjust_mappings_from_multiple(
             let src = this.get_source(src_id).cloned();
             (
                 src.map(|src| {
-                    let src_id = new_map.add_source(src);
-                    new_map.set_source_contents(src_id, this.get_source_contents(src_id).cloned());
-                    src_id
+                    let new_src_id = new_map.add_source(src);
+                    new_map
+                        .set_source_contents(new_src_id, this.get_source_contents(src_id).cloned());
+                    new_src_id
                 }),
                 this.get_name(name_id).cloned(),
             )
