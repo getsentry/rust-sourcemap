@@ -54,7 +54,10 @@ pub struct RawSourceMap {
     pub x_metro_module_paths: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x_facebook_sources: FacebookSources,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename(serialize = "debugId", deserialize = "debug_id"),
+        skip_serializing_if = "Option::is_none"
+    )]
     pub debug_id: Option<DebugId>,
     // This field only exists to be able to deserialize from "debugId" keys
     // if "debug_id" is unset.

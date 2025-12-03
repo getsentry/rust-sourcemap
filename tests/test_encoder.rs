@@ -62,3 +62,38 @@ fn test_empty_range() {
     let out = String::from_utf8(out).unwrap();
     assert!(!out.contains("rangeMappings"));
 }
+
+#[test]
+fn test_sourcemap_serializes_camel_case_debug_id() {
+    const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
+    let input = format!(
+        r#"{{
+            "version": 3,
+            "sources": [],
+            "names": [],
+            "mappings": "",
+            "debug_id": "{}"
+        }}"#,
+        DEBUG_ID
+    );
+
+    let sm = SourceMap::from_reader(input.as_bytes()).unwrap();
+    let expected = sm
+        .get_debug_id()
+        .expect("debug id parsed")
+        .to_string();
+    let mut out: Vec<u8> = vec![];
+    sm.to_writer(&mut out).unwrap();
+    let serialized = String::from_utf8(out).unwrap();
+
+    assert!(
+        serialized.contains(&format!(r#""debugId":"{}""#, expected)),
+        "expected camelCase debugId in {}",
+        serialized
+    );
+    assert!(
+        !serialized.contains("debug_id"),
+        "unexpected snake_case key in {}",
+        serialized
+    );
+}
