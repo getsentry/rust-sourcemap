@@ -354,7 +354,6 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jsontypes::DebugIdField;
     use std::io::{self, BufRead};
 
     #[test]

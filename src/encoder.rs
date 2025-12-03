@@ -230,7 +230,6 @@ impl Encodable for DecodedMap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jsontypes::DebugIdField;
 
     #[test]
     fn test_encode_rmi() {

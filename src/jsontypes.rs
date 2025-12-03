@@ -117,3 +117,46 @@ impl From<DebugIdField> for Option<DebugId> {
         value.value
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn parse_debug_id(input: &str) -> DebugId {
+        input.parse().expect("valid debug id")
+    }
+
+    fn empty_sourcemap() -> RawSourceMap {
+        serde_json::from_value::<RawSourceMap>(serde_json::json!({}))
+            .expect("can deserialize empty JSON to RawSourceMap")
+    }
+
+    #[test]
+    fn raw_sourcemap_serializes_camel_case_debug_id() {
+        let camel = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+        let raw = RawSourceMap {
+            debug_id: Some(parse_debug_id(camel)).into(),
+            ..empty_sourcemap()
+        };
+
+        let value = serde_json::to_value(raw).expect("should serialize without error");
+        let obj = value.as_object().expect("should be an object");
+        assert!(obj.get("debug_id").is_none());
+        assert_eq!(obj.get("debugId"), Some(&json!(parse_debug_id(camel))));
+    }
+
+    #[test]
+    fn raw_sourcemap_prefers_camel_case_on_deserialize() {
+        let legacy = "ffffffffffffffffffffffffffffffff";
+        let camel = "00000000000000000000000000000000";
+        let json = serde_json::json!({
+            "debug_id": legacy,
+            "debugId": camel
+        });
+        let raw: RawSourceMap =
+            serde_json::from_value(json).expect("can deserialize as RawSourceMap");
+        let value: Option<DebugId> = raw.debug_id.into();
+        assert_eq!(value, Some(parse_debug_id(camel)));
+    }
+}
