@@ -267,9 +267,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut sm = SourceMap::new(file, tokens, names, sources, source_content);
     sm.set_source_root(rsm.source_root);
-    // Use _debug_id_new (from "debugId" key) only if debug_id
-    // from ( "debug_id" key) is unset
-    sm.set_debug_id(rsm.debug_id.or(rsm._debug_id_new));
+    sm.set_debug_id(rsm.debug_id.into());
     if let Some(ignore_list) = rsm.ignore_list {
         for idx in ignore_list {
             sm.add_to_ignore_list(idx);
@@ -307,7 +305,7 @@ fn decode_index(rsm: RawSourceMap) -> Result<SourceMapIndex> {
         rsm.x_facebook_offsets,
         rsm.x_metro_module_paths,
     )
-    .with_debug_id(rsm._debug_id_new.or(rsm.debug_id)))
+    .with_debug_id(rsm.debug_id.into()))
 }
 
 fn decode_common(rsm: RawSourceMap) -> Result<DecodedMap> {
@@ -356,6 +354,7 @@ pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jsontypes::DebugIdField;
     use std::io::{self, BufRead};
 
     #[test]
@@ -419,8 +418,7 @@ mod tests {
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
-            debug_id: None,
-            _debug_id_new: None,
+            debug_id: None.into(),
         };
 
         let decoded = decode_common(raw).expect("should decoded");
@@ -448,40 +446,7 @@ mod tests {
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
-            debug_id: None,
-            _debug_id_new: Some(DEBUG_ID.parse().expect("valid debug id")),
-        };
-
-        let decoded = decode_common(raw).expect("should decode");
-        assert_eq!(
-            decoded,
-            DecodedMap::Index(
-                SourceMapIndex::new(Some("test.js".into()), vec![])
-                    .with_debug_id(Some(DEBUG_ID.parse().expect("valid debug id")))
-            )
-        );
-    }
-
-    #[test]
-    fn test_decode_sourcemap_index_debug_id_from_legacy_key() {
-        const DEBUG_ID: &str = "0123456789abcdef0123456789abcdef";
-
-        let raw = RawSourceMap {
-            version: Some(3),
-            file: Some("test.js".into()),
-            sources: None,
-            source_root: None,
-            sources_content: None,
-            sections: Some(vec![]),
-            names: None,
-            range_mappings: None,
-            mappings: None,
-            ignore_list: None,
-            x_facebook_offsets: None,
-            x_metro_module_paths: None,
-            x_facebook_sources: None,
-            debug_id: Some(DEBUG_ID.parse().expect("valid debug id")),
-            _debug_id_new: None,
+            debug_id: Some(DEBUG_ID.parse().expect("valid debug id")).into(),
         };
 
         let decoded = decode_common(raw).expect("should decode");

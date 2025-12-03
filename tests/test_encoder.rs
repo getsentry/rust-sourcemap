@@ -78,10 +78,7 @@ fn test_sourcemap_serializes_camel_case_debug_id() {
     );
 
     let sm = SourceMap::from_reader(input.as_bytes()).unwrap();
-    let expected = sm
-        .get_debug_id()
-        .expect("debug id parsed")
-        .to_string();
+    let expected = sm.get_debug_id().expect("debug id parsed").to_string();
     let mut out: Vec<u8> = vec![];
     sm.to_writer(&mut out).unwrap();
     let serialized = String::from_utf8(out).unwrap();
