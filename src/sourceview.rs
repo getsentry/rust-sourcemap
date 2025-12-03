@@ -174,17 +174,19 @@ impl SourceView {
         let idx = idx as usize;
 
         let get_from_line_ends = |line_ends: &[LineEndOffset]| {
-            line_ends.get(idx).map(|&end_offset| {
-                let start_offset = if idx == 0 {
-                    0
-                } else {
-                    line_ends[idx - 1].to_start_index()
-                };
-                &self.source[start_offset..end_offset.to_end_index()]
-            })
+            let end = line_ends.get(idx)?.to_end_index();
+            let start = if idx == 0 {
+                0
+            } else {
+                line_ends[idx - 1].to_start_index()
+            };
+            Some(&self.source[start..end])
         };
 
-        let mut line_ends = self.line_end_offsets.lock().unwrap();
+        let mut line_ends = self
+            .line_end_offsets
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         if let Some(line) = get_from_line_ends(&line_ends) {
             return Some(line);
@@ -329,8 +331,10 @@ impl SourceView {
 }
 
 /// A wrapper around an index that stores a [`LineTerminator`] in its 2 lowest bits.
+// We use `u64` instead of `usize` in order to not lose data when bit-packing
+// on 32-bit targets.
 #[derive(Clone, Copy)]
-struct LineEndOffset(usize);
+struct LineEndOffset(u64);
 
 #[derive(Clone, Copy)]
 enum LineTerminator {
@@ -341,26 +345,19 @@ enum LineTerminator {
 
 impl LineEndOffset {
     fn new(index: usize, line_end: LineTerminator) -> Self {
-        let shifted = index << 2;
+        let shifted = (index as u64) << 2;
 
-        // check for overflow - on 64-bit, this isn't a concern, since you'd have to
-        // have a source string longer than 4 exabytes
-        #[cfg(any(target_pointer_width = "16", target_pointer_width = "32"))]
-        if shifted >> 2 != index {
-            panic!("index too large!")
-        }
-
-        Self(shifted | line_end as usize)
+        Self(shifted | line_end as u64)
     }
 
     /// Return the index of the end of this line.
     fn to_end_index(self) -> usize {
-        self.0 >> 2
+        (self.0 >> 2) as usize
     }
 
     /// Return the index of the start of the next line.
     fn to_start_index(self) -> usize {
-        self.to_end_index() + (self.0 & 0b11)
+        self.to_end_index() + (self.0 & 0b11) as usize
     }
 }
 
