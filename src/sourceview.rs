@@ -1,8 +1,5 @@
 use std::fmt;
-use std::slice;
 use std::str;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -129,16 +126,14 @@ impl<'a> Iterator for Lines<'a> {
 /// operations.
 pub struct SourceView {
     source: Arc<str>,
-    processed_until: AtomicUsize,
-    lines: Mutex<Vec<&'static str>>,
+    line_end_offsets: Mutex<Vec<LineEndOffset>>,
 }
 
 impl Clone for SourceView {
     fn clone(&self) -> SourceView {
         SourceView {
             source: self.source.clone(),
-            processed_until: AtomicUsize::new(0),
-            lines: Mutex::new(vec![]),
+            line_end_offsets: Mutex::new(vec![]),
         }
     }
 }
@@ -162,8 +157,7 @@ impl SourceView {
     pub fn new(source: Arc<str>) -> SourceView {
         SourceView {
             source,
-            processed_until: AtomicUsize::new(0),
-            lines: Mutex::new(vec![]),
+            line_end_offsets: Mutex::new(vec![]),
         }
     }
 
@@ -171,50 +165,66 @@ impl SourceView {
     pub fn from_string(source: String) -> SourceView {
         SourceView {
             source: source.into(),
-            processed_until: AtomicUsize::new(0),
-            lines: Mutex::new(vec![]),
+            line_end_offsets: Mutex::new(vec![]),
         }
     }
 
     /// Returns a requested minified line.
     pub fn get_line(&self, idx: u32) -> Option<&str> {
         let idx = idx as usize;
-        {
-            let lines = self.lines.lock().unwrap();
-            if idx < lines.len() {
-                return Some(lines[idx]);
-            }
+
+        let get_from_line_ends = |line_ends: &[LineEndOffset]| {
+            let end = line_ends.get(idx)?.to_end_index();
+            let start = if idx == 0 {
+                0
+            } else {
+                line_ends[idx - 1].to_start_index()
+            };
+            Some(&self.source[start..end])
+        };
+
+        let mut line_ends = self
+            .line_end_offsets
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        if let Some(line) = get_from_line_ends(&line_ends) {
+            return Some(line);
         }
 
-        // fetched everything
-        if self.processed_until.load(Ordering::Relaxed) > self.source.len() {
+        // check whether we've processed the entire string - the end of the
+        // last-processed line would be the same as the end of the string
+        if line_ends
+            .last()
+            .is_some_and(|i| i.to_end_index() == self.source.len())
+        {
             return None;
         }
 
-        let mut lines = self.lines.lock().unwrap();
+        let mut rest_offset = line_ends.last().map_or(0, |i| i.to_start_index());
+        let mut rest = &self.source[rest_offset..];
         let mut done = false;
 
         while !done {
-            let rest = &self.source.as_bytes()[self.processed_until.load(Ordering::Relaxed)..];
-
-            let rv = if let Some(mut idx) = rest.iter().position(|&x| x == b'\n' || x == b'\r') {
-                let rv = &rest[..idx];
-                if rest[idx] == b'\r' && rest.get(idx + 1) == Some(&b'\n') {
-                    idx += 1;
+            let line_term = if let Some(idx) = rest.find(['\n', '\r']) {
+                rest_offset += idx;
+                rest = &rest[idx..];
+                if rest.starts_with("\r\n") {
+                    LineTerminator::CrLf
+                } else {
+                    LineTerminator::LfOrCr
                 }
-                self.processed_until.fetch_add(idx + 1, Ordering::Relaxed);
-                rv
             } else {
-                self.processed_until
-                    .fetch_add(rest.len() + 1, Ordering::Relaxed);
+                rest_offset += rest.len();
+                rest = &rest[rest.len()..];
                 done = true;
-                rest
+                LineTerminator::Eof
             };
 
-            lines.push(unsafe {
-                str::from_utf8_unchecked(slice::from_raw_parts(rv.as_ptr(), rv.len()))
-            });
-            if let Some(&line) = lines.get(idx) {
+            line_ends.push(LineEndOffset::new(rest_offset, line_term));
+            rest_offset += line_term as usize;
+            rest = &rest[line_term as usize..];
+            if let Some(line) = get_from_line_ends(&line_ends) {
                 return Some(line);
             }
         }
@@ -311,12 +321,43 @@ impl SourceView {
     /// Returns the number of lines.
     pub fn line_count(&self) -> usize {
         self.get_line(!0);
-        self.lines.lock().unwrap().len()
+        self.line_end_offsets.lock().unwrap().len()
     }
 
     /// Returns the source map reference in the source view.
     pub fn sourcemap_reference(&self) -> Result<Option<SourceMapRef>> {
         locate_sourcemap_reference_slice(self.source.as_bytes())
+    }
+}
+
+/// A wrapper around an index that stores a [`LineTerminator`] in its 2 lowest bits.
+// We use `u64` instead of `usize` in order to not lose data when bit-packing
+// on 32-bit targets.
+#[derive(Clone, Copy)]
+struct LineEndOffset(u64);
+
+#[derive(Clone, Copy)]
+enum LineTerminator {
+    Eof = 0,
+    LfOrCr = 1,
+    CrLf = 2,
+}
+
+impl LineEndOffset {
+    fn new(index: usize, line_end: LineTerminator) -> Self {
+        let shifted = (index as u64) << 2;
+
+        Self(shifted | line_end as u64)
+    }
+
+    /// Return the index of the end of this line.
+    fn to_end_index(self) -> usize {
+        (self.0 >> 2) as usize
+    }
+
+    /// Return the index of the start of the next line.
+    fn to_start_index(self) -> usize {
+        self.to_end_index() + (self.0 & 0b11) as usize
     }
 }
 
