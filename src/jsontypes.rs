@@ -1,8 +1,9 @@
 use bytes_str::BytesStr;
 use debugid::DebugId;
 use serde::de::IgnoredAny;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct RawSectionOffset {
@@ -55,12 +56,8 @@ pub struct RawSourceMap {
     pub x_metro_module_paths: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x_facebook_sources: FacebookSources,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub debug_id: Option<DebugId>,
-    // This field only exists to be able to deserialize from "debugId" keys
-    // if "debug_id" is unset.
-    #[serde(skip_serializing_if = "Option::is_none", rename = "debugId")]
-    pub(crate) _debug_id_new: Option<DebugId>,
+    #[serde(flatten)]
+    pub debug_id: DebugIdField,
 }
 
 #[derive(Deserialize)]
@@ -75,4 +72,92 @@ pub struct MinimalRawSourceMap {
     pub sections: Option<IgnoredAny>,
     pub names: Option<IgnoredAny>,
     pub mappings: Option<IgnoredAny>,
+}
+
+/// This struct represents a `RawSourceMap`'s debug ID fields.
+///
+/// The reason this exists as a seperate struct is so that we can have custom deserialization
+/// logic, which can read both the  legacy snake_case debug_id and the new camelCase debugId
+/// fields. In case both are provided, the camelCase field takes precedence.
+///
+/// The field is always serialized as `debugId`.
+#[derive(Serialize, Clone, PartialEq, Debug, Default)]
+pub(crate) struct DebugIdField {
+    #[serde(rename = "debugId", skip_serializing_if = "Option::is_none")]
+    value: Option<DebugId>,
+}
+
+impl<'de> Deserialize<'de> for DebugIdField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // We cannot use serde(alias), as that would cause an error when both fields are present.
+
+        #[derive(Deserialize)]
+        struct Helper {
+            #[serde(rename = "debugId")]
+            camel: Option<DebugId>,
+            #[serde(rename = "debug_id")]
+            legacy: Option<DebugId>,
+        }
+
+        let Helper { camel, legacy } = Helper::deserialize(deserializer)?;
+        Ok(camel.or(legacy).into())
+    }
+}
+
+impl From<Option<DebugId>> for DebugIdField {
+    fn from(value: Option<DebugId>) -> Self {
+        Self { value }
+    }
+}
+
+impl From<DebugIdField> for Option<DebugId> {
+    fn from(value: DebugIdField) -> Self {
+        value.value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn parse_debug_id(input: &str) -> DebugId {
+        input.parse().expect("valid debug id")
+    }
+
+    fn empty_sourcemap() -> RawSourceMap {
+        serde_json::from_value::<RawSourceMap>(serde_json::json!({}))
+            .expect("can deserialize empty JSON to RawSourceMap")
+    }
+
+    #[test]
+    fn raw_sourcemap_serializes_camel_case_debug_id() {
+        let camel = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+        let raw = RawSourceMap {
+            debug_id: Some(parse_debug_id(camel)).into(),
+            ..empty_sourcemap()
+        };
+
+        let value = serde_json::to_value(raw).expect("should serialize without error");
+        let obj = value.as_object().expect("should be an object");
+        assert!(obj.get("debug_id").is_none());
+        assert_eq!(obj.get("debugId"), Some(&json!(parse_debug_id(camel))));
+    }
+
+    #[test]
+    fn raw_sourcemap_prefers_camel_case_on_deserialize() {
+        let legacy = "ffffffffffffffffffffffffffffffff";
+        let camel = "00000000000000000000000000000000";
+        let json = serde_json::json!({
+            "debug_id": legacy,
+            "debugId": camel
+        });
+        let raw: RawSourceMap =
+            serde_json::from_value(json).expect("can deserialize as RawSourceMap");
+        let value: Option<DebugId> = raw.debug_id.into();
+        assert_eq!(value, Some(parse_debug_id(camel)));
+    }
 }

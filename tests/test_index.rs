@@ -205,3 +205,33 @@ fn test_flatten_indexed_sourcemap_with_ignore_list() {
         vec![1]
     );
 }
+
+#[test]
+fn test_sourcemap_index_serializes_camel_case_debug_id() {
+    const DEBUG_ID: &str = "fedcba9876543210fedcba9876543210";
+    let input = format!(
+        r#"{{
+            "version": 3,
+            "file": "bundle.js",
+            "sections": [],
+            "debugId": "{}"
+        }}"#,
+        DEBUG_ID
+    );
+
+    let smi = SourceMapIndex::from_reader(input.as_bytes()).unwrap();
+    let mut out = Vec::new();
+    smi.to_writer(&mut out).unwrap();
+    let serialized = String::from_utf8(out).unwrap();
+
+    assert!(
+        serialized.contains(r#""debugId":"#),
+        "expected camelCase debugId in {}",
+        serialized
+    );
+    assert!(
+        !serialized.contains("debug_id"),
+        "unexpected snake_case key in {}",
+        serialized
+    );
+}
