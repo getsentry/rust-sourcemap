@@ -178,8 +178,7 @@ impl Encodable for SourceMap {
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
-            debug_id: self.get_debug_id(),
-            _debug_id_new: None,
+            debug_id: self.get_debug_id().into(),
         }
     }
 }
@@ -213,9 +212,7 @@ impl Encodable for SourceMapIndex {
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
-            debug_id: None,
-            // Put the debug ID on _debug_id_new to serialize it to the debugId field.
-            _debug_id_new: self.debug_id(),
+            debug_id: self.debug_id().into(),
         }
     }
 }
@@ -278,8 +275,7 @@ mod tests {
                 x_facebook_offsets: None,
                 x_metro_module_paths: None,
                 x_facebook_sources: None,
-                debug_id: None,
-                _debug_id_new: None,
+                debug_id: None.into(),
             }
         );
     }
@@ -308,8 +304,7 @@ mod tests {
                 x_facebook_offsets: None,
                 x_metro_module_paths: None,
                 x_facebook_sources: None,
-                debug_id: None,
-                _debug_id_new: Some(DEBUG_ID.parse().expect("valid debug id")),
+                debug_id: Some(DEBUG_ID.parse().expect("valid debug id")).into(),
             }
         );
     }
