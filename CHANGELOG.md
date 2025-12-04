@@ -1,5 +1,19 @@
 # Changelog
 
+## 9.3.0
+
+### New Features ✨
+
+- feat(debugId): Serialize source maps with `debugId`, not `debug_id` by @szokeasaurusrex in [#134](https://github.com/getsentry/rust-sourcemap/pull/134)
+
+### Build / dependencies / internal 🔧
+
+- chore: Fix 1.88.0 clippy lints by @loewenheim in [#130](https://github.com/getsentry/rust-sourcemap/pull/130)
+
+### Other
+
+- Store SourceView linecache as offsets rather than pointers by @coolreader18 in [#133](https://github.com/getsentry/rust-sourcemap/pull/133)
+
 ## 9.2.2
 
 ### Various fixes & improvements
