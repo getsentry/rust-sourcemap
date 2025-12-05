@@ -12,8 +12,6 @@ use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
 use crate::vlq::parse_vlq_segment_into;
 
-const DATA_PREAMBLE: &str = "data:application/json;base64,";
-
 #[derive(PartialEq, Eq)]
 enum HeaderState {
     Undecided,
@@ -339,12 +337,22 @@ pub fn decode_slice(slice: &[u8]) -> Result<DecodedMap> {
     decode_common(rsm)
 }
 
-/// Loads a sourcemap from a data URL
+/// Loads a sourcemap from a data URL.
+///
+/// The URL should match the regex
+/// `data:application/json;(charset=utf-?8;)?base64,(?<base64sourcemap>.+)`.
 pub fn decode_data_url(url: &str) -> Result<DecodedMap> {
-    if !url.starts_with(DATA_PREAMBLE) {
-        return Err(Error::InvalidDataUrl);
-    }
-    let data_b64 = &url[DATA_PREAMBLE.len()..];
+    let rest = url
+        .strip_prefix("data:application/json")
+        .ok_or(Error::InvalidDataUrl)?;
+    let rest = match rest.strip_prefix(";charset=") {
+        Some(rest) => rest
+            .strip_prefix("utf-8")
+            .or_else(|| rest.strip_prefix("utf8"))
+            .ok_or(Error::InvalidDataUrl)?,
+        None => rest,
+    };
+    let data_b64 = rest.strip_prefix(";base64,").ok_or(Error::InvalidDataUrl)?;
     let data = data_encoding::BASE64
         .decode(data_b64.as_bytes())
         .map_err(|_| Error::InvalidDataUrl)?;
