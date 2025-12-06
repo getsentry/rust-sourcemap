@@ -116,11 +116,11 @@ fn test_basic_sourcemap_source_root_logic() {
 
 #[test]
 fn test_sourcemap_data_url() {
-    let url = "data:application/json;base64,\
+    let base64 = "\
                eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImNvb2xzdHVmZi5qcyJdLCJzb3VyY2VSb290I\
                joieCIsIm5hbWVzIjpbIngiLCJhbGVydCJdLCJtYXBwaW5ncyI6IkFBQUEsR0FBSUEsR0\
                FBSSxFQUNSLElBQUlBLEdBQUssRUFBRyxDQUNWQyxNQUFNIn0=";
-    match decode_data_url(url).unwrap() {
+    let test_url = |prefix: &str| match decode_data_url(&[prefix, base64].concat()).unwrap() {
         DecodedMap::Regular(sm) => {
             let mut iter = sm.tokens().filter(Token::has_name);
             assert_eq!(
@@ -140,7 +140,10 @@ fn test_sourcemap_data_url() {
         _ => {
             panic!("did not get sourcemap");
         }
-    }
+    };
+    test_url("data:application/json;base64,");
+    test_url("data:application/json;charset=utf-8;base64,");
+    test_url("data:application/json;charset=utf8;base64,");
 }
 
 #[test]
