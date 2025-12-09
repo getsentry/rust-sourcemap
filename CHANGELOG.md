@@ -1,5 +1,9 @@
 # Changelog
 
+## 9.3.1
+
+- Support charset in `decode_data_url` by @coolreader18 in [#137](https://github.com/getsentry/rust-sourcemap/pull/137)
+
 ## 9.3.0
 
 ### New Features ✨
