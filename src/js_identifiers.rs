@@ -81,7 +81,7 @@ mod tests {
 
         // Non-ASCII identifiers
         assert!(is_valid_javascript_identifier("한글변수"));
-        assert!(is_valid_javascript_identifier("変数名"));
+        assert!(is_valid_javascript_identifier("变量名"));
         assert!(is_valid_javascript_identifier("ひらがな"));
 
         // Should these pass?
