@@ -27,26 +27,29 @@ fn is_valid_continue(c: char) -> bool {
 fn strip_identifier(s: &str) -> Option<&str> {
     let mut iter = s.char_indices();
     // Is the first character a valid starting character
-    match iter.next() {
+    let first_char_len = match iter.next() {
         Some((_, c)) => {
             if !is_valid_start(c) {
                 return None;
             }
+            c.len_utf8()
         }
         None => {
             return None;
         }
     };
     // Slice up to the last valid continuation character
-    let mut end_idx = 0;
+    // Initialize to end of first char to handle single-char and multibyte identifiers correctly
+    let mut end_idx = first_char_len;
     for (i, c) in iter {
         if is_valid_continue(c) {
-            end_idx = i;
+            // Store the end byte index (start + char length) for proper UTF-8 boundary
+            end_idx = i + c.len_utf8();
         } else {
             break;
         }
     }
-    Some(&s[..=end_idx])
+    Some(&s[..end_idx])
 }
 
 pub fn is_valid_javascript_identifier(s: &str) -> bool {
@@ -75,11 +78,23 @@ mod tests {
         assert!(!is_valid_javascript_identifier("foo "));
         assert!(!is_valid_javascript_identifier("[123]"));
         assert!(!is_valid_javascript_identifier("foo.bar"));
+
+        // Non-ASCII identifiers
+        assert!(is_valid_javascript_identifier("한글변수"));
+        assert!(is_valid_javascript_identifier("变量名"));
+        assert!(is_valid_javascript_identifier("ひらがな"));
+
         // Should these pass?
         // assert!(is_valid_javascript_identifier("foo [bar]"));
         assert_eq!(get_javascript_token("foo "), Some("foo"));
         assert_eq!(get_javascript_token("f _hi"), Some("f"));
         assert_eq!(get_javascript_token("foo.bar"), Some("foo"));
         assert_eq!(get_javascript_token("[foo,bar]"), None);
+        assert_eq!(
+            get_javascript_token("결제사_연결():De"),
+            Some("결제사_연결")
+        );
+        assert_eq!(get_javascript_token("变量名123"), Some("变量名123"));
+        assert_eq!(get_javascript_token("へんすう_test"), Some("へんすう_test"));
     }
 }
