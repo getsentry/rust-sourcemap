@@ -1,5 +1,9 @@
 # Changelog
 
+## 9.3.2
+
+- strip_identifier can cause a panic with cjk identifiers by @mznet in [#138](https://github.com/getsentry/rust-sourcemap/pull/138)
+
 ## 9.3.1
 
 - Support charset in `decode_data_url` by @coolreader18 in [#137](https://github.com/getsentry/rust-sourcemap/pull/137)
