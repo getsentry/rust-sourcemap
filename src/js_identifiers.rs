@@ -90,7 +90,10 @@ mod tests {
         assert_eq!(get_javascript_token("f _hi"), Some("f"));
         assert_eq!(get_javascript_token("foo.bar"), Some("foo"));
         assert_eq!(get_javascript_token("[foo,bar]"), None);
-        assert_eq!(get_javascript_token("결제사_연결():De"), Some("결제사_연결"));
+        assert_eq!(
+            get_javascript_token("결제사_연결():De"),
+            Some("결제사_연결")
+        );
         assert_eq!(get_javascript_token("变量名123"), Some("变量名123"));
         assert_eq!(get_javascript_token("へんすう_test"), Some("へんすう_test"));
     }
