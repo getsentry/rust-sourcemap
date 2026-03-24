@@ -15,11 +15,11 @@ jobs:
     name: Lints
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy --no-self-update
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
 
       - run: cargo fmt --all -- --check
 
@@ -29,11 +29,11 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - run: rustup toolchain install stable --profile minimal --no-self-update
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
 
       - run: cargo test --workspace
 
@@ -41,11 +41,11 @@ jobs:
     name: "Unit Tests - all features"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - run: rustup toolchain install stable --profile minimal --no-self-update
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
 
       - run: cargo test --workspace --all-features --all-targets
 
@@ -55,10 +55,10 @@ jobs:
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - run: rustup toolchain install stable --profile minimal --component rust-docs --no-self-update
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
 
       - run: cargo doc --workspace --all-features --document-private-items --no-deps
