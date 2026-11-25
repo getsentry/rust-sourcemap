@@ -10,10 +10,12 @@ use serde_json::Value;
 use crate::errors::{Error, Result};
 use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
-use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
+use crate::types::{
+    DecodedMap, OriginalScopes, RawToken, SourceMap, SourceMapIndex, SourceMapSection,
+};
 use crate::vlq::parse_vlq_segment_into;
 
-mod scopes;
+mod scope;
 
 #[derive(PartialEq, Eq)]
 enum HeaderState {
@@ -272,7 +274,13 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         match items.as_ref() {
             None => continue,
             Some(items) => {
-                scopes.insert(idx, scopes::decode_scopes(items)?);
+                let all_scopes = scope::decode_scopes(items)?;
+                let roots = (0..all_scopes.len())
+                    .into_iter()
+                    .filter(|idx| all_scopes[*idx].parent.is_none())
+                    .collect();
+
+                scopes.insert(idx, OriginalScopes { all_scopes, roots });
             }
         }
     }

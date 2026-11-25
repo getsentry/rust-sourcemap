@@ -149,50 +149,31 @@ fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u3
 /// Decodes one entry in a sourcemap's `scopes` array, containing
 /// scope information corresponding to one particular source file.
 ///
-/// The textual format is a comma-separated list of entries. Each entry
+/// The textual format is a comma-separated list of records. Each record
 /// must start with `B`, in which case it starts a scope, or `C`, in which
 /// case it ends a previously started scope, or `D`, in which case it
 /// contains variable information for the current scope. Variables aren't
 /// currently handled.
 ///
-/// Scope trees are encoded by simply nesting `B` and `C` entries appropriately.
+/// Scope trees are encoded by simply nesting `B` and `C` records appropriately.
 ///
 /// The returned list contains the parsed scopes in post-order. Each scope's
 /// `children` list contains the indices of its children (which precede it
 /// in the list).
 pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
-    // List of in-progress scopes, organized by nesting level.
-    //
-    // All scopes in `in_progress[j+1]` are children of the last scope in
-    // `in_progress[j]`. Scopes in `in_progress[0]` are top-level scopes
-    // which will be returned.
-    let mut in_progress = vec![vec![]];
+    // A stack of nested in-progress scopes.
+    let mut in_progress = vec![];
     let mut state = DecodeScopeState::default();
     let mut out: Vec<RawOriginalScope> = Vec::new();
 
     for item in items.split(',') {
         match item.split_at_checked(1) {
             Some(("B", start)) => {
-                in_progress
-                    .last_mut()
-                    .expect("in_progress is never empty")
-                    .push(decode_scope_start(start, &mut state)?);
-
-                // Push a new layer for this scope's children.
-                in_progress.push(Vec::new());
+                in_progress.push(decode_scope_start(start, &mut state)?);
             }
             Some(("C", end)) => {
-                // Pop the children of the scope that's being ended.
-                // The layer for the children was added when the scope was started,
-                // so if this fails, the scope data is malformed.
-                let children = match in_progress.pop() {
-                    Some(children) => children,
-                    None => return Err(Error::InvalidScopes),
-                };
-
-                // The last scope in the last layer (after popping the children) is the scope which is being closed by this end record.
-                // If it doesn't exist, the end record has no corresponding start record, so the scope data is malformed.
-                let current = match in_progress.last_mut().and_then(|level| level.last_mut()) {
+                // If there's no scope in progress, we have unbalanced start and end records.
+                let mut current = match in_progress.pop() {
                     Some(current) => current,
                     None => return Err(Error::InvalidScopes),
                 };
@@ -201,15 +182,22 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
                 current.end_line = end_line;
                 current.end_col = end_col;
 
-                // Append the current scope's children to the output list and
-                // record their indices in the current scope.
-                for child in children {
-                    for &grandchild_idx in &child.children {
-                        out[grandchild_idx].parent = Some(out.len());
-                    }
-                    current.children.push(out.len());
-                    out.push(child);
+                // The index the current scope will have in the output list.
+                let current_idx = out.len();
+
+                // If there's a scope in progress before the current one,
+                // we add the current one to its children.
+                if let Some(parent) = in_progress.last_mut() {
+                    parent.children.push(current_idx);
                 }
+
+                // We can now go back over the current scope's children (previously
+                // written) and set the parent.
+                for &child_idx in &current.children {
+                    out[child_idx].parent = Some(current_idx);
+                }
+
+                out.push(current)
             }
             Some(("D", _vars)) => {
                 // variables would be handled here
@@ -218,17 +206,8 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
         }
     }
 
-    // When we run out of items, exactly one layer of scopes (the top-level ones) should remain.
-    // Anything else indicates malformed data.
-    if in_progress.len() != 1 {
+    if !in_progress.is_empty() {
         return Err(Error::InvalidScopes);
-    }
-
-    for scope in in_progress.remove(0) {
-        for &child_idx in &scope.children {
-            out[child_idx].parent = Some(out.len());
-        }
-        out.push(scope);
     }
 
     Ok(out)
@@ -256,13 +235,4 @@ fn unsigned(mut vlq: i32) -> u32 {
     }
 
     vlq as u32
-}
-
-#[test]
-fn test_decode_scopes() {
-    let input = "BCCAQ,BHAAAC,BCCaC,CDC,CCA,CCY";
-
-    let scopes = decode_scopes(input).unwrap();
-    dbg!(scopes);
-    panic!();
 }
