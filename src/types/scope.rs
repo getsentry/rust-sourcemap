@@ -17,8 +17,8 @@ pub(crate) struct RawOriginalScope {
 #[derive(Debug, Clone)]
 pub struct OriginalScope<'a> {
     sm: &'a SourceMap,
+    scopes: &'a [RawOriginalScope],
     raw: &'a RawOriginalScope,
-    source: usize,
 }
 
 impl<'a> OriginalScope<'a> {
@@ -59,7 +59,7 @@ impl<'a> OriginalScope<'a> {
     pub fn children(&self) -> OriginalScopeIter<'a> {
         OriginalScopeIter {
             sm: self.sm,
-            source: self.source,
+            scopes: self.scopes,
             indices: &self.raw.children[..],
         }
     }
@@ -67,21 +67,20 @@ impl<'a> OriginalScope<'a> {
     /// Returns this scope's parent, or `None` if it is a root scope.
     pub fn parent(&self) -> Option<Self> {
         let parent_idx = self.raw.parent?;
-        let scopes = self.sm.scopes.get(&self.source)?;
-        let raw = scopes.all_scopes.get(parent_idx)?;
+        let raw = self.scopes.get(parent_idx)?;
 
         Some(Self {
             sm: self.sm,
+            scopes: self.scopes,
             raw,
-            source: self.source,
         })
     }
 }
 
 pub struct OriginalScopeIter<'a> {
     sm: &'a SourceMap,
+    scopes: &'a [RawOriginalScope],
     indices: &'a [usize],
-    source: usize,
 }
 
 impl<'a> Iterator for OriginalScopeIter<'a> {
@@ -90,11 +89,11 @@ impl<'a> Iterator for OriginalScopeIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let (next, rest) = self.indices.split_first()?;
         self.indices = rest;
-        let raw = self.sm.scopes.get(&self.source)?.all_scopes.get(*next)?;
+        let raw = self.scopes.get(*next)?;
         Some(OriginalScope {
             sm: self.sm,
+            scopes: self.scopes,
             raw,
-            source: self.source,
         })
     }
 }
@@ -102,15 +101,15 @@ impl<'a> Iterator for OriginalScopeIter<'a> {
 impl SourceMap {
     /// Returns an iterator over the root scopes for a source.
     pub fn scopes_for_source(&self, source_id: u32) -> OriginalScopeIter<'_> {
-        let indices = match self.scopes.get(&(source_id as usize)) {
-            Some(scopes) => &scopes.roots[..],
-            None => &[],
+        let (scopes, indices) = match self.scopes.get(&(source_id as usize)) {
+            Some(scopes) => (&scopes.all_scopes[..], &scopes.roots[..]),
+            None => (&[][..], &[][..]),
         };
 
         OriginalScopeIter {
             sm: self,
+            scopes,
             indices,
-            source: source_id as usize,
         }
     }
 }
