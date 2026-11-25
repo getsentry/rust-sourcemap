@@ -270,7 +270,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     let mut scopes = BTreeMap::new();
 
-    for (idx, items) in rsm.scopes.iter().enumerate() {
+    for (idx, items) in rsm.scopes.iter().flatten().enumerate() {
         match items.as_ref() {
             None => continue,
             Some(items) => {
@@ -446,7 +446,7 @@ mod tests {
             range_mappings: None,
             mappings: None,
             ignore_list: None,
-            scopes: vec![],
+            scopes: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
@@ -475,7 +475,7 @@ mod tests {
             range_mappings: None,
             mappings: None,
             ignore_list: None,
-            scopes: vec![],
+            scopes: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
