@@ -148,9 +148,10 @@ fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u3
 ///
 /// Scope trees are encoded by simply nesting `B` and `C` records appropriately.
 ///
-/// The returned list contains the parsed scopes in post-order. Each scope's
-/// `children` list contains the indices of its children (which precede it
-/// in the list).
+/// The returned struct contains the parsed scopes in post-order in the `all_scopes`
+/// field. Each scope's `children` list contains the indices of its children
+/// (which precede it) in `all_scopes`. Furthermore, the `roots` field contains
+/// the indices of the elements of `all_scopes` which are root scopes.
 pub fn decode_scopes(items: &str) -> Result<OriginalScopes> {
     if items.is_empty() {
         return Ok(Default::default());
