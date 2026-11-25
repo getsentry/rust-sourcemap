@@ -206,6 +206,9 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
         }
     }
 
+    // If the `in_progress` stack isn't empty at the point
+    // where we run out of records, we have unbalanced
+    // start and end records.
     if !in_progress.is_empty() {
         return Err(Error::InvalidScopes);
     }
