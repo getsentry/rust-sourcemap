@@ -1,5 +1,4 @@
 use crate::types::RawOriginalScope;
-use crate::Error::BadSegmentSize;
 use crate::{vlq, Error, Result};
 
 #[derive(Debug, Clone, Default)]
@@ -31,6 +30,24 @@ impl IndexAccumulator {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+struct VlqBuffer(Vec<i64>);
+
+impl VlqBuffer {
+    fn inner_mut(&mut self) -> &mut Vec<i64> {
+        self.0.clear();
+        &mut self.0
+    }
+
+    fn get(&self, index: usize) -> Result<i32> {
+        let n = self
+            .0
+            .get(index)
+            .ok_or(Error::BadSegmentSize(self.0.len() as u32))?;
+        Ok(*n as i32)
+    }
+}
+
 /// Running state for decoding the scopes for a source.
 #[derive(Debug, Clone, Default)]
 struct DecodeScopeState {
@@ -41,14 +58,13 @@ struct DecodeScopeState {
     /// The running kind index.
     kind_idx: IndexAccumulator,
     /// Buffer for decoding VLQs.
-    vlq_buffer: Vec<i64>,
+    vlq_buffer: VlqBuffer,
 }
 
 impl DecodeScopeState {
-    fn decode_vlq(&mut self, segment: &str) -> Result<&[i64]> {
-        self.vlq_buffer.clear();
-        vlq::parse_vlq_segment_into(segment, &mut self.vlq_buffer)?;
-        Ok(&self.vlq_buffer[..])
+    fn decode_vlq(&mut self, segment: &str) -> Result<&VlqBuffer> {
+        vlq::parse_vlq_segment_into(segment, self.vlq_buffer.inner_mut())?;
+        Ok(&self.vlq_buffer)
     }
 }
 
@@ -72,13 +88,10 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
     const STACKFRAME_FLAG: u32 = 0x4;
 
     let nums = state.decode_vlq(item)?;
-    if nums.len() < 3 {
-        return Err(BadSegmentSize(nums.len() as u32));
-    }
 
-    let flags = unsigned(nums[0] as i32);
-    let line = unsigned(nums[1] as i32);
-    let column = unsigned(nums[2] as i32);
+    let flags = unsigned(nums.get(0)?);
+    let line = unsigned(nums.get(1)?);
+    let column = unsigned(nums.get(2)?);
 
     let has_name = (flags & NAME_FLAG) > 0;
     let has_kind = (flags & KIND_FLAG) > 0;
@@ -86,27 +99,9 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
 
     let (name_id, kind_id) = match (has_name, has_kind) {
         (false, false) => (None, None),
-        (true, false) => {
-            if nums.len() < 4 {
-                return Err(BadSegmentSize(nums.len() as u32));
-            }
-
-            (Some(nums[3] as i32), None)
-        }
-        (false, true) => {
-            if nums.len() < 4 {
-                return Err(BadSegmentSize(nums.len() as u32));
-            }
-
-            (None, Some(nums[3] as i32))
-        }
-        (true, true) => {
-            if nums.len() < 5 {
-                return Err(BadSegmentSize(nums.len() as u32));
-            }
-
-            (Some(nums[3] as i32), Some(nums[4] as i32))
-        }
+        (true, false) => (Some(nums.get(3)?), None),
+        (false, true) => (None, Some(nums.get(3)?)),
+        (true, true) => (Some(nums.get(3)?), Some(nums.get(4)?)),
     };
 
     let (start_line, start_col) = state.position.advance(line, column);
@@ -136,12 +131,8 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
 /// of the scope closed by this record.
 fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u32)> {
     let nums = state.decode_vlq(item)?;
-    if nums.len() < 2 {
-        return Err(BadSegmentSize(nums.len() as u32));
-    }
-
-    let line = unsigned(nums[0] as i32);
-    let column = unsigned(nums[1] as i32);
+    let line = unsigned(nums.get(0)?);
+    let column = unsigned(nums.get(1)?);
 
     Ok(state.position.advance(line, column))
 }
