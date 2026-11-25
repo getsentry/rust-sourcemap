@@ -115,7 +115,7 @@ impl SourceMap {
 }
 
 /// A collection of scopes for one source.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct OriginalScopes {
     /// A forest of scopes.
     ///

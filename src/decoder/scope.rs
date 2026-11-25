@@ -1,4 +1,4 @@
-use crate::types::RawOriginalScope;
+use crate::types::{OriginalScopes, RawOriginalScope};
 use crate::{vlq, Error, Result};
 
 #[derive(Debug, Clone, Default)]
@@ -151,15 +151,15 @@ fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u3
 /// The returned list contains the parsed scopes in post-order. Each scope's
 /// `children` list contains the indices of its children (which precede it
 /// in the list).
-pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
+pub fn decode_scopes(items: &str) -> Result<OriginalScopes> {
     if items.is_empty() {
-        return Ok(vec![]);
+        return Ok(Default::default());
     }
 
     // A stack of nested in-progress scopes.
     let mut in_progress = vec![];
     let mut state = DecodeScopeState::default();
-    let mut out: Vec<RawOriginalScope> = Vec::new();
+    let mut out = OriginalScopes::default();
 
     for item in items.split(',') {
         match item.split_at_checked(1) {
@@ -178,7 +178,7 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
                 current.end_col = end_col;
 
                 // The index the current scope will have in the output list.
-                let current_idx = out.len();
+                let current_idx = out.all_scopes.len();
 
                 // If there's a scope in progress before the current one,
                 // we add the current one to its children.
@@ -189,10 +189,16 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
                 // We can now go back over the current scope's children (previously
                 // written) and set the parent.
                 for &child_idx in &current.children {
-                    out[child_idx].parent = Some(current_idx);
+                    out.all_scopes[child_idx].parent = Some(current_idx);
                 }
 
-                out.push(current)
+                out.all_scopes.push(current);
+
+                // If there's nothing left on the stack, then this was a
+                // root scope.
+                if in_progress.is_empty() {
+                    out.roots.push(current_idx);
+                }
             }
             Some(("D", _vars)) => {
                 // variables would be handled here
