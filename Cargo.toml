@@ -4,7 +4,6 @@ version = "9.3.2"
 authors = ["Sentry <hello@sentry.io>"]
 keywords = ["javascript", "sourcemap", "sourcemaps"]
 description = "Basic sourcemap handling for Rust"
-homepage = "https://github.com/getsentry/rust-sourcemap"
 repository = "https://github.com/getsentry/rust-sourcemap"
 license = "BSD-3-Clause"
 readme = "README.md"
