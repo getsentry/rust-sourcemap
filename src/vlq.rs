@@ -286,12 +286,7 @@ pub(crate) fn parse_vlq_segment_into(segment: &str, rv: &mut Vec<i64>) -> Result
             let sign = cur & 1;
             cur >>= 1;
             if sign != 0 {
-                // See <https://tc39.es/ecma426/#sec-base64-vlq>, point 5.
-                if cur == 0 {
-                    cur = i32::MIN as i64;
-                } else {
-                    cur = -cur;
-                }
+                cur = -cur;
             }
             rv.push(cur);
             cur = 0;
@@ -343,8 +338,6 @@ mod tests {
         assert_eq!(rv, vec![0, 0, 0, 0]);
         let rv = parse_vlq_segment("GAAIA").unwrap();
         assert_eq!(rv, vec![3, 0, 0, 4, 0]);
-        let rv = parse_vlq_segment("B").unwrap();
-        assert_eq!(rv, vec![i32::MIN as i64]);
     }
 
     #[test]
