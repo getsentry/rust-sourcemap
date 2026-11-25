@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::Arc;
@@ -244,6 +244,7 @@ pub struct SourceMap {
     pub(crate) sources_prefixed: Option<Vec<Arc<str>>>,
     pub(crate) sources_content: Vec<Option<SourceView>>,
     pub(crate) ignore_list: BTreeSet<u32>,
+    pub(crate) scopes: BTreeMap<usize, Vec<RawOriginalScope>>,
     pub(crate) debug_id: Option<DebugId>,
 }
 
@@ -370,6 +371,7 @@ impl SourceMap {
                 .map(|opt| opt.map(SourceView::new))
                 .collect(),
             ignore_list: BTreeSet::default(),
+            scopes: BTreeMap::new(),
             debug_id: None,
         }
     }
@@ -715,7 +717,6 @@ impl SourceMap {
         }
 
         /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
-        #[allow(clippy::ptr_arg)]
         fn create_ranges(
             tokens: &mut [RawToken],
             key: fn(&RawToken) -> (u32, u32),
@@ -812,9 +813,45 @@ impl SourceMap {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct RawOriginalScope {
+    pub(crate) start_line: u32,
+    pub(crate) start_col: u32,
+    pub(crate) end_line: u32,
+    pub(crate) end_col: u32,
+    pub(crate) name_id: u32,
+    pub(crate) kind_id: u32,
+    pub(crate) is_stack_frame: bool,
+    pub(crate) children: Vec<RawOriginalScope>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OriginalScope<'a> {
+    sm: &'a SourceMap,
+    raw: RawOriginalScope,
+}
+
+impl<'a> OriginalScope<'a> {
+    pub fn get_name(&self) -> Option<&'a str> {
+        if self.raw.name_id == !0 {
+            None
+        } else {
+            self.sm.get_name(self.raw.name_id)
+        }
+    }
+
+    pub fn get_kind(&self) -> Option<&'a str> {
+        if self.raw.kind_id == !0 {
+            None
+        } else {
+            self.sm.get_name(self.raw.kind_id)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::{DecodedMap, RewriteOptions, SourceMap};
     use debugid::DebugId;
@@ -939,6 +976,7 @@ mod tests {
             sources_prefixed: None,
             sources_content: vec![],
             ignore_list: BTreeSet::new(),
+            scopes: BTreeMap::new(),
             debug_id: None,
         });
 
@@ -957,6 +995,7 @@ mod tests {
                 sources_prefixed: None,
                 sources_content: vec![],
                 ignore_list: BTreeSet::new(),
+                scopes: BTreeMap::new(),
                 debug_id: Some(DEBUG_ID.parse().expect("valid debug id")),
             })
         );

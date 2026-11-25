@@ -49,6 +49,8 @@ pub enum Error {
     InvalidRangeMappingIndex(data_encoding::DecodeError),
 
     InvalidBase64(char),
+    /// Invalid scope data
+    InvalidScopes,
 }
 
 impl From<io::Error> for Error {
@@ -126,6 +128,7 @@ impl fmt::Display for Error {
             Error::NotARamBundle => write!(f, "not a ram bundle"),
             Error::InvalidRangeMappingIndex(err) => write!(f, "invalid range mapping index: {err}"),
             Error::InvalidBase64(c) => write!(f, "invalid base64 character: {c}"),
+            Error::InvalidScopes => write!(f, "invalid scope data in sourcemap"),
         }
     }
 }

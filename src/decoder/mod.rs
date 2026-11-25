@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io;
 use std::io::{BufReader, Read};
 
@@ -11,6 +12,8 @@ use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
 use crate::vlq::parse_vlq_segment_into;
+
+mod scopes;
 
 #[derive(PartialEq, Eq)]
 enum HeaderState {
@@ -263,6 +266,17 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
         .sources_content
         .map(|x| x.into_iter().map(|v| v.map(Into::into)).collect::<Vec<_>>());
 
+    let mut scopes = BTreeMap::new();
+
+    for (idx, items) in rsm.scopes.iter().enumerate() {
+        match items.as_ref() {
+            None => continue,
+            Some(items) => {
+                scopes.insert(idx, scopes::decode_scopes(items)?);
+            }
+        }
+    }
+
     let mut sm = SourceMap::new(file, tokens, names, sources, source_content);
     sm.set_source_root(rsm.source_root);
     sm.set_debug_id(rsm.debug_id.into());
@@ -271,6 +285,8 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             sm.add_to_ignore_list(idx);
         }
     }
+
+    sm.scopes = scopes;
 
     Ok(sm)
 }
@@ -422,6 +438,7 @@ mod tests {
             range_mappings: None,
             mappings: None,
             ignore_list: None,
+            scopes: vec![],
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
@@ -450,6 +467,7 @@ mod tests {
             range_mappings: None,
             mappings: None,
             ignore_list: None,
+            scopes: vec![],
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
