@@ -161,6 +161,10 @@ fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u3
 /// `children` list contains the indices of its children (which precede it
 /// in the list).
 pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
+    if items.is_empty() {
+        return Ok(vec![]);
+    }
+
     // A stack of nested in-progress scopes.
     let mut in_progress = vec![];
     let mut state = DecodeScopeState::default();
