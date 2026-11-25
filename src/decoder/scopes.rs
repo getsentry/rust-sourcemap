@@ -40,6 +40,16 @@ struct DecodeScopeState {
     name_idx: IndexAccumulator,
     /// The running kind index.
     kind_idx: IndexAccumulator,
+    /// Buffer for decoding VLQs.
+    vlq_buffer: Vec<i64>,
+}
+
+impl DecodeScopeState {
+    fn decode_vlq(&mut self, segment: &str) -> Result<&[i64]> {
+        self.vlq_buffer.clear();
+        vlq::parse_vlq_segment_into(segment, &mut self.vlq_buffer)?;
+        Ok(&self.vlq_buffer[..])
+    }
 }
 
 /// Scope start entries are of the form
@@ -61,7 +71,7 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
     // Indicates that this scope creates a stack frame.
     const STACKFRAME_FLAG: u32 = 0x4;
 
-    let nums = vlq::parse_vlq_segment(item)?;
+    let nums = state.decode_vlq(item)?;
     if nums.len() < 3 {
         return Err(BadSegmentSize(nums.len() as u32));
     }
@@ -111,6 +121,7 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
         name_id,
         kind_id,
         is_stack_frame,
+        parent: None,
         children: Vec::new(),
     })
 }
@@ -124,7 +135,7 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
 /// This returns a `line` and `column` that are used to fill in the end position
 /// of the scope closed by this record.
 fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u32)> {
-    let nums = vlq::parse_vlq_segment(item)?;
+    let nums = state.decode_vlq(item)?;
     if nums.len() < 2 {
         return Err(BadSegmentSize(nums.len() as u32));
     }
@@ -145,8 +156,10 @@ fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u3
 /// currently handled.
 ///
 /// Scope trees are encoded by simply nesting `B` and `C` entries appropriately.
-/// The returned list of scopes contains the top-level scopes, which in turn
-/// contain their children.
+///
+/// The returned list contains the parsed scopes in post-order. Each scope's
+/// `children` list contains the indices of its children (which precede it
+/// in the list).
 pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
     // List of in-progress scopes, organized by nesting level.
     //
@@ -155,6 +168,7 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
     // which will be returned.
     let mut in_progress = vec![vec![]];
     let mut state = DecodeScopeState::default();
+    let mut out: Vec<RawOriginalScope> = Vec::new();
 
     for item in items.split(',') {
         match item.split_at_checked(1) {
@@ -186,7 +200,16 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
                 let (end_line, end_col) = decode_scope_end(end, &mut state)?;
                 current.end_line = end_line;
                 current.end_col = end_col;
-                current.children = children;
+
+                // Append the current scope's children to the output list and
+                // record their indices in the current scope.
+                for child in children {
+                    for &grandchild_idx in &child.children {
+                        out[grandchild_idx].parent = Some(out.len());
+                    }
+                    current.children.push(out.len());
+                    out.push(child);
+                }
             }
             Some(("D", _vars)) => {
                 // variables would be handled here
@@ -196,12 +219,19 @@ pub fn decode_scopes(items: &str) -> Result<Vec<RawOriginalScope>> {
     }
 
     // When we run out of items, exactly one layer of scopes (the top-level ones) should remain.
-    // Anything else indicates malfored data.
+    // Anything else indicates malformed data.
     if in_progress.len() != 1 {
         return Err(Error::InvalidScopes);
     }
 
-    Ok(in_progress.remove(0))
+    for scope in in_progress.remove(0) {
+        for &child_idx in &scope.children {
+            out[child_idx].parent = Some(out.len());
+        }
+        out.push(scope);
+    }
+
+    Ok(out)
 }
 
 /// Reinterprets a signed VLQ as an unsigned number.
@@ -226,4 +256,13 @@ fn unsigned(mut vlq: i32) -> u32 {
     }
 
     vlq as u32
+}
+
+#[test]
+fn test_decode_scopes() {
+    let input = "BCCAQ,BHAAAC,BCCaC,CDC,CCA,CCY";
+
+    let scopes = decode_scopes(input).unwrap();
+    dbg!(scopes);
+    panic!();
 }

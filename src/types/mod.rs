@@ -822,7 +822,8 @@ pub(crate) struct RawOriginalScope {
     pub(crate) name_id: u32,
     pub(crate) kind_id: u32,
     pub(crate) is_stack_frame: bool,
-    pub(crate) children: Vec<RawOriginalScope>,
+    pub(crate) children: Vec<usize>,
+    pub(crate) parent: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -832,6 +833,7 @@ pub struct OriginalScope<'a> {
 }
 
 impl<'a> OriginalScope<'a> {
+    /// The original name of this scope (e.g. the class or function name).
     pub fn get_name(&self) -> Option<&'a str> {
         if self.raw.name_id == !0 {
             None
@@ -840,12 +842,28 @@ impl<'a> OriginalScope<'a> {
         }
     }
 
+    /// Get this scope's kind.
     pub fn get_kind(&self) -> Option<&'a str> {
         if self.raw.kind_id == !0 {
             None
         } else {
             self.sm.get_name(self.raw.kind_id)
         }
+    }
+
+    /// Get the scope's (inclusive) start position.
+    pub fn get_start(&self) -> (u32, u32) {
+        (self.raw.start_line, self.raw.start_col)
+    }
+
+    /// Get the scope's (exclusive) end position.
+    pub fn get_end(&self) -> (u32, u32) {
+        (self.raw.end_line, self.raw.end_col)
+    }
+
+    /// Whether this scope would introduce a stack frame when run.
+    pub fn is_stack_frame(&self) -> bool {
+        self.raw.is_stack_frame
     }
 }
 
