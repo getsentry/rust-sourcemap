@@ -359,7 +359,7 @@ mod tests {
         assert_eq!(rv.as_str(), "AAAA");
         let rv = generate_vlq_segment(&[3, 0, 0, 4, 0]).unwrap();
         assert_eq!(rv.as_str(), "GAAIA");
-        let rv = generate_vlq_segment(&[u32::MIN as i64]).unwrap();
+        let rv = generate_vlq_segment(&[i32::MIN as i64]).unwrap();
         assert_eq!(rv.as_str(), "B");
     }
 
