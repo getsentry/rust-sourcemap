@@ -175,6 +175,7 @@ impl Encodable for SourceMap {
             } else {
                 Some(self.ignore_list.iter().cloned().collect())
             },
+            scopes: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
@@ -209,6 +210,7 @@ impl Encodable for SourceMapIndex {
             range_mappings: None,
             mappings: None,
             ignore_list: None,
+            scopes: None,
             x_facebook_offsets: None,
             x_metro_module_paths: None,
             x_facebook_sources: None,
@@ -272,6 +274,7 @@ mod tests {
                 range_mappings: None,
                 mappings: None,
                 ignore_list: None,
+                scopes: None,
                 x_facebook_offsets: None,
                 x_metro_module_paths: None,
                 x_facebook_sources: None,
@@ -301,6 +304,7 @@ mod tests {
                 range_mappings: None,
                 mappings: None,
                 ignore_list: None,
+                scopes: None,
                 x_facebook_offsets: None,
                 x_metro_module_paths: None,
                 x_facebook_sources: None,

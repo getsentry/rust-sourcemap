@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::Arc;
@@ -14,9 +14,11 @@ use crate::utils::{find_common_prefix, greatest_lower_bound};
 use debugid::DebugId;
 
 mod index;
+mod scope;
 mod token;
 
 pub use index::*;
+pub use scope::*;
 pub use token::*;
 
 /// Controls the `SourceMap::rewrite` behavior
@@ -244,6 +246,7 @@ pub struct SourceMap {
     pub(crate) sources_prefixed: Option<Vec<Arc<str>>>,
     pub(crate) sources_content: Vec<Option<SourceView>>,
     pub(crate) ignore_list: BTreeSet<u32>,
+    pub(crate) scopes: BTreeMap<usize, OriginalScopes>,
     pub(crate) debug_id: Option<DebugId>,
 }
 
@@ -370,6 +373,7 @@ impl SourceMap {
                 .map(|opt| opt.map(SourceView::new))
                 .collect(),
             ignore_list: BTreeSet::default(),
+            scopes: BTreeMap::new(),
             debug_id: None,
         }
     }
@@ -715,7 +719,6 @@ impl SourceMap {
         }
 
         /// Turns a list of tokens into a list of ranges, using the provided `key` function to determine the order of the tokens.
-        #[allow(clippy::ptr_arg)]
         fn create_ranges(
             tokens: &mut [RawToken],
             key: fn(&RawToken) -> (u32, u32),
@@ -814,7 +817,7 @@ impl SourceMap {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::{DecodedMap, RewriteOptions, SourceMap};
     use debugid::DebugId;
@@ -939,6 +942,7 @@ mod tests {
             sources_prefixed: None,
             sources_content: vec![],
             ignore_list: BTreeSet::new(),
+            scopes: BTreeMap::new(),
             debug_id: None,
         });
 
@@ -957,6 +961,7 @@ mod tests {
                 sources_prefixed: None,
                 sources_content: vec![],
                 ignore_list: BTreeSet::new(),
+                scopes: BTreeMap::new(),
                 debug_id: Some(DEBUG_ID.parse().expect("valid debug id")),
             })
         );
