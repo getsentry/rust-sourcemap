@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fixed a bug in VLQ de- and encoding by @loewenheim in [#143](https://github.com/getsentry/rust-sourcemap/pull/143), [#144](https://github.com/getsentry/rust-sourcemap/pull/144)
+
 ## 9.3.2
 
 - strip_identifier can cause a panic with cjk identifiers by @mznet in [#138](https://github.com/getsentry/rust-sourcemap/pull/138)
