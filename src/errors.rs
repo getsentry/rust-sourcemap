@@ -25,6 +25,8 @@ pub enum Error {
     VlqNoValues,
     /// Overflow in Vlq handling
     VlqOverflow,
+    /// Encoded VLQ data ended in a number that should have continued.
+    VlqTruncated,
     /// a mapping segment had an unsupported size
     BadSegmentSize(u32),
     /// a reference to a non existing source was encountered
@@ -114,6 +116,7 @@ impl fmt::Display for Error {
             Error::VlqLeftover => write!(f, "leftover cur/shift in vlq decode"),
             Error::VlqNoValues => write!(f, "vlq decode did not produce any values"),
             Error::VlqOverflow => write!(f, "vlq decode caused an overflow"),
+            Error::VlqTruncated => write!(f, "vlq decode encountered a truncated number"),
             Error::BadSegmentSize(size) => write!(f, "got {size} segments, expected 4 or 5"),
             Error::BadSourceReference(id) => write!(f, "bad reference to source #{id}"),
             Error::BadNameReference(id) => write!(f, "bad reference to name #{id}"),
