@@ -318,7 +318,13 @@ pub fn generate_vlq_segment(nums: &[i64]) -> Result<String> {
 }
 
 pub(crate) fn encode_vlq(out: &mut String, num: i64) {
-    let mut num = if num < 0 { ((-num) << 1) + 1 } else { num << 1 };
+    let mut num = if num == i32::MIN as i64 {
+        1
+    } else if num < 0 {
+        ((-num) << 1) + 1
+    } else {
+        num << 1
+    };
 
     loop {
         let mut digit = num & 0b11111;
@@ -353,6 +359,8 @@ mod tests {
         assert_eq!(rv.as_str(), "AAAA");
         let rv = generate_vlq_segment(&[3, 0, 0, 4, 0]).unwrap();
         assert_eq!(rv.as_str(), "GAAIA");
+        let rv = generate_vlq_segment(&[i32::MIN as i64]).unwrap();
+        assert_eq!(rv.as_str(), "B");
     }
 
     #[test]
