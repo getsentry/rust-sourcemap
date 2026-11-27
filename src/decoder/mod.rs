@@ -226,6 +226,8 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 current_name_id = running_name_id;
             }
 
+            vlqs.finished()?;
+
             let is_range = rmi.get(line_index).map(|v| *v).unwrap_or_default();
 
             tokens.push(RawToken {

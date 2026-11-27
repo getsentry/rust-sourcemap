@@ -140,6 +140,15 @@ impl<'a> DecodeVlqs<'a> {
     pub fn next_required(&mut self) -> Result<Vlq> {
         self.next()?.ok_or(Error::BadSegmentSize(self.returned))
     }
+
+    /// Returns an error if there is anything left in the segment.
+    pub fn finished(self) -> Result<()> {
+        let returned = self.returned;
+        match self.count()? {
+            0 => Ok(()),
+            n => Err(Error::BadSegmentSize(returned + n as u32)),
+        }
+    }
 }
 
 impl FallibleIterator for DecodeVlqs<'_> {
