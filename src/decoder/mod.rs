@@ -149,7 +149,7 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> Result<()> {
 }
 
 pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
-    let mut dst_col;
+    let mut dst_col: u32;
 
     // Source IDs, lines, columns, and names are "running" values.
     // Each token (except the first) contains the delta from the previous value.
@@ -176,7 +176,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             continue;
         }
 
-        dst_col = 0u32;
+        dst_col = 0;
 
         decode_rmi(rmi_str, &mut rmi)?;
 
@@ -199,7 +199,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             let mut current_name_id = !0;
 
             if let Some(running_src_id_incr) = vlqs.next()? {
-                // If he `running_src_id` exists, so must the `running_src_line` and the `running_src_col`.
+                // If the `running_src_id` exists, so must the `running_src_line` and the `running_src_col`.
                 running_src_id = running_src_id.saturating_add_signed(running_src_id_incr.signed());
                 running_src_line =
                     running_src_line.saturating_add_signed(vlqs.next_required()?.signed());

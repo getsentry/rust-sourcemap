@@ -1,5 +1,5 @@
 use crate::types::{OriginalScopes, RawOriginalScope};
-use crate::vlq::{self, Vlq};
+use crate::vlq;
 use crate::{Error, Result};
 
 #[derive(Debug, Clone, Default)]
@@ -28,24 +28,6 @@ impl IndexAccumulator {
     fn add(&mut self, incr: i32) -> u32 {
         self.0 = self.0.saturating_add_signed(incr);
         self.0
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-struct VlqBuffer(Vec<Vlq>);
-
-impl VlqBuffer {
-    fn inner_mut(&mut self) -> &mut Vec<Vlq> {
-        self.0.clear();
-        &mut self.0
-    }
-
-    fn get(&self, index: usize) -> Result<Vlq> {
-        let n = self
-            .0
-            .get(index)
-            .ok_or(Error::BadSegmentSize(self.0.len() as u32))?;
-        Ok(*n)
     }
 }
 

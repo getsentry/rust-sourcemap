@@ -1,5 +1,7 @@
 //! Implements utilities for dealing with the sourcemap vlq encoding.
 
+use std::fmt::{self, Write};
+
 use fallible_iterator::FallibleIterator;
 
 use crate::errors::{Error, Result};
@@ -14,14 +16,27 @@ const B64: [i8; 128] = [
     51, -1, -1, -1, -1, -1,
 ];
 
+/// A BASE64 VLQ (variable-length quantity) number parsed from a sourcemap.
+///
+/// These are defined in <https://tc39.es/ecma426/#sec-base64-vlq> in the
+/// sourcemap spec.
+///
+/// This type can be encoded back into a BASE64 string representation
+/// via its `Display` impl.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vlq(u32);
 
 impl Vlq {
+    /// Interprets the VLQ as an unsigned 32-bit number.
     pub fn unsigned(&self) -> u32 {
         self.0
     }
 
+    /// Interprets the VLQ as a signed 32-bit number.
+    ///
+    /// NB: This is _not_ equivalent to `Self::unsigned() as i32`.
+    /// See <https://tc39.es/ecma426/#sec-VLQSignedValue> for how
+    /// an unsigned value is converted to a signed one.
     pub fn signed(&self) -> i32 {
         let neg = (self.0 & 1) != 0;
         let out = (self.0 >> 1) as i32;
@@ -34,10 +49,12 @@ impl Vlq {
         }
     }
 
+    /// Constructs a `Self` from an unsinged 32-bit number.
     pub fn from_unsigned(value: u32) -> Self {
         Self(value)
     }
 
+    /// Constructs a `Self` from a signed 32-bit number.
     pub fn from_signed(value: i32) -> Self {
         if value == i32::MIN {
             Self(1)
@@ -48,13 +65,9 @@ impl Vlq {
         }
     }
 
-    pub fn encode(&self) -> VlqDigitIter {
-        VlqDigitIter {
-            current: self.0,
-            finished: false,
-        }
-    }
-
+    /// Decodes one `Self` from the front of a string slice,
+    /// returning the decoded VLQ and the rest of the string
+    /// slice if successful.
     pub fn decode(segment: &str) -> Result<(Self, &str)> {
         if segment.is_empty() {
             return Err(Error::VlqNoValues);
@@ -87,33 +100,30 @@ impl Vlq {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct VlqDigitIter {
-    current: u32,
-    finished: bool,
-}
+impl fmt::Display for Vlq {
+    /// Formats a VLQ as BASE64.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut current = self.0;
+        loop {
+            let mut digit = current & 0b11111;
+            current >>= 5;
 
-impl Iterator for VlqDigitIter {
-    type Item = char;
+            if current > 0 {
+                digit |= 1 << 5;
+            }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.finished {
-            return None;
+            f.write_char(B64_CHARS[digit as usize] as char)?;
+
+            if current == 0 {
+                break;
+            }
         }
 
-        let mut digit = self.current & 0b11111;
-        self.current >>= 5;
-
-        if self.current > 0 {
-            digit |= 1 << 5;
-        } else {
-            self.finished = true;
-        }
-
-        Some(B64_CHARS[digit as usize] as char)
+        Ok(())
     }
 }
 
+/// The iterator returned by [`decode_vlqs`].
 #[derive(Debug, Clone)]
 pub struct DecodeVlqs<'a> {
     returned: u32,
@@ -121,6 +131,11 @@ pub struct DecodeVlqs<'a> {
 }
 
 impl<'a> DecodeVlqs<'a> {
+    /// Returns the next decoded VLQ.
+    ///
+    /// Unlike [`next`](<Self as FallibleIterator>::next), this returns
+    /// an error if no VLQs are left in the segment. Use this in
+    /// situations where the absence of the next VLQ is an error.
     pub fn next_required(&mut self) -> Result<Vlq> {
         self.next()?.ok_or(Error::BadSegmentSize(self.returned))
     }
@@ -143,15 +158,13 @@ impl FallibleIterator for DecodeVlqs<'_> {
     }
 }
 
+/// Returns a [`FallibleIterator`] over the VLQs encoded in
+/// the provided string slice.
 pub fn decode_vlqs(segment: &str) -> DecodeVlqs<'_> {
     DecodeVlqs {
         current: segment,
         returned: 0,
     }
-}
-
-pub(crate) fn encode_vlq(out: &mut String, num: i64) {
-    out.extend(Vlq::from_signed(num as i32).encode())
 }
 
 #[cfg(test)]
@@ -168,12 +181,13 @@ mod tests {
         Ok(out)
     }
 
-    fn generate_vlq_segment(nums: &[i64]) -> Result<String> {
+    fn generate_vlq_segment_signed(nums: &[i32]) -> String {
         let mut rv = String::new();
-        for &num in nums {
-            encode_vlq(&mut rv, num);
+        for &n in nums {
+            write!(&mut rv, "{}", Vlq::from_signed(n)).unwrap();
         }
-        Ok(rv)
+
+        rv
     }
 
     #[test]
@@ -188,11 +202,11 @@ mod tests {
 
     #[test]
     fn test_vlq_encode() {
-        let rv = generate_vlq_segment(&[0, 0, 0, 0]).unwrap();
+        let rv = generate_vlq_segment_signed(&[0, 0, 0, 0]);
         assert_eq!(rv.as_str(), "AAAA");
-        let rv = generate_vlq_segment(&[3, 0, 0, 4, 0]).unwrap();
+        let rv = generate_vlq_segment_signed(&[3, 0, 0, 4, 0]);
         assert_eq!(rv.as_str(), "GAAIA");
-        let rv = generate_vlq_segment(&[i32::MIN as i64]).unwrap();
+        let rv = generate_vlq_segment_signed(&[i32::MIN]);
         assert_eq!(rv.as_str(), "B");
     }
 
