@@ -194,10 +194,9 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
 
                     // `column_incr` must exist, `name_index_incr` and `line_incr`
                     // are assumed zero if they're missing.
-                    let column_incr = vlqs.next().ok().flatten()?.signed();
-                    let name_index_incr =
-                        vlqs.next().ok().flatten().map(|n| n.signed()).unwrap_or(0);
-                    let line_incr = vlqs.next().ok().flatten().map(|n| n.signed()).unwrap_or(0);
+                    let column_incr = vlqs.next_required().ok()?.signed();
+                    let name_index_incr = vlqs.next().ok()?.map(|n| n.signed()).unwrap_or(0);
+                    let line_incr = vlqs.next().ok()?.map(|n| n.signed()).unwrap_or(0);
 
                     column = column.saturating_add_signed(column_incr);
                     name_index = name_index.saturating_add_signed(name_index_incr);
