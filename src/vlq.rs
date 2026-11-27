@@ -49,11 +49,6 @@ impl Vlq {
         }
     }
 
-    /// Constructs a `Self` from an unsinged 32-bit number.
-    pub fn from_unsigned(value: u32) -> Self {
-        Self(value)
-    }
-
     /// Constructs a `Self` from a signed 32-bit number.
     pub fn from_signed(value: i32) -> Self {
         if value == i32::MIN {
@@ -133,7 +128,7 @@ pub struct DecodeVlqs<'a> {
 impl<'a> DecodeVlqs<'a> {
     /// Returns the next decoded VLQ.
     ///
-    /// Unlike [`next`](<Self as FallibleIterator>::next), this returns
+    /// Unlike [`next`](Self::next), this returns
     /// an error if no VLQs are left in the segment. Use this in
     /// situations where the absence of the next VLQ is an error.
     pub fn next_required(&mut self) -> Result<Vlq> {
