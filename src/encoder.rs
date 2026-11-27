@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::io::Write;
 
 use bitvec::field::BitField;
@@ -8,7 +9,7 @@ use serde_json::Value;
 use crate::errors::Result;
 use crate::jsontypes::{RawSection, RawSectionOffset, RawSourceMap};
 use crate::types::{DecodedMap, SourceMap, SourceMapIndex};
-use crate::vlq::encode_vlq;
+use crate::vlq::Vlq;
 
 pub trait Encodable {
     fn as_raw_sourcemap(&self) -> RawSourceMap;
@@ -18,10 +19,6 @@ pub fn encode<M: Encodable, W: Write>(sm: &M, mut w: W) -> Result<()> {
     let ty = sm.as_raw_sourcemap();
     serde_json::to_writer(&mut w, &ty)?;
     Ok(())
-}
-
-fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
-    encode_vlq(out, i64::from(a) - i64::from(b))
 }
 
 fn encode_rmi(out: &mut Vec<u8>, data: &[u8]) {
@@ -100,6 +97,11 @@ fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
     }
 
     Some(String::from_utf8(buf).expect("invalid utf8"))
+}
+
+fn encode_vlq_diff(out: &mut String, x: u32, y: u32) {
+    let vlq = Vlq::from_signed((i64::from(x) - i64::from(y)) as i32);
+    let _ = write!(out, "{vlq}");
 }
 
 fn serialize_mappings(sm: &SourceMap) -> String {

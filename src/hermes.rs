@@ -4,10 +4,12 @@ use crate::errors::{Error, Result};
 use crate::jsontypes::{FacebookScopeMapping, FacebookSources, RawSourceMap};
 use crate::types::{DecodedMap, RewriteOptions, SourceMap};
 use crate::utils::greatest_lower_bound;
-use crate::vlq::parse_vlq_segment_into;
-use crate::Token;
+use crate::{vlq, Token};
+
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
+
+use fallible_iterator::FallibleIterator;
 
 /// These are starting locations of scopes.
 /// The `name_index` represents the index into the `HermesFunctionMap.names` vec,
@@ -164,8 +166,6 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
     // This is basically the logic from here:
     // https://github.com/facebook/metro/blob/63b523eb20e7bdf62018aeaf195bb5a3a1a67f36/packages/metro-symbolicate/src/SourceMetadataMapConsumer.js#L182-L202
 
-    let mut nums = Vec::with_capacity(4);
-
     let function_maps = x_facebook_sources
         .iter()
         .map(|v| {
@@ -175,28 +175,33 @@ pub fn decode_hermes(mut rsm: RawSourceMap) -> Result<SourceMapHermes> {
             } = v.as_ref()?.iter().next()?;
 
             let mut mappings = vec![];
-            let mut line = 1;
-            let mut name_index = 0;
+            let mut line: u32 = 1;
+            let mut name_index: u32 = 0;
 
             for line_mapping in raw_mappings.split(';') {
                 if line_mapping.is_empty() {
                     continue;
                 }
 
-                let mut column = 0;
+                let mut column: u32 = 0;
 
                 for mapping in line_mapping.split(',') {
                     if mapping.is_empty() {
                         continue;
                     }
 
-                    nums.clear();
-                    parse_vlq_segment_into(mapping, &mut nums).ok()?;
-                    let mut nums = nums.iter().copied();
+                    let mut vlqs = vlq::decode_vlqs(mapping);
 
-                    column = (i64::from(column) + nums.next()?) as u32;
-                    name_index = (i64::from(name_index) + nums.next().unwrap_or(0)) as u32;
-                    line = (i64::from(line) + nums.next().unwrap_or(0)) as u32;
+                    // `column_incr` must exist, `name_index_incr` and `line_incr`
+                    // are assumed zero if they're missing.
+                    let column_incr = vlqs.next_required().ok()?.signed();
+                    let name_index_incr = vlqs.next().ok()?.map(|n| n.signed()).unwrap_or(0);
+                    let line_incr = vlqs.next().ok()?.map(|n| n.signed()).unwrap_or(0);
+
+                    column = column.saturating_add_signed(column_incr);
+                    name_index = name_index.saturating_add_signed(name_index_incr);
+                    line = line.saturating_add_signed(line_incr);
+
                     mappings.push(HermesScopeOffset {
                         column,
                         line,

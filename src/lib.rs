@@ -75,4 +75,4 @@ mod utils;
 
 #[cfg(feature = "ram_bundle")]
 pub mod ram_bundle;
-pub mod vlq;
+mod vlq;
