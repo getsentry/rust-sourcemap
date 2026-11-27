@@ -1,5 +1,7 @@
 //! Implements utilities for dealing with the sourcemap vlq encoding.
 
+use fallible_iterator::FallibleIterator;
+
 use crate::errors::{Error, Result};
 
 const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -262,7 +264,7 @@ const B64: [i8; 256] = [
     -1,
 ];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vlq(u32);
 
 impl Vlq {
@@ -364,53 +366,38 @@ impl Iterator for VlqDigitIter {
 
 #[derive(Debug, Clone)]
 pub struct DecodeVlqs<'a> {
+    returned: u32,
     current: &'a str,
 }
 
-impl Iterator for DecodeVlqs<'_> {
-    type Item = Result<Vlq>;
+impl<'a> DecodeVlqs<'a> {
+    pub fn next_required(&mut self) -> Result<Vlq> {
+        self.next()?.ok_or(Error::BadSegmentSize(self.returned))
+    }
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
+impl FallibleIterator for DecodeVlqs<'_> {
+    type Item = Vlq;
+    type Error = Error;
+
+    fn next(&mut self) -> std::result::Result<Option<Self::Item>, Self::Error> {
         match Vlq::decode(self.current) {
             Ok((val, rest)) => {
                 self.current = rest;
-                Some(Ok(val))
+                self.returned += 1;
+                Ok(Some(val))
             }
-            Err(Error::VlqNoValues) => None,
-            Err(e) => Some(Err(e)),
+            Err(Error::VlqNoValues) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 }
 
 pub fn decode_vlqs(segment: &str) -> DecodeVlqs<'_> {
-    DecodeVlqs { current: segment }
-}
-
-/// Parses a VLQ segment into a vector.
-pub fn parse_vlq_segment(segment: &str) -> Result<Vec<i64>> {
-    let mut rv = vec![];
-
-    parse_vlq_segment_into(segment, &mut rv)?;
-
-    Ok(rv)
-}
-
-/// Parses a VLQ segment into a pre-allocated `Vec` instead of returning a new allocation.
-pub(crate) fn parse_vlq_segment_into(segment: &str, rv: &mut Vec<i64>) -> Result<()> {
-    for vlq in decode_vlqs(segment) {
-        let vlq = vlq?;
-        rv.push(vlq.signed() as i64);
+    DecodeVlqs {
+        current: segment,
+        returned: 0,
     }
-    Ok(())
-}
-
-/// Encodes a VLQ segment from a slice.
-pub fn generate_vlq_segment(nums: &[i64]) -> Result<String> {
-    let mut rv = String::new();
-    for &num in nums {
-        encode_vlq(&mut rv, num);
-    }
-    Ok(rv)
 }
 
 pub(crate) fn encode_vlq(out: &mut String, num: i64) {
@@ -421,14 +408,32 @@ pub(crate) fn encode_vlq(out: &mut String, num: i64) {
 mod tests {
     use super::*;
 
+    fn parse_vlq_segment_signed(segment: &str) -> Result<Vec<i32>> {
+        let mut out = Vec::new();
+        let mut vlqs = decode_vlqs(segment);
+        while let Some(vlq) = vlqs.next()? {
+            out.push(vlq.signed());
+        }
+
+        Ok(out)
+    }
+
+    fn generate_vlq_segment(nums: &[i64]) -> Result<String> {
+        let mut rv = String::new();
+        for &num in nums {
+            encode_vlq(&mut rv, num);
+        }
+        Ok(rv)
+    }
+
     #[test]
     fn test_vlq_decode() {
-        let rv = parse_vlq_segment("AAAA").unwrap();
-        assert_eq!(rv, vec![0, 0, 0, 0]);
-        let rv = parse_vlq_segment("GAAIA").unwrap();
+        let rv = parse_vlq_segment_signed("AAAA").unwrap();
+        assert_eq!(rv, [0, 0, 0, 0]);
+        let rv = parse_vlq_segment_signed("GAAIA").unwrap();
         assert_eq!(rv, vec![3, 0, 0, 4, 0]);
-        let rv = parse_vlq_segment("B").unwrap();
-        assert_eq!(rv, vec![i32::MIN as i64]);
+        let rv = parse_vlq_segment_signed("B").unwrap();
+        assert_eq!(rv, vec![i32::MIN]);
     }
 
     #[test]
@@ -443,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_overflow() {
-        match parse_vlq_segment("00000000000000") {
+        match parse_vlq_segment_signed("00000000000000") {
             Err(Error::VlqOverflow) => {}
             e => {
                 panic!("Unexpected result: {:?}", e);

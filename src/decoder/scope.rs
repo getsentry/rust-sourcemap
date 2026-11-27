@@ -1,5 +1,6 @@
 use crate::types::{OriginalScopes, RawOriginalScope};
-use crate::{vlq, Error, Result};
+use crate::vlq::{self, Vlq};
+use crate::{Error, Result};
 
 #[derive(Debug, Clone, Default)]
 struct PositionAccumulator {
@@ -31,20 +32,20 @@ impl IndexAccumulator {
 }
 
 #[derive(Debug, Clone, Default)]
-struct VlqBuffer(Vec<i64>);
+struct VlqBuffer(Vec<Vlq>);
 
 impl VlqBuffer {
-    fn inner_mut(&mut self) -> &mut Vec<i64> {
+    fn inner_mut(&mut self) -> &mut Vec<Vlq> {
         self.0.clear();
         &mut self.0
     }
 
-    fn get(&self, index: usize) -> Result<i32> {
+    fn get(&self, index: usize) -> Result<Vlq> {
         let n = self
             .0
             .get(index)
             .ok_or(Error::BadSegmentSize(self.0.len() as u32))?;
-        Ok(*n as i32)
+        Ok(*n)
     }
 }
 
@@ -57,15 +58,6 @@ struct DecodeScopeState {
     name_idx: IndexAccumulator,
     /// The running kind index.
     kind_idx: IndexAccumulator,
-    /// Buffer for decoding VLQs.
-    vlq_buffer: VlqBuffer,
-}
-
-impl DecodeScopeState {
-    fn decode_vlq(&mut self, segment: &str) -> Result<&VlqBuffer> {
-        vlq::parse_vlq_segment_into(segment, self.vlq_buffer.inner_mut())?;
-        Ok(&self.vlq_buffer)
-    }
 }
 
 /// Scope start entries are of the form
@@ -87,11 +79,11 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
     // Indicates that this scope creates a stack frame.
     const STACKFRAME_FLAG: u32 = 0x4;
 
-    let nums = state.decode_vlq(item)?;
+    let mut vlqs = vlq::decode_vlqs(item);
 
-    let flags = unsigned(nums.get(0)?);
-    let line = unsigned(nums.get(1)?);
-    let column = unsigned(nums.get(2)?);
+    let flags = vlqs.next_required()?.unsigned();
+    let line = vlqs.next_required()?.unsigned();
+    let column = vlqs.next_required()?.unsigned();
 
     let has_name = (flags & NAME_FLAG) > 0;
     let has_kind = (flags & KIND_FLAG) > 0;
@@ -99,14 +91,14 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
 
     let (name_id, kind_id) = match (has_name, has_kind) {
         (false, false) => (None, None),
-        (true, false) => (Some(nums.get(3)?), None),
-        (false, true) => (None, Some(nums.get(3)?)),
-        (true, true) => (Some(nums.get(3)?), Some(nums.get(4)?)),
+        (true, false) => (Some(vlqs.next_required()?), None),
+        (false, true) => (None, Some(vlqs.next_required()?)),
+        (true, true) => (Some(vlqs.next_required()?), Some(vlqs.next_required()?)),
     };
 
     let (start_line, start_col) = state.position.advance(line, column);
-    let name_id = name_id.map_or(u32::MAX, |name_incr| state.name_idx.add(name_incr));
-    let kind_id = kind_id.map_or(u32::MAX, |kind_incr| state.kind_idx.add(kind_incr));
+    let name_id = name_id.map_or(u32::MAX, |name_incr| state.name_idx.add(name_incr.signed()));
+    let kind_id = kind_id.map_or(u32::MAX, |kind_incr| state.kind_idx.add(kind_incr.signed()));
 
     Ok(RawOriginalScope {
         start_line,
@@ -130,9 +122,9 @@ fn decode_scope_start(item: &str, state: &mut DecodeScopeState) -> Result<RawOri
 /// This returns a `line` and `column` that are used to fill in the end position
 /// of the scope closed by this record.
 fn decode_scope_end(item: &str, state: &mut DecodeScopeState) -> Result<(u32, u32)> {
-    let nums = state.decode_vlq(item)?;
-    let line = unsigned(nums.get(0)?);
-    let column = unsigned(nums.get(1)?);
+    let mut vlqs = vlq::decode_vlqs(item);
+    let line = vlqs.next_required()?.unsigned();
+    let column = vlqs.next_required()?.unsigned();
 
     Ok(state.position.advance(line, column))
 }
@@ -216,28 +208,4 @@ pub fn decode_scopes(items: &str) -> Result<OriginalScopes> {
     }
 
     Ok(out)
-}
-
-/// Reinterprets a signed VLQ as an unsigned number.
-///
-/// This reverts the operation described in
-/// <https://tc39.es/ecma426/branch/proposal-scopes/#sec-VLQSignedValue>.
-fn unsigned(mut vlq: i32) -> u32 {
-    if vlq == i32::MIN {
-        return 1;
-    }
-
-    let neg = vlq < 0;
-
-    if neg {
-        vlq = -vlq;
-    }
-
-    vlq <<= 1;
-
-    if neg {
-        vlq |= 1;
-    }
-
-    vlq as u32
 }

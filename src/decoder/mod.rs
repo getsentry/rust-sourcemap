@@ -5,13 +5,14 @@ use std::io::{BufReader, Read};
 use bitvec::field::BitField;
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
+use fallible_iterator::FallibleIterator;
 use serde_json::Value;
 
 use crate::errors::{Error, Result};
 use crate::hermes::decode_hermes;
 use crate::jsontypes::RawSourceMap;
 use crate::types::{DecodedMap, RawToken, SourceMap, SourceMapIndex, SourceMapSection};
-use crate::vlq::parse_vlq_segment_into;
+use crate::vlq;
 
 mod scope;
 
@@ -152,10 +153,10 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
 
     // Source IDs, lines, columns, and names are "running" values.
     // Each token (except the first) contains the delta from the previous value.
-    let mut running_src_id = 0;
-    let mut running_src_line = 0;
-    let mut running_src_col = 0;
-    let mut running_name_id = 0;
+    let mut running_src_id: u32 = 0;
+    let mut running_src_line: u32 = 0;
+    let mut running_src_col: u32 = 0;
+    let mut running_name_id: u32 = 0;
 
     let names = rsm.names.unwrap_or_default();
     let sources = rsm.sources.unwrap_or_default();
@@ -164,7 +165,6 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
     let allocation_size = mappings.matches(&[',', ';'][..]).count() + 10;
     let mut tokens = Vec::with_capacity(allocation_size);
 
-    let mut nums = Vec::with_capacity(6);
     let mut rmi = BitVec::new();
 
     for (dst_line, (line, rmi_str)) in mappings
@@ -176,7 +176,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             continue;
         }
 
-        dst_col = 0;
+        dst_col = 0u32;
 
         decode_rmi(rmi_str, &mut rmi)?;
 
@@ -185,14 +185,10 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
                 continue;
             }
 
-            nums.clear();
-            parse_vlq_segment_into(segment, &mut nums)?;
-            match nums.len() {
-                1 | 4 | 5 => {}
-                _ => return Err(Error::BadSegmentSize(nums.len() as u32)),
-            }
+            let mut vlqs = vlq::decode_vlqs(segment);
 
-            dst_col = (i64::from(dst_col) + nums[0]) as u32;
+            // The `dst_col` must always exist.
+            dst_col = dst_col.saturating_add_signed(vlqs.next_required()?.signed());
 
             // The source file , source line, source column, and name
             // may not be present in the current token. We use `u32::MAX`
@@ -202,27 +198,32 @@ pub fn decode_regular(rsm: RawSourceMap) -> Result<SourceMap> {
             let mut current_src_col = !0;
             let mut current_name_id = !0;
 
-            if nums.len() > 1 {
-                running_src_id = (i64::from(running_src_id) + nums[1]) as u32;
+            if let Some(running_src_id_incr) = vlqs.next()? {
+                // If he `running_src_id` exists, so must the `running_src_line` and the `running_src_col`.
+                running_src_id = running_src_id.saturating_add_signed(running_src_id_incr.signed());
+                running_src_line =
+                    running_src_line.saturating_add_signed(vlqs.next_required()?.signed());
+                running_src_col =
+                    running_src_col.saturating_add_signed(vlqs.next_required()?.signed());
 
                 if running_src_id >= sources.len() as u32 {
                     return Err(Error::BadSourceReference(running_src_id));
                 }
 
-                running_src_line = (i64::from(running_src_line) + nums[2]) as u32;
-                running_src_col = (i64::from(running_src_col) + nums[3]) as u32;
-
                 current_src_id = running_src_id;
                 current_src_line = running_src_line;
                 current_src_col = running_src_col;
+            }
 
-                if nums.len() > 4 {
-                    running_name_id = (i64::from(running_name_id) + nums[4]) as u32;
-                    if running_name_id >= names.len() as u32 {
-                        return Err(Error::BadNameReference(running_name_id));
-                    }
-                    current_name_id = running_name_id;
+            if let Some(running_name_id_incr) = vlqs.next()? {
+                running_name_id =
+                    running_name_id.saturating_add_signed(running_name_id_incr.signed());
+
+                if running_name_id >= names.len() as u32 {
+                    return Err(Error::BadNameReference(running_name_id));
                 }
+
+                current_name_id = running_name_id;
             }
 
             let is_range = rmi.get(line_index).map(|v| *v).unwrap_or_default();
