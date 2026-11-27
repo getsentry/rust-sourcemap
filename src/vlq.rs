@@ -67,7 +67,7 @@ impl Vlq {
         if segment.is_empty() {
             return Err(Error::VlqNoValues);
         }
-        let mut cur = 0;
+        let mut cur: u32 = 0;
         let mut shift = 0;
 
         let mut chars = segment.chars();
@@ -81,7 +81,13 @@ impl Vlq {
             }
             let val = (enc & 0b11111) as u32;
             let finished = (enc >> 5) == 0;
-            cur += val.checked_shl(shift).ok_or(Error::VlqOverflow)?;
+
+            // Return an error if shifting left would discard digits
+            if val.highest_one().is_some_and(|idx| idx + shift >= 32) {
+                return Err(Error::VlqOverflow);
+            }
+
+            cur = cur.checked_add(val << shift).ok_or(Error::VlqOverflow)?;
             shift += 5;
 
             if finished {
