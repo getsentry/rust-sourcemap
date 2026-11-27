@@ -82,8 +82,9 @@ impl Vlq {
             let val = (enc & 0b11111) as u32;
             let finished = (enc >> 5) == 0;
 
-            // Return an error if shifting left would discard digits
-            if val.highest_one().is_some_and(|idx| idx + shift >= 32) {
+            // Return an error if shifting left would discard 1s or
+            // exceed 32 bits
+            if val.highest_one().unwrap_or(0) + shift >= 32 {
                 return Err(Error::VlqOverflow);
             }
 
